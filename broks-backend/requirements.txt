@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pgvector
+pydantic-settings
+pandas
+scikit-learn
+replicate
+moviepy
+alembic
