@@ -3,33 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KMD Assistant — АЛЬДМЕГА ЛАБ</title>
+    <title>KMD Assistant — ALDMEGA LAB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script>
     tailwind.config = {
         theme: {
             extend: {
                 fontFamily: {
-                    sans: ['Outfit', 'sans-serif'],
-                    mono: ['JetBrains Mono', 'monospace'],
+                    display: ['Cormorant Garamond', 'serif'],
+                    body: ['DM Sans', 'sans-serif'],
+                    mono: ['IBM Plex Mono', 'monospace'],
                 },
                 colors: {
-                    ink: {
-                        50: '#f8f9fa',
-                        100: '#f1f3f5',
-                        200: '#e9ecef',
-                        300: '#dee2e6',
-                        400: '#adb5bd',
-                        500: '#868e96',
-                        600: '#495057',
-                        700: '#343a40',
-                        800: '#212529',
-                        900: '#0d0f12',
-                    }
+                    canvas: { DEFAULT: '#F5F2EC', dark: '#EDE9E0', deep: '#E5E0D6' },
+                    carbon: { 50: '#F7F7F6', 100: '#EEEEE9', 200: '#DDDDD4', 300: '#C4C4B8', 400: '#9A9A8C', 500: '#717164', 600: '#565648', 700: '#3D3D32', 800: '#2A2A22', 900: '#1A1A14' },
+                    brass: { DEFAULT: '#B8963B', light: '#D4B66A', pale: '#F0E8D0', dark: '#8A7030' },
+                    status: { ok: '#4A7C59', warn: '#C4873B', fail: '#A14242', info: '#4A6FA5' }
                 }
             }
         }
@@ -37,181 +30,398 @@
     </script>
     <style>
         [x-cloak] { display: none !important; }
-        body { font-family: 'Outfit', sans-serif; }
+        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        body { font-family: 'DM Sans', sans-serif; background: #F5F2EC; color: #2A2A22; }
 
-        /* Subtle grid */
-        .grid-bg {
+        /* Architectural grid overlay */
+        .arch-grid {
             background-image:
-                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
-            background-size: 40px 40px;
+                linear-gradient(rgba(26,26,20,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(26,26,20,0.025) 1px, transparent 1px);
+            background-size: 60px 60px;
         }
 
-        /* Drop zone */
+        /* Grain texture */
+        .grain::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* Reveal animations */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes drawLine {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes progressFill {
+            from { width: 0; }
+        }
+        .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .fade-in { animation: fadeIn 0.5s ease both; }
+        .slide-right { animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .scale-in { animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .d1 { animation-delay: 80ms; }
+        .d2 { animation-delay: 160ms; }
+        .d3 { animation-delay: 240ms; }
+        .d4 { animation-delay: 320ms; }
+        .d5 { animation-delay: 400ms; }
+        .d6 { animation-delay: 480ms; }
+        .d7 { animation-delay: 560ms; }
+        .d8 { animation-delay: 640ms; }
+
+        /* Hero geometric animation */
+        @keyframes float1 { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(15px,-20px) rotate(3deg); } }
+        @keyframes float2 { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(-10px,15px) rotate(-2deg); } }
+        @keyframes float3 { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(8px,10px) rotate(1.5deg); } }
+        .geo-float-1 { animation: float1 12s ease-in-out infinite; }
+        .geo-float-2 { animation: float2 15s ease-in-out infinite; }
+        .geo-float-3 { animation: float3 10s ease-in-out infinite; }
+
+        /* Glass nav */
+        .glass-nav {
+            background: rgba(245, 242, 236, 0.85);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            border-bottom: 1px solid rgba(26,26,20,0.06);
+        }
+
+        /* Tab button */
+        .tab-btn {
+            position: relative;
+            padding: 0.5rem 1rem;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #9A9A8C;
+            transition: color 0.3s ease;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: #2A2A22; }
+        .tab-btn.active { color: #B8963B; }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 1rem;
+            right: 1rem;
+            height: 2px;
+            background: #B8963B;
+            animation: drawLine 0.3s ease both;
+        }
+
+        /* Drop zones */
         .drop-zone {
-            border: 1.5px dashed #dee2e6;
-            transition: all 0.25s ease;
+            border: 1.5px dashed #C4C4B8;
+            background: rgba(255,255,255,0.5);
+            border-radius: 12px;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
         }
         .drop-zone:hover {
-            border-color: #343a40;
-            background: #f8f9fa;
+            border-color: #B8963B;
+            background: rgba(255,255,255,0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(26,26,20,0.06);
         }
         .drop-zone.dragover {
-            border-color: #212529;
-            background: #f1f3f5;
-            transform: scale(1.005);
+            border-color: #B8963B;
+            background: #F0E8D0;
+            transform: translateY(-4px) scale(1.005);
+            box-shadow: 0 12px 40px rgba(184,150,59,0.12);
         }
         .drop-zone.loaded {
-            border-color: #212529;
-            border-style: solid;
-            background: #f8f9fa;
+            border: 1.5px solid #B8963B;
+            background: rgba(240,232,208,0.3);
         }
 
-        /* Table */
+        /* Cards */
+        .metric-card {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(26,26,20,0.06);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .metric-card:hover {
+            background: rgba(255,255,255,0.9);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(26,26,20,0.06);
+        }
+        .metric-card.accent-left { border-left: 3px solid #B8963B; }
+
+        /* Tables */
         .data-table { border-collapse: collapse; width: 100%; }
         .data-table thead th {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.625rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.5625rem;
             font-weight: 600;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: #868e96;
-            padding: 0.75rem 1rem;
-            border-bottom: 2px solid #212529;
+            color: #9A9A8C;
+            padding: 0.875rem 1.25rem;
+            border-bottom: 2px solid #2A2A22;
             text-align: left;
         }
         .data-table tbody td {
-            padding: 0.625rem 1rem;
+            padding: 0.75rem 1.25rem;
             font-size: 0.8125rem;
-            border-bottom: 1px solid #f1f3f5;
-            color: #495057;
+            border-bottom: 1px solid rgba(26,26,20,0.04);
+            color: #565648;
         }
-        .data-table tbody tr:hover { background: #f8f9fa; }
+        .data-table tbody tr { transition: background 0.2s ease; }
+        .data-table tbody tr:hover { background: rgba(255,255,255,0.6); }
 
-        /* Row status */
-        .row-removed { border-left: 3px solid #c92a2a; background: #fff5f5; }
-        .row-removed:hover { background: #ffe3e3; }
-        .row-extra { border-left: 3px solid #e67700; background: #fff9db; }
-        .row-extra:hover { background: #fff3bf; }
-        .row-changed-up { border-left: 3px solid #c92a2a; background: #fff5f5; }
-        .row-changed-up:hover { background: #ffe3e3; }
-        .row-changed-down { border-left: 3px solid #2b8a3e; background: #f4fce3; }
-        .row-changed-down:hover { background: #e9fac8; }
-        .row-color { border-left: 3px solid #7048e8; background: #f3f0ff; }
-        .row-color:hover { background: #e5dbff; }
+        /* Status rows */
+        .row-removed { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
+        .row-removed:hover { background: rgba(161,66,66,0.08); }
+        .row-extra { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.04); }
+        .row-extra:hover { background: rgba(196,135,59,0.08); }
+        .row-changed-up { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
+        .row-changed-down { border-left: 3px solid #4A7C59; background: rgba(74,124,89,0.04); }
+        .row-color { border-left: 3px solid #4A6FA5; background: rgba(74,111,165,0.04); }
+        .row-cv-match { border-left: 3px solid #4A7C59; background: rgba(74,124,89,0.04); }
+        .row-cv-missing { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
+        .row-cv-extra { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.04); }
+        .row-cv-mismatch { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.06); }
 
-        /* Cross-validation rows */
-        .row-cv-match { border-left: 3px solid #2b8a3e; background: #f4fce3; }
-        .row-cv-match:hover { background: #e9fac8; }
-        .row-cv-missing { border-left: 3px solid #c92a2a; background: #fff5f5; }
-        .row-cv-missing:hover { background: #ffe3e3; }
-        .row-cv-extra { border-left: 3px solid #e67700; background: #fff9db; }
-        .row-cv-extra:hover { background: #fff3bf; }
-        .row-cv-mismatch { border-left: 3px solid #e8aa04; background: #fffbe6; }
-        .row-cv-mismatch:hover { background: #fff7cc; }
-
-        .badge-cv-match { background: #e9fac8; color: #2b8a3e; }
-        .badge-cv-missing { background: #ffe3e3; color: #c92a2a; }
-        .badge-cv-extra { background: #fff3bf; color: #e67700; }
-        .badge-cv-mismatch { background: #fff7cc; color: #b58900; }
-
-        /* Badge */
+        /* Badges */
         .badge {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.625rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.5625rem;
             font-weight: 600;
-            padding: 0.1875rem 0.5rem;
-            border-radius: 2px;
+            padding: 0.25rem 0.625rem;
+            border-radius: 4px;
+            letter-spacing: 0.03em;
         }
-        .badge-removed { background: #ffe3e3; color: #c92a2a; }
-        .badge-changed { background: #ffe8cc; color: #e67700; }
-        .badge-extra { background: #fff3bf; color: #e67700; }
-        .badge-color { background: #e5dbff; color: #7048e8; }
+        .badge-removed { background: rgba(161,66,66,0.1); color: #A14242; }
+        .badge-changed { background: rgba(196,135,59,0.1); color: #C4873B; }
+        .badge-extra { background: rgba(196,135,59,0.1); color: #C4873B; }
+        .badge-color { background: rgba(74,111,165,0.1); color: #4A6FA5; }
+        .badge-cv-match { background: rgba(74,124,89,0.1); color: #4A7C59; }
+        .badge-cv-missing { background: rgba(161,66,66,0.1); color: #A14242; }
+        .badge-cv-extra { background: rgba(196,135,59,0.1); color: #C4873B; }
+        .badge-cv-mismatch { background: rgba(196,135,59,0.15); color: #8A7030; }
 
         /* Spinner */
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
-            width: 28px; height: 28px;
-            border: 2px solid #e9ecef;
-            border-top-color: #212529;
+            width: 32px; height: 32px;
+            border: 2px solid #DDDDD4;
+            border-top-color: #B8963B;
             border-radius: 50%;
-            animation: spin 0.7s linear infinite;
+            animation: spin 0.8s linear infinite;
         }
-
-        /* Reveal */
-        @keyframes reveal {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .reveal { animation: reveal 0.35s ease both; }
-        .d1 { animation-delay: 50ms; }
-        .d2 { animation-delay: 100ms; }
-        .d3 { animation-delay: 150ms; }
-        .d4 { animation-delay: 200ms; }
 
         /* Check icons */
-        .check-ok { color: #2b8a3e; }
-        .check-fail { color: #c92a2a; }
+        .check-ok { color: #4A7C59; }
+        .check-fail { color: #A14242; }
+
+        /* Progress bar animation */
+        .progress-bar-animated { animation: progressFill 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        /* Section panel */
+        .section-panel {
+            background: rgba(255,255,255,0.4);
+            border: 1px solid rgba(26,26,20,0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        /* CTA button */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 2rem;
+            background: #2A2A22;
+            color: #F5F2EC;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover { background: #B8963B; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(184,150,59,0.2); }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 1.25rem;
+            border: 1px solid #C4C4B8;
+            color: #565648;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.25s ease;
+        }
+        .btn-secondary:hover { border-color: #B8963B; color: #B8963B; background: rgba(184,150,59,0.04); }
+
+        /* Section heading */
+        .section-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 400;
+            font-size: 2rem;
+            color: #1A1A14;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        .section-subtitle {
+            font-size: 0.8125rem;
+            color: #9A9A8C;
+            margin-top: 0.5rem;
+            max-width: 32rem;
+            line-height: 1.6;
+        }
+        .section-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.5625rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #B8963B;
+        }
+
+        /* Divider with brass accent */
+        .brass-divider {
+            height: 1px;
+            background: linear-gradient(90deg, #B8963B, transparent);
+            margin: 2rem 0;
+            opacity: 0.3;
+        }
 
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #C4C4B8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #B8963B; }
+
+        /* Tab transition */
+        .tab-content { transition: opacity 0.3s ease, transform 0.3s ease; }
     </style>
 </head>
-<body class="bg-white min-h-screen grid-bg text-ink-800">
+<body class="min-h-screen arch-grid grain">
 
 <div x-data="app()" x-cloak>
 
-    <!-- Header -->
-    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-ink-200">
-        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-7 h-7 bg-ink-900 rounded flex items-center justify-center">
-                    <span class="font-mono text-[10px] font-bold text-white leading-none">K</span>
+    <!-- ===== HERO SECTION ===== -->
+    <div class="relative overflow-hidden" style="background: linear-gradient(135deg, #F5F2EC 0%, #EDE9E0 50%, #E5E0D6 100%);">
+        <!-- Geometric decorations -->
+        <svg class="absolute top-8 right-16 w-64 h-64 geo-float-1" viewBox="0 0 200 200" fill="none" style="opacity:0.04">
+            <rect x="20" y="20" width="160" height="160" stroke="#1A1A14" stroke-width="1"/>
+            <rect x="50" y="50" width="100" height="100" stroke="#1A1A14" stroke-width="0.5"/>
+            <line x1="20" y1="20" x2="180" y2="180" stroke="#1A1A14" stroke-width="0.5"/>
+        </svg>
+        <svg class="absolute bottom-4 left-20 w-40 h-40 geo-float-2" viewBox="0 0 200 200" fill="none" style="opacity:0.03">
+            <circle cx="100" cy="100" r="80" stroke="#B8963B" stroke-width="0.5"/>
+            <circle cx="100" cy="100" r="40" stroke="#B8963B" stroke-width="0.5"/>
+            <line x1="100" y1="20" x2="100" y2="180" stroke="#B8963B" stroke-width="0.5"/>
+        </svg>
+        <svg class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 geo-float-3" viewBox="0 0 400 400" fill="none" style="opacity:0.015">
+            <polygon points="200,20 380,190 320,380 80,380 20,190" stroke="#1A1A14" stroke-width="0.5"/>
+        </svg>
+
+        <div class="max-w-7xl mx-auto px-8 pt-10 pb-8 relative z-10">
+            <div class="flex items-end justify-between">
+                <div class="fade-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 border-2 border-carbon-900 rounded-lg flex items-center justify-center">
+                            <span class="font-mono text-sm font-bold text-carbon-900">K</span>
+                        </div>
+                        <div>
+                            <span class="font-mono text-[9px] font-semibold tracking-[0.2em] uppercase text-carbon-400">ALDMEGA LAB</span>
+                        </div>
+                    </div>
+                    <h1 class="font-display text-5xl font-300 text-carbon-900 tracking-tight leading-none" style="font-weight:300">
+                        KMD Assistant
+                    </h1>
+                    <p class="font-display text-xl text-carbon-400 mt-2 italic" style="font-weight:300">
+                        Intelligent Documentation Platform
+                    </p>
                 </div>
-                <div class="leading-tight">
-                    <span class="font-semibold text-sm text-ink-900 tracking-tight">KMD Assistant</span>
-                    <span class="text-ink-400 text-xs ml-1.5 font-light">АЛЬДМЕГА ЛАБ</span>
+                <div class="fade-up d3 hidden lg:block">
+                    <div class="flex items-center gap-6 text-right">
+                        <div>
+                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Version</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">2.0</p>
+                        </div>
+                        <div class="w-px h-8 bg-carbon-200"></div>
+                        <div>
+                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Modules</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">9</p>
+                        </div>
+                        <div class="w-px h-8 bg-carbon-200"></div>
+                        <div>
+                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Endpoints</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">12</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <nav class="flex gap-0.5">
+        </div>
+    </div>
+
+    <!-- ===== NAV BAR ===== -->
+    <nav class="glass-nav sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-8">
+            <div class="flex items-center gap-1 overflow-x-auto py-3" style="-ms-overflow-style:none;scrollbar-width:none;">
                 <template x-for="tab in [
                     {id: 'compare', label: 'Спецификации'},
                     {id: 'check', label: 'Проверка PDF'},
                     {id: 'parse', label: 'Парсинг КМД'},
                     {id: 'crossval', label: 'Кросс-валидация'},
                     {id: 'comparepdf', label: 'Сравнение PDF'},
+                    {id: 'genspec', label: 'Генерация'},
+                    {id: 'batch', label: 'Пакетная'},
+                    {id: 'checklist', label: 'Чек-лист'},
                     {id: 'dashboard', label: 'Дашборд'},
-                    {id: 'checklist', label: 'Чек-лист КМД'},
-                    {id: 'batch', label: 'Пакетная обработка'},
-                    {id: 'genspec', label: 'Спецификация'}
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
-                        :class="activeTab === tab.id
-                            ? 'bg-ink-900 text-white'
-                            : 'text-ink-500 hover:text-ink-800 hover:bg-ink-100'"
-                        class="px-3.5 py-1.5 rounded text-xs font-medium transition-all"
+                        :class="activeTab === tab.id ? 'active' : ''"
+                        class="tab-btn"
                         x-text="tab.label">
                     </button>
                 </template>
-            </nav>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <main class="max-w-6xl mx-auto px-6 py-10">
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="max-w-7xl mx-auto px-8 py-12">
 
-        <!-- ===== TAB 1: COMPARE ===== -->
-        <section x-show="activeTab === 'compare'" x-transition.opacity.duration.200ms>
+        <!-- ===== TAB 1: COMPARE SPECS ===== -->
+        <section x-show="activeTab === 'compare'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
 
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Сравнение спецификаций</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите исходную (А) и проверяемую (Б) заявки. Система найдёт расхождения по артикулам, количеству и цветам.</p>
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">01 / Comparison</p>
+                <h2 class="section-title">Сравнение спецификаций</h2>
+                <p class="section-subtitle">Загрузите исходную и проверяемую заявки. Система найдет расхождения по артикулам, количеству и цветам.</p>
             </div>
 
-            <!-- Upload -->
-            <div x-show="!compareResult" class="grid grid-cols-2 gap-5 mb-6">
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
+            <div x-show="!compareResult && !loading" class="grid grid-cols-2 gap-6 mb-8">
+                <div class="drop-zone p-10 text-center fade-up d1"
                      :class="{ 'dragover': dragA, 'loaded': fileA }"
                      @dragover.prevent="dragA = true" @dragleave="dragA = false"
                      @drop.prevent="dragA = false; fileA = $event.dataTransfer.files[0]"
@@ -219,21 +429,25 @@
                     <input type="file" x-ref="inputA" accept=".xlsx,.xls" class="hidden" @change="fileA = $event.target.files[0]">
                     <template x-if="!fileA">
                         <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="font-medium text-sm text-ink-700">Файл А — Исходник</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Перетащите XLSX или нажмите</p>
+                            <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                                <span class="font-display text-xl text-carbon-400">A</span>
+                            </div>
+                            <p class="font-body font-medium text-sm text-carbon-700">Файл А — Исходник</p>
+                            <p class="text-xs text-carbon-400 mt-1">Перетащите XLSX или нажмите</p>
                         </div>
                     </template>
                     <template x-if="fileA">
                         <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileA.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileA.size / 1024).toFixed(1) + ' KB'"></p>
+                            <div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <p class="font-mono text-sm font-medium text-carbon-800" x-text="fileA.name"></p>
+                            <p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileA.size / 1024).toFixed(1) + ' KB'"></p>
                         </div>
                     </template>
                 </div>
 
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
+                <div class="drop-zone p-10 text-center fade-up d2"
                      :class="{ 'dragover': dragB, 'loaded': fileB }"
                      @dragover.prevent="dragB = true" @dragleave="dragB = false"
                      @drop.prevent="dragB = false; fileB = $event.dataTransfer.files[0]"
@@ -241,70 +455,67 @@
                     <input type="file" x-ref="inputB" accept=".xlsx,.xls" class="hidden" @change="fileB = $event.target.files[0]">
                     <template x-if="!fileB">
                         <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="font-medium text-sm text-ink-700">Файл Б — Проверяемый</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Перетащите XLSX или нажмите</p>
+                            <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                                <span class="font-display text-xl text-carbon-400">B</span>
+                            </div>
+                            <p class="font-body font-medium text-sm text-carbon-700">Файл Б — Проверяемый</p>
+                            <p class="text-xs text-carbon-400 mt-1">Перетащите XLSX или нажмите</p>
                         </div>
                     </template>
                     <template x-if="fileB">
                         <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileB.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileB.size / 1024).toFixed(1) + ' KB'"></p>
+                            <div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <p class="font-mono text-sm font-medium text-carbon-800" x-text="fileB.name"></p>
+                            <p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileB.size / 1024).toFixed(1) + ' KB'"></p>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <div class="text-center mb-8" x-show="fileA && fileB && !compareResult && !loading">
-                <button @click="runCompare()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                    Сравнить
-                </button>
+            <div class="text-center mb-10" x-show="fileA && fileB && !compareResult && !loading">
+                <button @click="runCompare()" class="btn-primary">Сравнить</button>
             </div>
 
-            <!-- Loading -->
-            <div x-show="loading && activeTab === 'compare'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Анализ файлов...</p>
+            <div x-show="loading && activeTab === 'compare'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Анализ файлов</p>
             </div>
 
-            <!-- Results -->
-            <div x-show="compareResult" class="reveal">
-                <div class="grid grid-cols-4 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл А</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="compareResult?.summary?.total_a || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">позиций</p>
+            <div x-show="compareResult" class="fade-up">
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card fade-up">
+                        <p class="section-label mb-2">Файл А</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="compareResult?.summary?.total_a || 0"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">позиций</p>
                     </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл Б</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="compareResult?.summary?.total_b || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">позиций</p>
+                    <div class="metric-card fade-up d1">
+                        <p class="section-label mb-2">Файл Б</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="compareResult?.summary?.total_b || 0"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">позиций</p>
                     </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2" style="border-left:3px solid #c92a2a">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Дозаказать</p>
-                        <p class="text-2xl font-bold" style="color:#c92a2a" x-text="compareResult?.summary?.removed || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">нет в Б</p>
+                    <div class="metric-card fade-up d2" style="border-left:3px solid #A14242">
+                        <p class="section-label mb-2">Дозаказать</p>
+                        <p class="font-display text-3xl" style="color:#A14242" x-text="compareResult?.summary?.removed || 0"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">нет в Б</p>
                     </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3" style="border-left:3px solid #e67700">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Изменено</p>
-                        <p class="text-2xl font-bold" style="color:#e67700" x-text="compareResult?.summary?.changed || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">кол-во</p>
+                    <div class="metric-card fade-up d3" style="border-left:3px solid #C4873B">
+                        <p class="section-label mb-2">Изменено</p>
+                        <p class="font-display text-3xl" style="color:#C4873B" x-text="compareResult?.summary?.changed || 0"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">количество</p>
                     </div>
                 </div>
 
-                <div class="flex gap-2 mb-5">
-                    <a :href="compareResult?.download" x-show="compareResult?.download"
-                       class="inline-flex items-center gap-1.5 px-4 py-2 bg-ink-900 text-white text-xs font-semibold rounded hover:bg-ink-700 transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <div class="flex gap-3 mb-6">
+                    <a :href="compareResult?.download" x-show="compareResult?.download" class="btn-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         Скачать XLSX
                     </a>
-                    <button @click="resetCompare()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
+                    <button @click="resetCompare()" class="btn-secondary">Заново</button>
                 </div>
 
-                <div class="border border-ink-200 rounded-lg overflow-hidden">
+                <div class="section-panel overflow-hidden">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -325,12 +536,12 @@
                                     'row-extra': d.status === 'extra',
                                     'row-color': d.status === 'color',
                                 }">
-                                    <td class="font-mono font-semibold text-ink-900" x-text="d.article"></td>
-                                    <td class="text-ink-500 text-xs" x-text="d.description"></td>
+                                    <td class="font-mono font-semibold text-carbon-900" x-text="d.article"></td>
+                                    <td class="text-carbon-500 text-xs" x-text="d.description"></td>
                                     <td class="text-right font-mono" x-text="d.qty_a"></td>
                                     <td class="text-right font-mono" x-text="d.qty_b"></td>
                                     <td class="text-right font-mono font-bold"
-                                        :style="d.diff > 0 ? 'color:#c92a2a' : 'color:#2b8a3e'"
+                                        :style="d.diff > 0 ? 'color:#A14242' : 'color:#4A7C59'"
                                         x-text="d.diff > 0 ? '+' + d.diff : d.diff"></td>
                                     <td>
                                         <span :class="{
@@ -349,103 +560,86 @@
         </section>
 
         <!-- ===== TAB 2: CHECK PDF ===== -->
-        <section x-show="activeTab === 'check'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Проверка комплектности PDF</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с чертежами КМД. Система проверит наличие титульного листа, пояснительной записки и чертежей.</p>
+        <section x-show="activeTab === 'check'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">02 / Validation</p>
+                <h2 class="section-title">Проверка комплектности PDF</h2>
+                <p class="section-subtitle">Загрузите PDF с чертежами КМД. Система проверит наличие титульного листа, пояснительной записки и чертежей.</p>
             </div>
 
-            <div x-show="!checkResult && !loading">
-                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
+            <div x-show="!checkResult && !loading" class="fade-up d1">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
                      :class="{ 'dragover': dragPdf, 'loaded': filePdf }"
                      @dragover.prevent="dragPdf = true" @dragleave="dragPdf = false"
                      @drop.prevent="dragPdf = false; filePdf = $event.dataTransfer.files[0]"
                      @click="$refs.inputPdf.click()">
                     <input type="file" x-ref="inputPdf" accept=".pdf" class="hidden" @change="filePdf = $event.target.files[0]">
-                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <p class="font-medium text-sm text-ink-700" x-text="filePdf ? filePdf.name : 'Загрузите PDF'"></p>
-                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="filePdf ? (filePdf.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="filePdf ? filePdf.name : 'Загрузите PDF'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="filePdf ? (filePdf.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
                 </div>
-                <div class="text-center mt-6" x-show="filePdf">
-                    <button @click="runCheckPdf()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                        Проверить
-                    </button>
+                <div class="text-center mt-8" x-show="filePdf">
+                    <button @click="runCheckPdf()" class="btn-primary">Проверить</button>
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'check'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Анализ PDF...</p>
+            <div x-show="loading && activeTab === 'check'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Анализ PDF</p>
             </div>
 
-            <div x-show="checkResult" class="reveal">
-                <div class="mb-5">
-                    <button @click="checkResult = null; filePdf = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-3 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Страниц</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.total_pages"></p>
+            <div x-show="checkResult" class="fade-up">
+                <div class="mb-6"><button @click="checkResult = null; filePdf = null" class="btn-secondary">Заново</button></div>
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="metric-card fade-up">
+                        <p class="section-label mb-2">Страниц</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="checkResult?.total_pages"></p>
                     </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.positions?.length || 0"></p>
+                    <div class="metric-card fade-up d1">
+                        <p class="section-label mb-2">Позиций</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="checkResult?.positions?.length || 0"></p>
                     </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего изделий</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.total_positions || 0"></p>
+                    <div class="metric-card fade-up d2">
+                        <p class="section-label mb-2">Всего изделий</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="checkResult?.total_positions || 0"></p>
                     </div>
                 </div>
 
-                <!-- Checks -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Проверки</h3>
-                    <div class="space-y-2.5">
+                <div class="section-panel mb-6">
+                    <h3 class="section-label mb-5">Проверки</h3>
+                    <div class="space-y-3">
                         <template x-for="c in checkResult?.checks || []" :key="c.check">
                             <div class="flex items-center gap-3">
-                                <template x-if="c.passed">
-                                    <svg class="w-4 h-4 check-ok flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                </template>
-                                <template x-if="!c.passed">
-                                    <svg class="w-4 h-4 check-fail flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                                </template>
-                                <span class="text-sm" :class="c.passed ? 'text-ink-600' : 'text-ink-900 font-medium'" x-text="c.check"></span>
+                                <template x-if="c.passed"><svg class="w-4 h-4 check-ok flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></template>
+                                <template x-if="!c.passed"><svg class="w-4 h-4 check-fail flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template>
+                                <span class="text-sm" :class="c.passed ? 'text-carbon-500' : 'text-carbon-900 font-medium'" x-text="c.check"></span>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <!-- Doc composition -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Состав документа</h3>
+                <div class="section-panel mb-6">
+                    <h3 class="section-label mb-4">Состав документа</h3>
                     <div class="flex flex-wrap gap-2">
                         <template x-for="(count, type) in checkResult?.type_counts || {}" :key="type">
-                            <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-ink-50 rounded border border-ink-100">
-                                <span class="text-xs text-ink-600" x-text="type"></span>
-                                <span class="font-mono text-xs font-bold text-ink-900" x-text="count"></span>
+                            <div class="flex items-center gap-2 px-3 py-2 bg-white/60 rounded-lg border border-carbon-100">
+                                <span class="text-xs text-carbon-600" x-text="type"></span>
+                                <span class="font-mono text-xs font-bold text-carbon-900" x-text="count"></span>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <!-- Positions table -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden" x-show="checkResult?.positions?.length > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Позиции изделий</h3>
+                <div class="section-panel overflow-hidden" x-show="checkResult?.positions?.length > 0">
+                    <h3 class="section-label mb-4">Позиции изделий</h3>
                     <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Позиция</th>
-                                <th class="text-right">Количество</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Позиция</th><th class="text-right">Количество</th></tr></thead>
                         <tbody>
                             <template x-for="(p, i) in checkResult?.positions || []" :key="i">
                                 <tr>
-                                    <td class="font-mono font-semibold text-ink-900" x-text="p.pos"></td>
+                                    <td class="font-mono font-semibold text-carbon-900" x-text="p.pos"></td>
                                     <td class="text-right font-mono" x-text="p.qty + ' шт.'"></td>
                                 </tr>
                             </template>
@@ -456,290 +650,390 @@
         </section>
 
         <!-- ===== TAB 3: PARSE KMD ===== -->
-        <section x-show="activeTab === 'parse'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Парсинг КМД чертежей</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с КМД. Система извлечёт позиции, артикулы профилей, размеры и количество.</p>
+        <section x-show="activeTab === 'parse'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">03 / Extraction</p>
+                <h2 class="section-title">Парсинг КМД чертежей</h2>
+                <p class="section-subtitle">Загрузите PDF с КМД. Система извлечет позиции, артикулы профилей, размеры и количество.</p>
             </div>
 
-            <div x-show="!parseResult && !loading">
-                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
+            <div x-show="!parseResult && !loading" class="fade-up d1">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
                      :class="{ 'dragover': dragKmd, 'loaded': fileKmd }"
                      @dragover.prevent="dragKmd = true" @dragleave="dragKmd = false"
                      @drop.prevent="dragKmd = false; fileKmd = $event.dataTransfer.files[0]"
                      @click="$refs.inputKmd.click()">
                     <input type="file" x-ref="inputKmd" accept=".pdf" class="hidden" @change="fileKmd = $event.target.files[0]">
-                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
-                    <p class="font-medium text-sm text-ink-700" x-text="fileKmd ? fileKmd.name : 'Загрузите PDF с КМД'"></p>
-                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileKmd ? (fileKmd.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                    </div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="fileKmd ? fileKmd.name : 'Загрузите PDF с КМД'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileKmd ? (fileKmd.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
                 </div>
-                <div class="text-center mt-6" x-show="fileKmd">
-                    <button @click="runParseKmd()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                        Извлечь данные
-                    </button>
+                <div class="text-center mt-8" x-show="fileKmd">
+                    <button @click="runParseKmd()" class="btn-primary">Извлечь данные</button>
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'parse'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Парсинг чертежей...</p>
+            <div x-show="loading && activeTab === 'parse'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Парсинг чертежей</p>
             </div>
 
-            <div x-show="parseResult" class="reveal">
-                <div class="mb-5">
-                    <button @click="parseResult = null; fileKmd = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
+            <div x-show="parseResult" class="fade-up">
+                <div class="mb-6"><button @click="parseResult = null; fileKmd = null" class="btn-secondary">Заново</button></div>
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="parseResult?.total_positions"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Всего изделий</p><p class="font-display text-3xl text-carbon-900" x-text="parseResult?.total_items"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Артикулов</p><p class="font-display text-3xl text-carbon-900" x-text="parseResult?.articles_count"></p></div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.total_positions"></p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего изделий</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.total_items"></p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Артикулов</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.articles_count"></p>
-                    </div>
-                </div>
-
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Извлечённые позиции</h3>
+                <div class="section-panel overflow-hidden mb-6">
+                    <h3 class="section-label mb-4">Извлеченные позиции</h3>
                     <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Стр</th>
-                                <th>Позиция</th>
-                                <th class="text-right">Кол-во</th>
-                                <th>Артикулы</th>
-                                <th>Размеры</th>
-                                <th class="text-right">Ручка</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Стр</th><th>Позиция</th><th class="text-right">Кол-во</th><th>Артикулы</th><th>Размеры</th><th class="text-right">Ручка</th></tr></thead>
                         <tbody>
                             <template x-for="(item, i) in parseResult?.items || []" :key="i">
                                 <tr>
-                                    <td class="font-mono text-ink-400" x-text="item.page"></td>
-                                    <td class="font-mono font-bold text-ink-900" x-text="item.position"></td>
+                                    <td class="font-mono text-carbon-400" x-text="item.page"></td>
+                                    <td class="font-mono font-bold text-carbon-900" x-text="item.position"></td>
                                     <td class="text-right font-mono" x-text="item.quantity + ' шт.'"></td>
                                     <td>
                                         <div class="flex flex-wrap gap-1">
                                             <template x-for="a in item.articles.slice(0, 5)" :key="a">
-                                                <span class="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-[11px] text-ink-700" x-text="a"></span>
+                                                <span class="px-1.5 py-0.5 bg-white/80 rounded border border-carbon-100 font-mono text-[11px] text-carbon-700" x-text="a"></span>
                                             </template>
-                                            <span x-show="item.articles.length > 5" class="font-mono text-[11px] text-ink-400" x-text="'+' + (item.articles.length - 5)"></span>
+                                            <span x-show="item.articles.length > 5" class="font-mono text-[11px] text-carbon-400" x-text="'+' + (item.articles.length - 5)"></span>
                                         </div>
                                     </td>
-                                    <td class="font-mono text-[11px] text-ink-500" x-text="item.dimensions.join(' x ')"></td>
-                                    <td class="text-right font-mono text-ink-400" x-text="item.handle_height ? item.handle_height + ' мм' : '—'"></td>
+                                    <td class="font-mono text-[11px] text-carbon-500" x-text="item.dimensions.join(' x ')"></td>
+                                    <td class="text-right font-mono text-carbon-400" x-text="item.handle_height ? item.handle_height + ' мм' : ''"></td>
                                 </tr>
                             </template>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="border border-ink-200 rounded-lg p-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-3">
-                        Все артикулы <span class="text-ink-900 font-bold" x-text="parseResult?.articles_count"></span>
-                    </h3>
-                    <div class="flex flex-wrap gap-1.5">
+                <div class="section-panel">
+                    <h3 class="section-label mb-3">Все артикулы <span class="text-carbon-900 font-bold" x-text="parseResult?.articles_count"></span></h3>
+                    <div class="flex flex-wrap gap-2">
                         <template x-for="a in parseResult?.unique_articles || []" :key="a">
-                            <span class="px-2 py-1 bg-ink-50 border border-ink-100 rounded font-mono text-xs text-ink-700" x-text="a"></span>
+                            <span class="px-2.5 py-1.5 bg-white/60 border border-carbon-100 rounded-lg font-mono text-xs text-carbon-700" x-text="a"></span>
                         </template>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== TAB 4: DASHBOARD ===== -->
-        <section x-show="activeTab === 'dashboard'" x-transition.opacity.duration.200ms x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Дашборд</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Сводная статистика по всем операциям и журнал последних действий.</p>
+        <!-- ===== TAB 4: CROSS-VALIDATE ===== -->
+        <section x-show="activeTab === 'crossval'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">04 / Cross-validation</p>
+                <h2 class="section-title">Кросс-валидация</h2>
+                <p class="section-subtitle">Загрузите чертеж (PDF/DXF) и спецификацию (XLSX). Система сопоставит артикулы и количества между документами.</p>
             </div>
 
-            <div x-show="!dashStats" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Загрузка статистики...</p>
-            </div>
-
-            <div x-show="dashStats" class="reveal">
-                <!-- Stats cards -->
-                <div class="grid grid-cols-4 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего операций</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.total_operations || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">за сессию</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Сравнений</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.compare || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">спецификаций</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Проверок PDF</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.check_pdf || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">документов</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Парсинг КМД</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.parse_kmd || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">чертежей</p>
-                    </div>
-                </div>
-
-                <!-- Refresh button -->
-                <div class="mb-5">
-                    <button @click="loadStats()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Обновить
-                    </button>
-                </div>
-
-                <!-- Recent activity -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Последние операции</h3>
-                    <template x-if="(dashStats?.recent || []).length === 0">
-                        <div class="px-5 pb-5 pt-2">
-                            <p class="text-sm text-ink-400">Операций пока не было. Выполните сравнение, проверку или парсинг.</p>
+            <div x-show="!cvResult && !loading" class="grid grid-cols-2 gap-6 mb-8 fade-up d1">
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCvDraw, 'loaded': fileCvDraw }"
+                     @dragover.prevent="dragCvDraw = true" @dragleave="dragCvDraw = false"
+                     @drop.prevent="dragCvDraw = false; fileCvDraw = $event.dataTransfer.files[0]"
+                     @click="$refs.inputCvDraw.click()">
+                    <input type="file" x-ref="inputCvDraw" accept=".pdf,.dxf" class="hidden" @change="fileCvDraw = $event.target.files[0]">
+                    <template x-if="!fileCvDraw">
+                        <div>
+                            <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/></svg>
+                            </div>
+                            <p class="font-body font-medium text-sm text-carbon-700">Чертеж (PDF/DXF)</p>
+                            <p class="text-xs text-carbon-400 mt-1">Перетащите файл или нажмите</p>
                         </div>
                     </template>
-                    <template x-if="(dashStats?.recent || []).length > 0">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Время</th>
-                                    <th>Тип</th>
-                                    <th>Файл</th>
-                                    <th>Результат</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="(r, i) in dashStats?.recent || []" :key="i">
-                                    <tr>
-                                        <td class="font-mono text-ink-400 whitespace-nowrap" x-text="r.timestamp.split('T')[1] || r.timestamp"></td>
-                                        <td>
-                                            <span class="badge"
-                                                :class="{
-                                                    'bg-ink-100 text-ink-700': r.type === 'compare',
-                                                    'bg-ink-50 text-ink-600': r.type === 'check_pdf',
-                                                    'bg-ink-100 text-ink-800': r.type === 'parse_kmd',
-                                                    'bg-ink-50 text-ink-700': r.type === 'checklist',
-                                                    'bg-ink-100 text-ink-600': r.type === 'cross_validate',
-                                                }"
-                                                x-text="({compare:'Сравнение', check_pdf:'Проверка', parse_kmd:'Парсинг', checklist:'Чек-лист', cross_validate:'Кросс-вал.', compare_pdf:'Сравн. PDF'})[r.type] || r.type"></span>
-                                        </td>
-                                        <td class="font-mono text-xs text-ink-700 max-w-[200px] truncate" x-text="r.filename"></td>
-                                        <td class="text-xs text-ink-500" x-text="r.summary"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                    <template x-if="fileCvDraw">
+                        <div>
+                            <div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+                            <p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCvDraw.name"></p>
+                            <p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCvDraw.size / 1024).toFixed(1) + ' KB'"></p>
+                        </div>
                     </template>
+                </div>
+
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCvSpec, 'loaded': fileCvSpec }"
+                     @dragover.prevent="dragCvSpec = true" @dragleave="dragCvSpec = false"
+                     @drop.prevent="dragCvSpec = false; fileCvSpec = $event.dataTransfer.files[0]"
+                     @click="$refs.inputCvSpec.click()">
+                    <input type="file" x-ref="inputCvSpec" accept=".xlsx,.xls" class="hidden" @change="fileCvSpec = $event.target.files[0]">
+                    <template x-if="!fileCvSpec">
+                        <div>
+                            <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            </div>
+                            <p class="font-body font-medium text-sm text-carbon-700">Спецификация (XLSX)</p>
+                            <p class="text-xs text-carbon-400 mt-1">Перетащите файл или нажмите</p>
+                        </div>
+                    </template>
+                    <template x-if="fileCvSpec">
+                        <div>
+                            <div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+                            <p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCvSpec.name"></p>
+                            <p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCvSpec.size / 1024).toFixed(1) + ' KB'"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="text-center mb-10" x-show="fileCvDraw && fileCvSpec && !cvResult && !loading">
+                <button @click="runCrossValidate()" class="btn-primary">Сопоставить</button>
+            </div>
+
+            <div x-show="loading && activeTab === 'crossval'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Кросс-валидация</p>
+            </div>
+
+            <div x-show="cvResult" class="fade-up">
+                <div class="grid grid-cols-5 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Чертеж</p><p class="font-display text-3xl text-carbon-900" x-text="cvResult?.summary?.total_drawing_articles || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">артикулов</p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Спецификация</p><p class="font-display text-3xl text-carbon-900" x-text="cvResult?.summary?.total_spec_articles || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">артикулов</p></div>
+                    <div class="metric-card" style="border-left:3px solid #4A7C59"><p class="section-label mb-2">Совпадения</p><p class="font-display text-3xl" style="color:#4A7C59" x-text="cvResult?.summary?.matched || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="(cvResult?.summary?.match_rate || 0) + '%'"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #A14242"><p class="section-label mb-2">Нет в спец.</p><p class="font-display text-3xl" style="color:#A14242" x-text="cvResult?.summary?.missing_in_spec || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">дозаказать</p></div>
+                    <div class="metric-card" style="border-left:3px solid #C4873B"><p class="section-label mb-2">Расхождения</p><p class="font-display text-3xl" style="color:#C4873B" x-text="cvResult?.summary?.qty_mismatches || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">количество</p></div>
+                </div>
+                <div class="mb-6"><button @click="resetCrossValidate()" class="btn-secondary">Заново</button></div>
+
+                <div class="section-panel overflow-hidden mb-6">
+                    <h3 class="section-label mb-4">Результаты сопоставления</h3>
+                    <table class="data-table">
+                        <thead><tr><th>Артикул</th><th class="text-right">Чертеж</th><th class="text-right">Спец.</th><th class="text-right">Разница</th><th>Статус</th></tr></thead>
+                        <tbody>
+                            <template x-for="(m, i) in cvResult?.matches || []" :key="'m'+i">
+                                <tr class="row-cv-match"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono" style="color:#4A7C59">0</td><td><span class="badge badge-cv-match">Совпадение</span></td></tr>
+                            </template>
+                            <template x-for="(m, i) in cvResult?.qty_mismatches || []" :key="'q'+i">
+                                <tr class="row-cv-mismatch"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono font-bold" style="color:#8A7030" x-text="m.diff > 0 ? '+' + m.diff : m.diff"></td><td><span class="badge badge-cv-mismatch">Кол-во</span></td></tr>
+                            </template>
+                            <template x-for="(m, i) in cvResult?.missing_in_spec || []" :key="'mi'+i">
+                                <tr class="row-cv-missing"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono text-carbon-300">--</td><td class="text-right font-mono">--</td><td><span class="badge badge-cv-missing">Нет в спец.</span></td></tr>
+                            </template>
+                            <template x-for="(m, i) in cvResult?.extra_in_spec || []" :key="'e'+i">
+                                <tr class="row-cv-extra"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono text-carbon-300">--</td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono">--</td><td><span class="badge badge-cv-extra">Лишний</span></td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div x-show="(cvResult?.unlinked_positions || []).length > 0" class="section-panel">
+                    <h3 class="section-label mb-3">Позиции без артикулов <span class="text-carbon-900 font-bold" x-text="cvResult?.unlinked_positions?.length || 0"></span></h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="p in cvResult?.unlinked_positions || []" :key="p">
+                            <span class="px-2.5 py-1.5 bg-white/60 border border-carbon-100 rounded-lg font-mono text-xs text-carbon-700" x-text="p"></span>
+                        </template>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== TAB 5: CHECKLIST ===== -->
-        <section x-show="activeTab === 'checklist'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Чек-лист КМД</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с КМД. Система проверит документ по 8 категориям и покажет процент соответствия.</p>
+        <!-- ===== TAB 5: COMPARE PDF ===== -->
+        <section x-show="activeTab === 'comparepdf'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">05 / PDF Diff</p>
+                <h2 class="section-title">Сравнение версий PDF</h2>
+                <p class="section-subtitle">Загрузите две версии PDF КМД-документа. Система покажет удаленные, добавленные и измененные страницы.</p>
             </div>
 
-            <div x-show="!clResult && !loading">
-                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
-                     :class="{ 'dragover': dragCl, 'loaded': fileCl }"
-                     @dragover.prevent="dragCl = true" @dragleave="dragCl = false"
-                     @drop.prevent="dragCl = false; fileCl = $event.dataTransfer.files[0]"
-                     @click="$refs.inputCl.click()">
-                    <input type="file" x-ref="inputCl" accept=".pdf" class="hidden" @change="fileCl = $event.target.files[0]">
-                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                    <p class="font-medium text-sm text-ink-700" x-text="fileCl ? fileCl.name : 'Загрузите PDF для проверки'"></p>
-                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileCl ? (fileCl.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+            <div x-show="!cpResult && !loading" class="grid grid-cols-2 gap-6 mb-8 fade-up d1">
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpA, 'loaded': fileCpA }" @dragover.prevent="dragCpA = true" @dragleave="dragCpA = false" @drop.prevent="dragCpA = false; fileCpA = $event.dataTransfer.files[0]" @click="$refs.inputCpA.click()">
+                    <input type="file" x-ref="inputCpA" accept=".pdf" class="hidden" @change="fileCpA = $event.target.files[0]">
+                    <template x-if="!fileCpA"><div><div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><span class="font-display text-xl text-carbon-400">A</span></div><p class="font-body font-medium text-sm text-carbon-700">PDF версия А</p><p class="text-xs text-carbon-400 mt-1">Исходный документ</p></div></template>
+                    <template x-if="fileCpA"><div><div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div><p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCpA.name"></p><p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCpA.size / 1024 / 1024).toFixed(1) + ' MB'"></p></div></template>
                 </div>
-                <div class="text-center mt-6" x-show="fileCl">
-                    <button @click="runChecklist()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                        Проверить по чек-листу
-                    </button>
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpB, 'loaded': fileCpB }" @dragover.prevent="dragCpB = true" @dragleave="dragCpB = false" @drop.prevent="dragCpB = false; fileCpB = $event.dataTransfer.files[0]" @click="$refs.inputCpB.click()">
+                    <input type="file" x-ref="inputCpB" accept=".pdf" class="hidden" @change="fileCpB = $event.target.files[0]">
+                    <template x-if="!fileCpB"><div><div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><span class="font-display text-xl text-carbon-400">B</span></div><p class="font-body font-medium text-sm text-carbon-700">PDF версия Б</p><p class="text-xs text-carbon-400 mt-1">Исправленный документ</p></div></template>
+                    <template x-if="fileCpB"><div><div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div><p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCpB.name"></p><p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCpB.size / 1024 / 1024).toFixed(1) + ' MB'"></p></div></template>
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'checklist'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Проверка по чек-листу...</p>
-            </div>
+            <div class="text-center mb-10" x-show="fileCpA && fileCpB && !cpResult && !loading"><button @click="runComparePdf()" class="btn-primary">Сравнить версии</button></div>
+            <div x-show="loading && activeTab === 'comparepdf'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Сравнение версий PDF</p></div>
 
-            <div x-show="clResult" class="reveal">
-                <div class="mb-5 flex gap-2">
-                    <button @click="clResult = null; fileCl = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
+            <div x-show="cpResult" class="fade-up">
+                <div class="grid grid-cols-5 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Версия А</p><p class="font-display text-3xl text-carbon-900" x-text="cpResult?.pages_a || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">страниц</p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Версия Б</p><p class="font-display text-3xl text-carbon-900" x-text="cpResult?.pages_b || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">страниц</p></div>
+                    <div class="metric-card" style="border-left:3px solid #A14242"><p class="section-label mb-2">Удалено</p><p class="font-display text-3xl" style="color:#A14242" x-text="cpResult?.summary?.deleted_pages || 0"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #C4873B"><p class="section-label mb-2">Изменено</p><p class="font-display text-3xl" style="color:#C4873B" x-text="cpResult?.summary?.modified_pages || 0"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #4A7C59"><p class="section-label mb-2">Без изменений</p><p class="font-display text-3xl" style="color:#4A7C59" x-text="cpResult?.summary?.unchanged_pages || 0"></p></div>
                 </div>
 
-                <!-- Overall score bar -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-6 reveal">
+                <div class="section-panel mb-8">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400">Общий результат</h3>
-                        <span class="font-mono text-lg font-bold"
-                              :style="clResult?.score >= 80 ? 'color:#2b8a3e' : clResult?.score >= 50 ? 'color:#e67700' : 'color:#c92a2a'"
-                              x-text="clResult?.score + '%'"></span>
+                        <h3 class="section-label">Общая схожесть</h3>
+                        <span class="font-mono text-lg font-bold" :style="(cpResult?.summary?.overall_similarity || 0) >= 0.8 ? 'color:#4A7C59' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? 'color:#C4873B' : 'color:#A14242'" x-text="Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%'"></span>
                     </div>
-                    <div class="w-full bg-ink-100 rounded-full h-2.5">
-                        <div class="h-2.5 rounded-full transition-all duration-500"
-                             :style="'width:' + (clResult?.score || 0) + '%;background:' + (clResult?.score >= 80 ? '#2b8a3e' : clResult?.score >= 50 ? '#e67700' : '#c92a2a')">
-                        </div>
-                    </div>
-                    <p class="font-mono text-[10px] text-ink-400 mt-2">
-                        Пройдено <span class="text-ink-700 font-bold" x-text="clResult?.passed"></span> из <span class="text-ink-700 font-bold" x-text="clResult?.total"></span> проверок
-                    </p>
-                </div>
-
-                <!-- Stats cards -->
-                <div class="grid grid-cols-3 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Страниц</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="clResult?.total_pages || 0"></p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Категорий</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="clResult?.categories?.length || 0"></p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл</p>
-                        <p class="text-sm font-mono font-semibold text-ink-900 truncate" x-text="clResult?.filename || ''"></p>
+                    <div class="w-full bg-carbon-100 rounded-full h-2">
+                        <div class="h-2 rounded-full progress-bar-animated" :style="'width:' + Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%;background:' + ((cpResult?.summary?.overall_similarity || 0) >= 0.8 ? '#4A7C59' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? '#C4873B' : '#A14242')"></div>
                     </div>
                 </div>
 
-                <!-- Categories -->
+                <div class="mb-6"><button @click="resetComparePdf()" class="btn-secondary">Заново</button></div>
+
+                <div x-show="(cpResult?.deleted_pages || []).length > 0" class="section-panel overflow-hidden mb-6">
+                    <h3 class="section-label mb-4">Удаленные страницы</h3>
+                    <table class="data-table"><thead><tr><th>Стр. А</th><th>Тип</th><th>Содержимое</th></tr></thead>
+                        <tbody><template x-for="(p, i) in cpResult?.deleted_pages || []" :key="'del'+i"><tr class="row-removed"><td class="font-mono font-bold text-carbon-900" x-text="p.page"></td><td class="text-xs text-carbon-600" x-text="p.type"></td><td class="font-mono text-[11px] text-carbon-500 max-w-[400px] truncate" x-text="p.preview"></td></tr></template></tbody>
+                    </table>
+                </div>
+
+                <div x-show="(cpResult?.added_pages || []).length > 0" class="section-panel overflow-hidden mb-6">
+                    <h3 class="section-label mb-4">Добавленные страницы</h3>
+                    <table class="data-table"><thead><tr><th>Стр. Б</th><th>Тип</th><th>Содержимое</th></tr></thead>
+                        <tbody><template x-for="(p, i) in cpResult?.added_pages || []" :key="'add'+i"><tr style="border-left:3px solid #4A7C59; background:rgba(74,124,89,0.04);"><td class="font-mono font-bold text-carbon-900" x-text="p.page"></td><td class="text-xs text-carbon-600" x-text="p.type"></td><td class="font-mono text-[11px] text-carbon-500 max-w-[400px] truncate" x-text="p.preview"></td></tr></template></tbody>
+                    </table>
+                </div>
+
+                <div x-show="(cpResult?.modified_pages || []).length > 0" class="section-panel overflow-hidden mb-6">
+                    <h3 class="section-label mb-4">Измененные страницы</h3>
+                    <div class="divide-y divide-carbon-100">
+                        <template x-for="(m, i) in cpResult?.modified_pages || []" :key="'mod'+i">
+                            <div class="px-4 py-4">
+                                <div class="flex items-center gap-4 mb-3">
+                                    <span class="font-mono text-xs text-carbon-400">А:<span class="font-bold text-carbon-800 ml-1" x-text="m.page_a"></span></span>
+                                    <svg class="w-4 h-4 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                    <span class="font-mono text-xs text-carbon-400">Б:<span class="font-bold text-carbon-800 ml-1" x-text="m.page_b"></span></span>
+                                    <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg" :style="m.similarity >= 0.9 ? 'background:rgba(74,124,89,0.08);color:#4A7C59' : m.similarity >= 0.7 ? 'background:rgba(196,135,59,0.08);color:#C4873B' : 'background:rgba(161,66,66,0.08);color:#A14242'" x-text="Math.round(m.similarity * 100) + '% схожесть'"></span>
+                                </div>
+                                <div x-show="m.changes && m.changes.length > 0" class="bg-white/60 rounded-lg p-3 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto border border-carbon-100">
+                                    <template x-for="(ch, ci) in m.changes" :key="ci"><div :style="ch.startsWith('+') ? 'color:#4A7C59' : 'color:#A14242'" x-text="ch"></div></template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="section-panel" x-show="(cpResult?.kmd_changes?.removed_positions?.length || 0) + (cpResult?.kmd_changes?.added_positions?.length || 0) + (cpResult?.kmd_changes?.removed_articles?.length || 0) + (cpResult?.kmd_changes?.added_articles?.length || 0) + (cpResult?.kmd_changes?.quantity_changes?.length || 0) > 0">
+                    <h3 class="section-label mb-5">Изменения КМД-данных</h3>
+                    <div x-show="(cpResult?.kmd_changes?.removed_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.removed_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(161,66,66,0.08);color:#A14242" x-text="p"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.added_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.added_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(74,124,89,0.08);color:#4A7C59" x-text="p"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.removed_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.removed_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(161,66,66,0.08);color:#A14242" x-text="a"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.added_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.added_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(74,124,89,0.08);color:#4A7C59" x-text="a"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.quantity_changes || []).length > 0"><p class="text-xs font-medium text-carbon-600 mb-2">Изменения количества:</p><table class="data-table"><thead><tr><th>Позиция</th><th class="text-right">Было</th><th class="text-right">Стало</th><th class="text-right">Разница</th></tr></thead><tbody><template x-for="(q, qi) in cpResult?.kmd_changes?.quantity_changes || []" :key="qi"><tr><td class="font-mono font-bold text-carbon-900" x-text="q.position"></td><td class="text-right font-mono" x-text="q.old"></td><td class="text-right font-mono" x-text="q.new"></td><td class="text-right font-mono font-bold" :style="(q.new - q.old) > 0 ? 'color:#4A7C59' : 'color:#A14242'" x-text="(q.new - q.old) > 0 ? '+' + (q.new - q.old) : (q.new - q.old)"></td></tr></template></tbody></table></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 6: GENERATE SPEC ===== -->
+        <section x-show="activeTab === 'genspec'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">06 / Generation</p><h2 class="section-title">Генерация спецификации</h2><p class="section-subtitle">Загрузите чертеж (PDF или DXF). Система извлечет данные и сформирует XLSX спецификацию.</p></div>
+
+            <div x-show="!specResult && !loading" class="fade-up d1">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragSpec, 'loaded': fileSpec }" @dragover.prevent="dragSpec = true" @dragleave="dragSpec = false" @drop.prevent="dragSpec = false; fileSpec = $event.dataTransfer.files[0]" @click="$refs.inputSpec.click()">
+                    <input type="file" x-ref="inputSpec" accept=".pdf,.dxf" class="hidden" @change="fileSpec = $event.target.files[0]">
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="fileSpec ? fileSpec.name : 'Загрузите чертеж (PDF или DXF)'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileSpec ? (fileSpec.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-8" x-show="fileSpec"><button @click="runGenerateSpec()" class="btn-primary">Сгенерировать спецификацию</button></div>
+            </div>
+            <div x-show="loading && activeTab === 'genspec'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Генерация спецификации</p></div>
+
+            <div x-show="specResult" class="fade-up">
+                <div class="flex gap-3 mb-8">
+                    <a :href="specResult?.download" x-show="specResult?.download" class="btn-primary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Скачать XLSX</a>
+                    <button @click="specResult = null; fileSpec = null" class="btn-secondary">Заново</button>
+                </div>
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="specResult?.summary?.total_positions || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Артикулов</p><p class="font-display text-3xl text-carbon-900" x-text="specResult?.summary?.total_articles || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Изделий</p><p class="font-display text-3xl text-carbon-900" x-text="specResult?.summary?.total_items || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Источник</p><p class="font-mono text-sm font-semibold text-carbon-900 uppercase" x-text="specResult?.source_type || ''"></p><p class="font-mono text-[10px] text-carbon-400 truncate" x-text="specResult?.source_file || ''"></p></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-8" x-show="(specResult?.summary?.unique_colors || []).length > 0 || specResult?.summary?.dimension_range">
+                    <div class="section-panel" x-show="(specResult?.summary?.unique_colors || []).length > 0"><p class="section-label mb-3">Цвета</p><div class="flex flex-wrap gap-2"><template x-for="c in specResult?.summary?.unique_colors || []" :key="c"><span class="px-2.5 py-1.5 bg-white/60 border border-carbon-100 rounded-lg font-mono text-xs text-carbon-700" x-text="c"></span></template></div></div>
+                    <div class="section-panel" x-show="specResult?.summary?.dimension_range"><p class="section-label mb-3">Диапазон размеров</p><p class="font-mono text-sm text-carbon-900" x-text="specResult?.summary?.dimension_range"></p></div>
+                </div>
+                <div class="section-panel overflow-hidden">
+                    <h3 class="section-label mb-4">Предварительный просмотр</h3>
+                    <table class="data-table"><thead><tr><th>Стр</th><th>Позиция</th><th>Артикулы</th><th class="text-right">Кол-во</th><th>Цвет</th><th>Размеры</th></tr></thead>
+                        <tbody><template x-for="(pos, i) in specResult?.positions || []" :key="i"><tr><td class="font-mono text-carbon-400" x-text="pos.page"></td><td class="font-mono font-bold text-carbon-900" x-text="pos.position"></td><td><div class="flex flex-wrap gap-1"><template x-for="a in (pos.articles || []).slice(0, 4)" :key="a.article"><span class="px-1.5 py-0.5 bg-white/80 rounded border border-carbon-100 font-mono text-[11px] text-carbon-700" x-text="a.article"></span></template><span x-show="(pos.articles || []).length > 4" class="font-mono text-[11px] text-carbon-400" x-text="'+' + ((pos.articles || []).length - 4)"></span></div></td><td class="text-right font-mono" x-text="pos.quantity ? pos.quantity + ' шт.' : ''"></td><td class="font-mono text-xs text-carbon-600" x-text="pos.color || ''"></td><td class="font-mono text-[11px] text-carbon-500" x-text="pos.dimensions_str || ''"></td></tr></template></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 7: BATCH PROCESS ===== -->
+        <section x-show="activeTab === 'batch'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">07 / Batch</p><h2 class="section-title">Пакетная обработка</h2><p class="section-subtitle">Загрузите ZIP-архив с проектом КМД. Система автоматически обработает все PDF, DXF и XLSX файлы.</p></div>
+
+            <div x-show="!batchResult && !loading" class="fade-up d1">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragBatch, 'loaded': fileBatch }" @dragover.prevent="dragBatch = true" @dragleave="dragBatch = false" @drop.prevent="dragBatch = false; fileBatch = $event.dataTransfer.files[0]" @click="$refs.inputBatch.click()">
+                    <input type="file" x-ref="inputBatch" accept=".zip" class="hidden" @change="fileBatch = $event.target.files[0]">
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="fileBatch ? fileBatch.name : 'Загрузите ZIP-архив проекта'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileBatch ? (fileBatch.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите (до 100 МБ)'"></p>
+                </div>
+                <div class="text-center mt-8" x-show="fileBatch"><button @click="runBatch()" class="btn-primary">Обработать проект</button></div>
+            </div>
+            <div x-show="loading && activeTab === 'batch'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Пакетная обработка архива</p></div>
+
+            <div x-show="batchResult" class="fade-up">
+                <div class="mb-6"><button @click="batchResult = null; fileBatch = null" class="btn-secondary">Заново</button></div>
+                <div class="section-panel mb-8">
+                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общая оценка проекта</h3><span class="font-mono text-lg font-bold" :style="(batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? 'color:#4A7C59' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="(batchResult?.overall_summary?.avg_checklist_score || 0) + '%'"></span></div>
+                    <div class="w-full bg-carbon-100 rounded-full h-2"><div class="h-2 rounded-full progress-bar-animated" :style="'width:' + (batchResult?.overall_summary?.avg_checklist_score || 0) + '%;background:' + ((batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? '#4A7C59' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? '#C4873B' : '#A14242')"></div></div>
+                </div>
+                <div class="grid grid-cols-5 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Файлов</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_files || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Страниц PDF</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_pdf_pages || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_positions || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Артикулов</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_unique_articles || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Проблем</p><p class="font-display text-3xl" :style="(batchResult?.overall_summary?.critical_issues || 0) > 0 ? 'color:#A14242' : 'color:#4A7C59'" x-text="(batchResult?.overall_summary?.critical_issues || 0) + (batchResult?.overall_summary?.warnings || 0)"></p></div>
+                </div>
+
+                <div class="section-panel mb-6"><h3 class="section-label mb-4">Состав архива</h3><div class="flex flex-wrap gap-2"><template x-for="(files, type) in batchResult?.files_found || {}" :key="type"><template x-if="files.length > 0"><div class="flex items-center gap-2 px-3 py-2 bg-white/60 rounded-lg border border-carbon-100"><span class="font-mono text-[10px] font-bold text-carbon-700 uppercase" x-text="type"></span><span class="font-mono text-xs font-bold text-carbon-900" x-text="files.length"></span></div></template></template></div></div>
+
+                <div class="section-panel mb-6" x-show="(batchResult?.issues || []).length > 0"><h3 class="section-label mb-5">Замечания</h3><div class="space-y-3"><template x-for="(issue, i) in batchResult?.issues || []" :key="i"><div class="flex items-start gap-3"><template x-if="issue.severity === 'critical'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#A14242" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template><template x-if="issue.severity === 'warning'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></template><div><span class="text-sm font-medium" :style="issue.severity === 'critical' ? 'color:#A14242' : 'color:#C4873B'" x-text="issue.issue"></span><p class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="issue.file"></p></div></div></template></div></div>
+
+                <div class="section-panel overflow-hidden mb-6" x-show="(batchResult?.pdf_results || []).length > 0"><h3 class="section-label mb-4">Результаты PDF</h3><table class="data-table"><thead><tr><th>Файл</th><th class="text-right">Страниц</th><th class="text-right">Оценка</th><th class="text-right">Проверок</th><th class="text-right">Позиций</th><th class="text-right">Артикулов</th></tr></thead><tbody><template x-for="(r, i) in batchResult?.pdf_results || []" :key="i"><tr><td class="font-mono text-xs font-semibold text-carbon-900 max-w-[200px] truncate" x-text="r.filename"></td><td class="text-right font-mono" x-text="r.total_pages"></td><td class="text-right font-mono font-bold" :style="r.checklist_score >= 80 ? 'color:#4A7C59' : r.checklist_score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="r.checklist_score + '%'"></td><td class="text-right font-mono text-carbon-500" x-text="r.passed_checks + '/' + r.total_checks"></td><td class="text-right font-mono" x-text="r.positions_found"></td><td class="text-right font-mono" x-text="r.articles_found"></td></tr></template></tbody></table></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 8: CHECKLIST ===== -->
+        <section x-show="activeTab === 'checklist'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">08 / Quality</p><h2 class="section-title">Чек-лист КМД</h2><p class="section-subtitle">Загрузите PDF с КМД. Система проверит документ по 8 категориям и покажет процент соответствия.</p></div>
+
+            <div x-show="!clResult && !loading" class="fade-up d1">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragCl, 'loaded': fileCl }" @dragover.prevent="dragCl = true" @dragleave="dragCl = false" @drop.prevent="dragCl = false; fileCl = $event.dataTransfer.files[0]" @click="$refs.inputCl.click()">
+                    <input type="file" x-ref="inputCl" accept=".pdf" class="hidden" @change="fileCl = $event.target.files[0]">
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="fileCl ? fileCl.name : 'Загрузите PDF для проверки'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileCl ? (fileCl.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-8" x-show="fileCl"><button @click="runChecklist()" class="btn-primary">Проверить по чек-листу</button></div>
+            </div>
+            <div x-show="loading && activeTab === 'checklist'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Проверка по чек-листу</p></div>
+
+            <div x-show="clResult" class="fade-up">
+                <div class="mb-6"><button @click="clResult = null; fileCl = null" class="btn-secondary">Заново</button></div>
+                <div class="section-panel mb-8">
+                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общий результат</h3><span class="font-mono text-xl font-bold" :style="clResult?.score >= 80 ? 'color:#4A7C59' : clResult?.score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="clResult?.score + '%'"></span></div>
+                    <div class="w-full bg-carbon-100 rounded-full h-2.5"><div class="h-2.5 rounded-full progress-bar-animated" :style="'width:' + (clResult?.score || 0) + '%;background:' + (clResult?.score >= 80 ? '#4A7C59' : clResult?.score >= 50 ? '#C4873B' : '#A14242')"></div></div>
+                    <p class="font-mono text-[10px] text-carbon-400 mt-3">Пройдено <span class="text-carbon-700 font-bold" x-text="clResult?.passed"></span> из <span class="text-carbon-700 font-bold" x-text="clResult?.total"></span> проверок</p>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="metric-card"><p class="section-label mb-2">Страниц</p><p class="font-display text-3xl text-carbon-900" x-text="clResult?.total_pages || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Категорий</p><p class="font-display text-3xl text-carbon-900" x-text="clResult?.categories?.length || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Файл</p><p class="text-sm font-mono font-semibold text-carbon-900 truncate" x-text="clResult?.filename || ''"></p></div>
+                </div>
                 <div class="space-y-4">
                     <template x-for="(cat, ci) in clResult?.categories || []" :key="ci">
-                        <div class="border border-ink-200 rounded-lg p-5 reveal">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400" x-text="cat.name"></h3>
-                                <span class="font-mono text-xs font-bold"
-                                      :style="cat.checks.filter(c => c.passed).length === cat.checks.length ? 'color:#2b8a3e' : 'color:#e67700'"
-                                      x-text="cat.checks.filter(c => c.passed).length + '/' + cat.checks.length"></span>
-                            </div>
-                            <div class="space-y-2.5">
+                        <div class="section-panel">
+                            <div class="flex items-center justify-between mb-5"><h3 class="section-label" x-text="cat.name"></h3><span class="font-mono text-xs font-bold" :style="cat.checks.filter(c => c.passed).length === cat.checks.length ? 'color:#4A7C59' : 'color:#C4873B'" x-text="cat.checks.filter(c => c.passed).length + '/' + cat.checks.length"></span></div>
+                            <div class="space-y-3">
                                 <template x-for="(ch, chi) in cat.checks" :key="chi">
                                     <div class="flex items-start gap-3">
-                                        <template x-if="ch.passed">
-                                            <svg class="w-4 h-4 check-ok flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                        </template>
-                                        <template x-if="!ch.passed">
-                                            <svg class="w-4 h-4 check-fail flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                                        </template>
-                                        <div>
-                                            <span class="text-sm" :class="ch.passed ? 'text-ink-600' : 'text-ink-900 font-medium'" x-text="ch.name"></span>
-                                            <p x-show="ch.detail" class="font-mono text-[10px] text-ink-400 mt-0.5" x-text="ch.detail"></p>
-                                        </div>
+                                        <template x-if="ch.passed"><svg class="w-4 h-4 check-ok flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></template>
+                                        <template x-if="!ch.passed"><svg class="w-4 h-4 check-fail flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template>
+                                        <div><span class="text-sm" :class="ch.passed ? 'text-carbon-500' : 'text-carbon-900 font-medium'" x-text="ch.name"></span><p x-show="ch.detail" class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="ch.detail"></p></div>
                                     </div>
                                 </template>
                             </div>
@@ -749,775 +1043,65 @@
             </div>
         </section>
 
-        <!-- ===== TAB 6: CROSS-VALIDATE ===== -->
-        <section x-show="activeTab === 'crossval'" x-transition.opacity.duration.200ms>
+        <!-- ===== TAB 9: DASHBOARD ===== -->
+        <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">09 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
 
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Кросс-валидация</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите чертёж (PDF/DXF) и спецификацию (XLSX). Система сопоставит артикулы и количества между документами.</p>
-            </div>
+            <div x-show="!dashStats" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Загрузка статистики</p></div>
 
-            <!-- Upload -->
-            <div x-show="!cvResult && !loading" class="grid grid-cols-2 gap-5 mb-6">
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
-                     :class="{ 'dragover': dragCvDraw, 'loaded': fileCvDraw }"
-                     @dragover.prevent="dragCvDraw = true" @dragleave="dragCvDraw = false"
-                     @drop.prevent="dragCvDraw = false; fileCvDraw = $event.dataTransfer.files[0]"
-                     @click="$refs.inputCvDraw.click()">
-                    <input type="file" x-ref="inputCvDraw" accept=".pdf,.dxf" class="hidden" @change="fileCvDraw = $event.target.files[0]">
-                    <template x-if="!fileCvDraw">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
-                            <p class="font-medium text-sm text-ink-700">Чертёж (PDF/DXF)</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Перетащите файл или нажмите</p>
-                        </div>
-                    </template>
-                    <template x-if="fileCvDraw">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileCvDraw.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileCvDraw.size / 1024).toFixed(1) + ' KB'"></p>
-                        </div>
-                    </template>
+            <div x-show="dashStats" class="fade-up">
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left"><p class="section-label mb-2">Всего операций</p><p class="font-display text-3xl text-carbon-900" x-text="dashStats?.total_operations || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">за сессию</p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Сравнений</p><p class="font-display text-3xl text-carbon-900" x-text="dashStats?.counters?.compare || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Проверок PDF</p><p class="font-display text-3xl text-carbon-900" x-text="dashStats?.counters?.check_pdf || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Парсинг КМД</p><p class="font-display text-3xl text-carbon-900" x-text="dashStats?.counters?.parse_kmd || 0"></p></div>
                 </div>
+                <div class="mb-6"><button @click="loadStats()" class="btn-secondary">Обновить</button></div>
 
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
-                     :class="{ 'dragover': dragCvSpec, 'loaded': fileCvSpec }"
-                     @dragover.prevent="dragCvSpec = true" @dragleave="dragCvSpec = false"
-                     @drop.prevent="dragCvSpec = false; fileCvSpec = $event.dataTransfer.files[0]"
-                     @click="$refs.inputCvSpec.click()">
-                    <input type="file" x-ref="inputCvSpec" accept=".xlsx,.xls" class="hidden" @change="fileCvSpec = $event.target.files[0]">
-                    <template x-if="!fileCvSpec">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="font-medium text-sm text-ink-700">Спецификация (XLSX)</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Перетащите файл или нажмите</p>
-                        </div>
-                    </template>
-                    <template x-if="fileCvSpec">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileCvSpec.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileCvSpec.size / 1024).toFixed(1) + ' KB'"></p>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <div class="text-center mb-8" x-show="fileCvDraw && fileCvSpec && !cvResult && !loading">
-                <button @click="runCrossValidate()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                    Сопоставить
-                </button>
-            </div>
-
-            <!-- Loading -->
-            <div x-show="loading && activeTab === 'crossval'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Кросс-валидация документов...</p>
-            </div>
-
-            <!-- Results -->
-            <div x-show="cvResult" class="reveal">
-
-                <!-- Summary cards -->
-                <div class="grid grid-cols-5 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Чертёж</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="cvResult?.summary?.total_drawing_articles || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">артикулов</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Спецификация</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="cvResult?.summary?.total_spec_articles || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">артикулов</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2" style="border-left:3px solid #2b8a3e">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Совпадения</p>
-                        <p class="text-2xl font-bold" style="color:#2b8a3e" x-text="cvResult?.summary?.matched || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400" x-text="(cvResult?.summary?.match_rate || 0) + '%'"></p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3" style="border-left:3px solid #c92a2a">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Нет в спец.</p>
-                        <p class="text-2xl font-bold" style="color:#c92a2a" x-text="cvResult?.summary?.missing_in_spec || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">дозаказать</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d4" style="border-left:3px solid #e8aa04">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Расхождения</p>
-                        <p class="text-2xl font-bold" style="color:#e8aa04" x-text="cvResult?.summary?.qty_mismatches || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">кол-во</p>
-                    </div>
-                </div>
-
-                <div class="flex gap-2 mb-5">
-                    <button @click="resetCrossValidate()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
-                </div>
-
-                <!-- Results table -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Результаты сопоставления</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Артикул</th>
-                                <th class="text-right">Чертёж</th>
-                                <th class="text-right">Спец.</th>
-                                <th class="text-right">Разница</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Matches -->
-                            <template x-for="(m, i) in cvResult?.matches || []" :key="'m'+i">
-                                <tr class="row-cv-match">
-                                    <td class="font-mono font-semibold text-ink-900" x-text="m.article"></td>
-                                    <td class="text-right font-mono" x-text="m.drawing_qty"></td>
-                                    <td class="text-right font-mono" x-text="m.spec_qty"></td>
-                                    <td class="text-right font-mono" style="color:#2b8a3e">0</td>
-                                    <td><span class="badge badge-cv-match">Совпадение</span></td>
-                                </tr>
-                            </template>
-                            <!-- Qty mismatches -->
-                            <template x-for="(m, i) in cvResult?.qty_mismatches || []" :key="'q'+i">
-                                <tr class="row-cv-mismatch">
-                                    <td class="font-mono font-semibold text-ink-900" x-text="m.article"></td>
-                                    <td class="text-right font-mono" x-text="m.drawing_qty"></td>
-                                    <td class="text-right font-mono" x-text="m.spec_qty"></td>
-                                    <td class="text-right font-mono font-bold" style="color:#b58900" x-text="m.diff > 0 ? '+' + m.diff : m.diff"></td>
-                                    <td><span class="badge badge-cv-mismatch">Кол-во</span></td>
-                                </tr>
-                            </template>
-                            <!-- Missing in spec -->
-                            <template x-for="(m, i) in cvResult?.missing_in_spec || []" :key="'mi'+i">
-                                <tr class="row-cv-missing">
-                                    <td class="font-mono font-semibold text-ink-900" x-text="m.article"></td>
-                                    <td class="text-right font-mono" x-text="m.drawing_qty"></td>
-                                    <td class="text-right font-mono text-ink-300">--</td>
-                                    <td class="text-right font-mono">--</td>
-                                    <td><span class="badge badge-cv-missing">Нет в спец.</span></td>
-                                </tr>
-                            </template>
-                            <!-- Extra in spec -->
-                            <template x-for="(m, i) in cvResult?.extra_in_spec || []" :key="'e'+i">
-                                <tr class="row-cv-extra">
-                                    <td class="font-mono font-semibold text-ink-900" x-text="m.article"></td>
-                                    <td class="text-right font-mono text-ink-300">--</td>
-                                    <td class="text-right font-mono" x-text="m.spec_qty"></td>
-                                    <td class="text-right font-mono">--</td>
-                                    <td><span class="badge badge-cv-extra">Лишний</span></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Unlinked positions -->
-                <div x-show="(cvResult?.unlinked_positions || []).length > 0" class="border border-ink-200 rounded-lg p-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-3">
-                        Позиции без артикулов <span class="text-ink-900 font-bold" x-text="cvResult?.unlinked_positions?.length || 0"></span>
-                    </h3>
-                    <div class="flex flex-wrap gap-1.5">
-                        <template x-for="p in cvResult?.unlinked_positions || []" :key="p">
-                            <span class="px-2 py-1 bg-ink-50 border border-ink-100 rounded font-mono text-xs text-ink-700" x-text="p"></span>
-                        </template>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== TAB 7: BATCH PROCESS ===== -->
-        <section x-show="activeTab === 'batch'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Пакетная обработка</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите ZIP-архив с проектом КМД. Система автоматически обработает все PDF, DXF и XLSX файлы и выдаст единый отчёт.</p>
-            </div>
-
-            <div x-show="!batchResult && !loading">
-                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
-                     :class="{ 'dragover': dragBatch, 'loaded': fileBatch }"
-                     @dragover.prevent="dragBatch = true" @dragleave="dragBatch = false"
-                     @drop.prevent="dragBatch = false; fileBatch = $event.dataTransfer.files[0]"
-                     @click="$refs.inputBatch.click()">
-                    <input type="file" x-ref="inputBatch" accept=".zip" class="hidden" @change="fileBatch = $event.target.files[0]">
-                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-                    <p class="font-medium text-sm text-ink-700" x-text="fileBatch ? fileBatch.name : 'Загрузите ZIP-архив проекта'"></p>
-                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileBatch ? (fileBatch.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите (до 100 МБ)'"></p>
-                </div>
-                <div class="text-center mt-6" x-show="fileBatch">
-                    <button @click="runBatch()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                        Обработать проект
-                    </button>
-                </div>
-            </div>
-
-            <div x-show="loading && activeTab === 'batch'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Пакетная обработка архива...</p>
-            </div>
-
-            <div x-show="batchResult" class="reveal">
-                <div class="mb-5">
-                    <button @click="batchResult = null; fileBatch = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
-                </div>
-
-                <!-- Overall score bar -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-6 reveal">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400">Общая оценка проекта</h3>
-                        <span class="font-mono text-lg font-bold"
-                              :style="(batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? 'color:#2b8a3e' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? 'color:#e67700' : 'color:#c92a2a'"
-                              x-text="(batchResult?.overall_summary?.avg_checklist_score || 0) + '%'"></span>
-                    </div>
-                    <div class="w-full bg-ink-100 rounded-full h-2.5">
-                        <div class="h-2.5 rounded-full transition-all duration-500"
-                             :style="'width:' + (batchResult?.overall_summary?.avg_checklist_score || 0) + '%;background:' + ((batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? '#2b8a3e' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? '#e67700' : '#c92a2a')">
-                        </div>
-                    </div>
-                    <p class="font-mono text-[10px] text-ink-400 mt-2">
-                        Архив: <span class="text-ink-700 font-bold" x-text="batchResult?.archive_name"></span>
-                    </p>
-                </div>
-
-                <!-- Summary cards -->
-                <div class="grid grid-cols-5 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файлов</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="batchResult?.overall_summary?.total_files || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">в архиве</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Страниц PDF</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="batchResult?.overall_summary?.total_pdf_pages || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">всего</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="batchResult?.overall_summary?.total_positions || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">найдено</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Артикулов</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="batchResult?.overall_summary?.total_unique_articles || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">уникальных</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d4">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Проблем</p>
-                        <p class="text-2xl font-bold" :style="(batchResult?.overall_summary?.critical_issues || 0) > 0 ? 'color:#c92a2a' : 'color:#2b8a3e'"
-                           x-text="(batchResult?.overall_summary?.critical_issues || 0) + (batchResult?.overall_summary?.warnings || 0)"></p>
-                        <p class="font-mono text-[10px] text-ink-400">замечаний</p>
-                    </div>
-                </div>
-
-                <!-- Files found -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-3">Состав архива</h3>
-                    <div class="flex flex-wrap gap-2">
-                        <template x-for="(files, type) in batchResult?.files_found || {}" :key="type">
-                            <template x-if="files.length > 0">
-                                <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-ink-50 rounded border border-ink-100">
-                                    <span class="font-mono text-[10px] font-bold text-ink-700 uppercase" x-text="type"></span>
-                                    <span class="font-mono text-xs font-bold text-ink-900" x-text="files.length"></span>
-                                </div>
-                            </template>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Issues -->
-                <div class="border border-ink-200 rounded-lg p-5 mb-5" x-show="(batchResult?.issues || []).length > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Замечания</h3>
-                    <div class="space-y-2">
-                        <template x-for="(issue, i) in batchResult?.issues || []" :key="i">
-                            <div class="flex items-start gap-3">
-                                <template x-if="issue.severity === 'critical'">
-                                    <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#c92a2a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                                </template>
-                                <template x-if="issue.severity === 'warning'">
-                                    <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#e67700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                </template>
-                                <div>
-                                    <span class="text-sm font-medium" :style="issue.severity === 'critical' ? 'color:#c92a2a' : 'color:#e67700'" x-text="issue.issue"></span>
-                                    <p class="font-mono text-[10px] text-ink-400 mt-0.5" x-text="issue.file"></p>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- PDF Results -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5" x-show="(batchResult?.pdf_results || []).length > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Результаты PDF</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Файл</th>
-                                <th class="text-right">Страниц</th>
-                                <th class="text-right">Оценка</th>
-                                <th class="text-right">Проверок</th>
-                                <th class="text-right">Позиций</th>
-                                <th class="text-right">Артикулов</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(r, i) in batchResult?.pdf_results || []" :key="i">
-                                <tr>
-                                    <td class="font-mono text-xs font-semibold text-ink-900 max-w-[200px] truncate" x-text="r.filename"></td>
-                                    <td class="text-right font-mono" x-text="r.total_pages"></td>
-                                    <td class="text-right font-mono font-bold"
-                                        :style="r.checklist_score >= 80 ? 'color:#2b8a3e' : r.checklist_score >= 50 ? 'color:#e67700' : 'color:#c92a2a'"
-                                        x-text="r.checklist_score + '%'"></td>
-                                    <td class="text-right font-mono text-ink-500" x-text="r.passed_checks + '/' + r.total_checks"></td>
-                                    <td class="text-right font-mono" x-text="r.positions_found"></td>
-                                    <td class="text-right font-mono" x-text="r.articles_found"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- DXF Results -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5" x-show="(batchResult?.dxf_results || []).length > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Результаты DXF</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Файл</th>
-                                <th class="text-right">Слоёв</th>
-                                <th class="text-right">Текстов</th>
-                                <th class="text-right">Размеров</th>
-                                <th>Позиции</th>
-                                <th>Артикулы</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(r, i) in batchResult?.dxf_results || []" :key="i">
-                                <tr>
-                                    <td class="font-mono text-xs font-semibold text-ink-900 max-w-[200px] truncate" x-text="r.filename"></td>
-                                    <td class="text-right font-mono" x-text="r.layers"></td>
-                                    <td class="text-right font-mono" x-text="r.texts"></td>
-                                    <td class="text-right font-mono" x-text="r.dimensions"></td>
-                                    <td>
-                                        <div class="flex flex-wrap gap-1">
-                                            <template x-for="p in (r.positions || []).slice(0, 5)" :key="p">
-                                                <span class="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-[11px] text-ink-700" x-text="p"></span>
-                                            </template>
-                                            <span x-show="(r.positions || []).length > 5" class="font-mono text-[11px] text-ink-400" x-text="'+' + ((r.positions || []).length - 5)"></span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex flex-wrap gap-1">
-                                            <template x-for="a in (r.articles || []).slice(0, 3)" :key="a">
-                                                <span class="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-[11px] text-ink-700" x-text="a"></span>
-                                            </template>
-                                            <span x-show="(r.articles || []).length > 3" class="font-mono text-[11px] text-ink-400" x-text="'+' + ((r.articles || []).length - 3)"></span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- XLSX Results -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5" x-show="(batchResult?.xlsx_results || []).length > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Результаты XLSX</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Файл</th>
-                                <th class="text-right">Позиций</th>
-                                <th class="text-right">Артикулов</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(r, i) in batchResult?.xlsx_results || []" :key="i">
-                                <tr>
-                                    <td class="font-mono text-xs font-semibold text-ink-900 max-w-[200px] truncate" x-text="r.filename"></td>
-                                    <td class="text-right font-mono" x-text="r.total_positions"></td>
-                                    <td class="text-right font-mono" x-text="r.articles_count"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== TAB: GENERATE SPEC ===== -->
-        <section x-show="activeTab === 'genspec'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Генерация спецификации</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите чертёж (PDF или DXF). Система извлечёт позиции, артикулы, размеры и сформирует XLSX спецификацию.</p>
-            </div>
-
-            <div x-show="!specResult && !loading">
-                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
-                     :class="{ 'dragover': dragSpec, 'loaded': fileSpec }"
-                     @dragover.prevent="dragSpec = true" @dragleave="dragSpec = false"
-                     @drop.prevent="dragSpec = false; fileSpec = $event.dataTransfer.files[0]"
-                     @click="$refs.inputSpec.click()">
-                    <input type="file" x-ref="inputSpec" accept=".pdf,.dxf" class="hidden" @change="fileSpec = $event.target.files[0]">
-                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <p class="font-medium text-sm text-ink-700" x-text="fileSpec ? fileSpec.name : 'Загрузите чертёж (PDF или DXF)'"></p>
-                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileSpec ? (fileSpec.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
-                </div>
-                <div class="text-center mt-6" x-show="fileSpec">
-                    <button @click="runGenerateSpec()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                        Сгенерировать спецификацию
-                    </button>
-                </div>
-            </div>
-
-            <div x-show="loading && activeTab === 'genspec'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Генерация спецификации...</p>
-            </div>
-
-            <div x-show="specResult" class="reveal">
-                <div class="mb-5 flex gap-2">
-                    <a :href="specResult?.download" x-show="specResult?.download"
-                       class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-ink-900 text-white text-xs font-semibold rounded hover:bg-ink-700 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Скачать XLSX
-                    </a>
-                    <button @click="specResult = null; fileSpec = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
-                </div>
-
-                <!-- Summary cards -->
-                <div class="grid grid-cols-4 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="specResult?.summary?.total_positions || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">найдено</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Артикулов</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="specResult?.summary?.total_articles || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">уникальных</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Изделий</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="specResult?.summary?.total_items || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">всего</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Источник</p>
-                        <p class="text-sm font-mono font-semibold text-ink-900 uppercase" x-text="specResult?.source_type || ''"></p>
-                        <p class="font-mono text-[10px] text-ink-400 truncate" x-text="specResult?.source_file || ''"></p>
-                    </div>
-                </div>
-
-                <!-- Colors and dimension range -->
-                <div class="grid grid-cols-2 gap-3 mb-6" x-show="(specResult?.summary?.unique_colors || []).length > 0 || specResult?.summary?.dimension_range">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal" x-show="(specResult?.summary?.unique_colors || []).length > 0">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-2">Цвета</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="c in specResult?.summary?.unique_colors || []" :key="c">
-                                <span class="px-2 py-1 bg-ink-50 border border-ink-100 rounded font-mono text-xs text-ink-700" x-text="c"></span>
-                            </template>
-                        </div>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1" x-show="specResult?.summary?.dimension_range">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-2">Диапазон размеров</p>
-                        <p class="font-mono text-sm text-ink-900" x-text="specResult?.summary?.dimension_range"></p>
-                    </div>
-                </div>
-
-                <!-- Positions table -->
-                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Предварительный просмотр спецификации</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Стр</th>
-                                <th>Позиция</th>
-                                <th>Артикулы</th>
-                                <th class="text-right">Кол-во</th>
-                                <th>Цвет</th>
-                                <th>Размеры</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(pos, i) in specResult?.positions || []" :key="i">
-                                <tr>
-                                    <td class="font-mono text-ink-400" x-text="pos.page"></td>
-                                    <td class="font-mono font-bold text-ink-900" x-text="pos.position"></td>
-                                    <td>
-                                        <div class="flex flex-wrap gap-1">
-                                            <template x-for="a in (pos.articles || []).slice(0, 4)" :key="a.article">
-                                                <span class="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-[11px] text-ink-700" x-text="a.article"></span>
-                                            </template>
-                                            <span x-show="(pos.articles || []).length > 4" class="font-mono text-[11px] text-ink-400" x-text="'+' + ((pos.articles || []).length - 4)"></span>
-                                        </div>
-                                    </td>
-                                    <td class="text-right font-mono" x-text="pos.quantity ? pos.quantity + ' шт.' : ''"></td>
-                                    <td class="font-mono text-xs text-ink-600" x-text="pos.color || '—'"></td>
-                                    <td class="font-mono text-[11px] text-ink-500" x-text="pos.dimensions_str || '—'"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== TAB: COMPARE PDF ===== -->
-        <section x-show="activeTab === 'comparepdf'" x-transition.opacity.duration.200ms>
-
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Сравнение версий PDF</h2>
-                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите две версии PDF КМД-документа (А и Б). Система покажет удалённые, добавленные и изменённые страницы.</p>
-            </div>
-
-            <div x-show="!cpResult && !loading" class="grid grid-cols-2 gap-5 mb-6">
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
-                     :class="{ 'dragover': dragCpA, 'loaded': fileCpA }"
-                     @dragover.prevent="dragCpA = true" @dragleave="dragCpA = false"
-                     @drop.prevent="dragCpA = false; fileCpA = $event.dataTransfer.files[0]"
-                     @click="$refs.inputCpA.click()">
-                    <input type="file" x-ref="inputCpA" accept=".pdf" class="hidden" @change="fileCpA = $event.target.files[0]">
-                    <template x-if="!fileCpA">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                            <p class="font-medium text-sm text-ink-700">PDF версия А</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Исходный документ</p>
-                        </div>
-                    </template>
-                    <template x-if="fileCpA">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileCpA.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileCpA.size / 1024 / 1024).toFixed(1) + ' MB'"></p>
-                        </div>
-                    </template>
-                </div>
-
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
-                     :class="{ 'dragover': dragCpB, 'loaded': fileCpB }"
-                     @dragover.prevent="dragCpB = true" @dragleave="dragCpB = false"
-                     @drop.prevent="dragCpB = false; fileCpB = $event.dataTransfer.files[0]"
-                     @click="$refs.inputCpB.click()">
-                    <input type="file" x-ref="inputCpB" accept=".pdf" class="hidden" @change="fileCpB = $event.target.files[0]">
-                    <template x-if="!fileCpB">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                            <p class="font-medium text-sm text-ink-700">PDF версия Б</p>
-                            <p class="text-xs text-ink-400 mt-0.5">Исправленный документ</p>
-                        </div>
-                    </template>
-                    <template x-if="fileCpB">
-                        <div>
-                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
-                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileCpB.name"></p>
-                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileCpB.size / 1024 / 1024).toFixed(1) + ' MB'"></p>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <div class="text-center mb-8" x-show="fileCpA && fileCpB && !cpResult && !loading">
-                <button @click="runComparePdf()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
-                    Сравнить версии
-                </button>
-            </div>
-
-            <div x-show="loading && activeTab === 'comparepdf'" class="text-center py-16">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="font-mono text-xs text-ink-400 tracking-wider">Сравнение версий PDF...</p>
-            </div>
-
-            <div x-show="cpResult" class="reveal">
-                <div class="grid grid-cols-5 gap-3 mb-6">
-                    <div class="border border-ink-200 rounded-lg p-4 reveal">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Версия А</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="cpResult?.pages_a || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">страниц</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Версия Б</p>
-                        <p class="text-2xl font-bold text-ink-900" x-text="cpResult?.pages_b || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">страниц</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d2" style="border-left:3px solid #c92a2a">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Удалено</p>
-                        <p class="text-2xl font-bold" style="color:#c92a2a" x-text="cpResult?.summary?.deleted_pages || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">страниц</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d3" style="border-left:3px solid #e67700">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Изменено</p>
-                        <p class="text-2xl font-bold" style="color:#e67700" x-text="cpResult?.summary?.modified_pages || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">страниц</p>
-                    </div>
-                    <div class="border border-ink-200 rounded-lg p-4 reveal d4" style="border-left:3px solid #2b8a3e">
-                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Без изменений</p>
-                        <p class="text-2xl font-bold" style="color:#2b8a3e" x-text="cpResult?.summary?.unchanged_pages || 0"></p>
-                        <p class="font-mono text-[10px] text-ink-400">страниц</p>
-                    </div>
-                </div>
-
-                <div class="border border-ink-200 rounded-lg p-5 mb-6 reveal">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400">Общая схожесть документов</h3>
-                        <span class="font-mono text-lg font-bold"
-                              :style="(cpResult?.summary?.overall_similarity || 0) >= 0.8 ? 'color:#2b8a3e' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? 'color:#e67700' : 'color:#c92a2a'"
-                              x-text="Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%'"></span>
-                    </div>
-                    <div class="w-full bg-ink-100 rounded-full h-2.5">
-                        <div class="h-2.5 rounded-full transition-all duration-500"
-                             :style="'width:' + Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%;background:' + ((cpResult?.summary?.overall_similarity || 0) >= 0.8 ? '#2b8a3e' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? '#e67700' : '#c92a2a')">
-                        </div>
-                    </div>
-                    <p class="font-mono text-[10px] text-ink-400 mt-2">
-                        Добавлено страниц: <span class="text-ink-700 font-bold" x-text="cpResult?.summary?.added_pages || 0"></span>
-                    </p>
-                </div>
-
-                <div class="flex gap-2 mb-5">
-                    <button @click="resetComparePdf()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
-                        Заново
-                    </button>
-                </div>
-
-                <div x-show="(cpResult?.deleted_pages || []).length > 0" class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Удалённые страницы</h3>
-                    <table class="data-table">
-                        <thead><tr><th>Стр. А</th><th>Тип</th><th>Содержимое</th></tr></thead>
-                        <tbody>
-                            <template x-for="(p, i) in cpResult?.deleted_pages || []" :key="'del'+i">
-                                <tr class="row-removed">
-                                    <td class="font-mono font-bold text-ink-900" x-text="p.page"></td>
-                                    <td class="text-xs text-ink-600" x-text="p.type"></td>
-                                    <td class="font-mono text-[11px] text-ink-500 max-w-[400px] truncate" x-text="p.preview"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div x-show="(cpResult?.added_pages || []).length > 0" class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Добавленные страницы</h3>
-                    <table class="data-table">
-                        <thead><tr><th>Стр. Б</th><th>Тип</th><th>Содержимое</th></tr></thead>
-                        <tbody>
-                            <template x-for="(p, i) in cpResult?.added_pages || []" :key="'add'+i">
-                                <tr style="border-left:3px solid #2b8a3e; background:#f4fce3;">
-                                    <td class="font-mono font-bold text-ink-900" x-text="p.page"></td>
-                                    <td class="text-xs text-ink-600" x-text="p.type"></td>
-                                    <td class="font-mono text-[11px] text-ink-500 max-w-[400px] truncate" x-text="p.preview"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div x-show="(cpResult?.modified_pages || []).length > 0" class="border border-ink-200 rounded-lg overflow-hidden mb-5">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Изменённые страницы</h3>
-                    <div class="divide-y divide-ink-100">
-                        <template x-for="(m, i) in cpResult?.modified_pages || []" :key="'mod'+i">
-                            <div class="px-5 py-4">
-                                <div class="flex items-center gap-4 mb-3">
-                                    <span class="font-mono text-xs text-ink-400">Стр. А:<span class="font-bold text-ink-800 ml-1" x-text="m.page_a"></span></span>
-                                    <span class="text-ink-300">-></span>
-                                    <span class="font-mono text-xs text-ink-400">Стр. Б:<span class="font-bold text-ink-800 ml-1" x-text="m.page_b"></span></span>
-                                    <span class="font-mono text-xs font-bold px-2 py-0.5 rounded"
-                                          :style="m.similarity >= 0.9 ? 'background:#f4fce3;color:#2b8a3e' : m.similarity >= 0.7 ? 'background:#fff3bf;color:#e67700' : 'background:#ffe3e3;color:#c92a2a'"
-                                          x-text="Math.round(m.similarity * 100) + '% схожесть'"></span>
-                                </div>
-                                <div x-show="m.changes && m.changes.length > 0" class="bg-ink-50 rounded p-3 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto">
-                                    <template x-for="(ch, ci) in m.changes" :key="ci">
-                                        <div :style="ch.startsWith('+') ? 'color:#2b8a3e' : 'color:#c92a2a'" x-text="ch"></div>
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div class="border border-ink-200 rounded-lg p-5"
-                     x-show="(cpResult?.kmd_changes?.removed_positions?.length || 0) + (cpResult?.kmd_changes?.added_positions?.length || 0) + (cpResult?.kmd_changes?.removed_articles?.length || 0) + (cpResult?.kmd_changes?.added_articles?.length || 0) + (cpResult?.kmd_changes?.quantity_changes?.length || 0) > 0">
-                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Изменения КМД-данных</h3>
-
-                    <div x-show="(cpResult?.kmd_changes?.removed_positions || []).length > 0" class="mb-3">
-                        <p class="text-xs font-medium text-ink-600 mb-1.5">Удалённые позиции:</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="p in cpResult?.kmd_changes?.removed_positions || []" :key="p">
-                                <span class="px-2 py-1 rounded font-mono text-xs" style="background:#ffe3e3;color:#c92a2a" x-text="p"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div x-show="(cpResult?.kmd_changes?.added_positions || []).length > 0" class="mb-3">
-                        <p class="text-xs font-medium text-ink-600 mb-1.5">Добавленные позиции:</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="p in cpResult?.kmd_changes?.added_positions || []" :key="p">
-                                <span class="px-2 py-1 rounded font-mono text-xs" style="background:#f4fce3;color:#2b8a3e" x-text="p"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div x-show="(cpResult?.kmd_changes?.removed_articles || []).length > 0" class="mb-3">
-                        <p class="text-xs font-medium text-ink-600 mb-1.5">Удалённые артикулы:</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="a in cpResult?.kmd_changes?.removed_articles || []" :key="a">
-                                <span class="px-2 py-1 rounded font-mono text-xs" style="background:#ffe3e3;color:#c92a2a" x-text="a"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div x-show="(cpResult?.kmd_changes?.added_articles || []).length > 0" class="mb-3">
-                        <p class="text-xs font-medium text-ink-600 mb-1.5">Добавленные артикулы:</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="a in cpResult?.kmd_changes?.added_articles || []" :key="a">
-                                <span class="px-2 py-1 rounded font-mono text-xs" style="background:#f4fce3;color:#2b8a3e" x-text="a"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div x-show="(cpResult?.kmd_changes?.quantity_changes || []).length > 0">
-                        <p class="text-xs font-medium text-ink-600 mb-1.5">Изменения количества:</p>
+                <div class="section-panel overflow-hidden">
+                    <h3 class="section-label mb-4">Последние операции</h3>
+                    <template x-if="(dashStats?.recent || []).length === 0"><p class="text-sm text-carbon-400 pb-2">Операций пока не было.</p></template>
+                    <template x-if="(dashStats?.recent || []).length > 0">
                         <table class="data-table">
-                            <thead><tr><th>Позиция</th><th class="text-right">Было</th><th class="text-right">Стало</th><th class="text-right">Разница</th></tr></thead>
+                            <thead><tr><th>Время</th><th>Тип</th><th>Файл</th><th>Результат</th></tr></thead>
                             <tbody>
-                                <template x-for="(q, qi) in cpResult?.kmd_changes?.quantity_changes || []" :key="qi">
+                                <template x-for="(r, i) in dashStats?.recent || []" :key="i">
                                     <tr>
-                                        <td class="font-mono font-bold text-ink-900" x-text="q.position"></td>
-                                        <td class="text-right font-mono" x-text="q.old"></td>
-                                        <td class="text-right font-mono" x-text="q.new"></td>
-                                        <td class="text-right font-mono font-bold"
-                                            :style="(q.new - q.old) > 0 ? 'color:#2b8a3e' : 'color:#c92a2a'"
-                                            x-text="(q.new - q.old) > 0 ? '+' + (q.new - q.old) : (q.new - q.old)"></td>
+                                        <td class="font-mono text-carbon-400 whitespace-nowrap" x-text="r.timestamp.split('T')[1] || r.timestamp"></td>
+                                        <td><span class="badge bg-brass-pale text-brass-dark" x-text="({compare:'Сравнение', check_pdf:'Проверка', parse_kmd:'Парсинг', checklist:'Чек-лист', cross_validate:'Кросс-вал.', compare_pdf:'Сравн. PDF', batch:'Пакетная', generate_spec:'Генерация'})[r.type] || r.type"></span></td>
+                                        <td class="font-mono text-xs text-carbon-700 max-w-[200px] truncate" x-text="r.filename"></td>
+                                        <td class="text-xs text-carbon-500" x-text="r.summary"></td>
                                     </tr>
                                 </template>
                             </tbody>
                         </table>
-                    </div>
+                    </template>
                 </div>
             </div>
         </section>
 
-        <!-- Error -->
-        <div x-show="error" x-transition class="mt-6 p-4 border rounded-lg reveal" style="border-color:#c92a2a;background:#fff5f5;">
-            <div class="flex items-start gap-2">
-                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#c92a2a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                <div>
-                    <p class="text-sm font-semibold" style="color:#c92a2a">Ошибка</p>
-                    <p class="text-xs text-ink-600 mt-0.5" x-text="error"></p>
-                </div>
+        <!-- ===== ERROR DISPLAY ===== -->
+        <div x-show="error" x-transition class="mt-8 section-panel fade-up" style="border-color:rgba(161,66,66,0.2);background:rgba(161,66,66,0.04);">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:#A14242" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <div><p class="text-sm font-semibold" style="color:#A14242">Ошибка</p><p class="text-xs text-carbon-600 mt-1" x-text="error"></p></div>
             </div>
-            <button @click="error = null" class="mt-2 ml-6 text-xs font-medium text-ink-500 hover:text-ink-700">Закрыть</button>
+            <button @click="error = null" class="mt-3 ml-8 text-xs font-medium text-carbon-500 hover:text-brass transition-colors">Закрыть</button>
         </div>
 
     </main>
 
-    <footer class="py-6 text-center border-t border-ink-100 mt-16">
-        <p class="font-mono text-[10px] tracking-widest uppercase text-ink-300">KMD Assistant v1.0 — АЛЬДМЕГА ЛАБ</p>
+    <!-- ===== FOOTER ===== -->
+    <footer class="py-10 text-center border-t border-carbon-100 mt-20">
+        <div class="max-w-7xl mx-auto px-8">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <div class="w-6 h-6 border border-carbon-300 rounded flex items-center justify-center">
+                    <span class="font-mono text-[8px] font-bold text-carbon-500">K</span>
+                </div>
+                <span class="font-display text-sm text-carbon-400 italic">KMD Assistant</span>
+            </div>
+            <p class="font-mono text-[9px] tracking-[0.2em] uppercase text-carbon-300">ALDMEGA LAB / Intelligent Documentation Platform / v2.0</p>
+        </div>
     </footer>
 </div>
 
@@ -1555,11 +1139,9 @@ function app() {
         specResult: null,
 
         async runCompare() {
-            this.loading = true;
-            this.error = null;
+            this.loading = true; this.error = null;
             const fd = new FormData();
-            fd.append('file_a', this.fileA);
-            fd.append('file_b', this.fileB);
+            fd.append('file_a', this.fileA); fd.append('file_b', this.fileB);
             try {
                 const res = await fetch('/api/compare', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1568,17 +1150,11 @@ function app() {
             this.loading = false;
         },
 
-        resetCompare() {
-            this.compareResult = null;
-            this.fileA = null;
-            this.fileB = null;
-        },
+        resetCompare() { this.compareResult = null; this.fileA = null; this.fileB = null; },
 
         async runCheckPdf() {
-            this.loading = true;
-            this.error = null;
-            const fd = new FormData();
-            fd.append('file', this.filePdf);
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.filePdf);
             try {
                 const res = await fetch('/api/check-pdf', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1588,10 +1164,8 @@ function app() {
         },
 
         async runParseKmd() {
-            this.loading = true;
-            this.error = null;
-            const fd = new FormData();
-            fd.append('file', this.fileKmd);
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileKmd);
             try {
                 const res = await fetch('/api/parse-kmd', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1609,24 +1183,35 @@ function app() {
         },
 
         async runChecklist() {
-            this.loading = true;
-            this.error = null;
-            const fd = new FormData();
-            fd.append('file', this.fileCl);
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileCl);
             try {
                 const res = await fetch('/api/checklist', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
-                this.clResult = await res.json();
+                const raw = await res.json();
+                const catMap = {};
+                (raw.checks || []).forEach(ch => {
+                    const cat = ch.category || 'Прочее';
+                    if (!catMap[cat]) catMap[cat] = [];
+                    catMap[cat].push(ch);
+                });
+                const categories = Object.entries(catMap).map(([name, checks]) => ({ name, checks }));
+                this.clResult = {
+                    score: raw.overall_score,
+                    passed: raw.passed_checks,
+                    total: raw.total_checks,
+                    total_pages: raw.total_pages,
+                    filename: raw.filename,
+                    categories,
+                };
             } catch (e) { this.error = e.message; }
             this.loading = false;
         },
 
         async runCrossValidate() {
-            this.loading = true;
-            this.error = null;
+            this.loading = true; this.error = null;
             const fd = new FormData();
-            fd.append('drawing', this.fileCvDraw);
-            fd.append('spec', this.fileCvSpec);
+            fd.append('drawing', this.fileCvDraw); fd.append('spec', this.fileCvSpec);
             try {
                 const res = await fetch('/api/cross-validate', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1635,17 +1220,11 @@ function app() {
             this.loading = false;
         },
 
-        resetCrossValidate() {
-            this.cvResult = null;
-            this.fileCvDraw = null;
-            this.fileCvSpec = null;
-        },
+        resetCrossValidate() { this.cvResult = null; this.fileCvDraw = null; this.fileCvSpec = null; },
 
         async runBatch() {
-            this.loading = true;
-            this.error = null;
-            const fd = new FormData();
-            fd.append('file', this.fileBatch);
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileBatch);
             try {
                 const res = await fetch('/api/batch-process', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1655,10 +1234,8 @@ function app() {
         },
 
         async runGenerateSpec() {
-            this.loading = true;
-            this.error = null;
-            const fd = new FormData();
-            fd.append('file', this.fileSpec);
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileSpec);
             try {
                 const res = await fetch('/api/generate-spec', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1666,12 +1243,11 @@ function app() {
             } catch (e) { this.error = e.message; }
             this.loading = false;
         },
+
         async runComparePdf() {
-            this.loading = true;
-            this.error = null;
+            this.loading = true; this.error = null;
             const fd = new FormData();
-            fd.append('file_a', this.fileCpA);
-            fd.append('file_b', this.fileCpB);
+            fd.append('file_a', this.fileCpA); fd.append('file_b', this.fileCpB);
             try {
                 const res = await fetch('/api/compare-pdf', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
@@ -1680,11 +1256,7 @@ function app() {
             this.loading = false;
         },
 
-        resetComparePdf() {
-            this.cpResult = null;
-            this.fileCpA = null;
-            this.fileCpB = null;
-        },
+        resetComparePdf() { this.cpResult = null; this.fileCpA = null; this.fileCpB = null; },
     }
 }
 </script>
