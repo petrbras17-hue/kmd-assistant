@@ -1033,7 +1033,7 @@
                                     <div class="flex items-start gap-3">
                                         <template x-if="ch.passed"><svg class="w-4 h-4 check-ok flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></template>
                                         <template x-if="!ch.passed"><svg class="w-4 h-4 check-fail flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template>
-                                        <div><span class="text-sm" :class="ch.passed ? 'text-carbon-500' : 'text-carbon-900 font-medium'" x-text="ch.name"></span><p x-show="ch.detail" class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="ch.detail"></p></div>
+                                        <div class="flex-1"><div class="flex items-center gap-2"><span class="text-sm" :class="ch.passed ? 'text-carbon-500' : 'text-carbon-900 font-medium'" x-text="ch.name"></span><span x-show="ch.weight === 3" class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded" :class="ch.passed ? 'bg-green-50 text-status-ok' : 'bg-red-50 text-status-fail'">КРИТИЧНО</span></div><p x-show="ch.detail" class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="ch.detail"></p></div>
                                     </div>
                                 </template>
                             </div>
@@ -1193,7 +1193,12 @@ function app() {
                 (raw.checks || []).forEach(ch => {
                     const cat = ch.category || 'Прочее';
                     if (!catMap[cat]) catMap[cat] = [];
-                    catMap[cat].push(ch);
+                    catMap[cat].push({
+                        name: ch.check_name,
+                        passed: ch.passed,
+                        detail: ch.details,
+                        weight: ch.weight || 2,
+                    });
                 });
                 const categories = Object.entries(catMap).map(([name, checks]) => ({ name, checks }));
                 this.clResult = {

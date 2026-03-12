@@ -535,182 +535,316 @@ async def api_ocr_parse(file: UploadFile = File(...)):
 
 def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
     """
-    Автоматический чек-лист КМД по 8 разделам АЛЬДМЕГА ЛАБ.
-    Возвращает список проверок [{category, check_name, passed, details}, ...].
+    Чек-лист КМД для алюминиевых светопрозрачных конструкций (окна, витражи, фасады).
+    Основан на ГОСТ 21.502-2016, СП 426.1325800.2018, ГОСТ 21519-2022
+    и реальной практике АЛЬДМЕГА ЛАБ.
+
+    Проверки сгруппированы по 7 категориям с весами:
+    - Критические (вес 3): без них производство невозможно
+    - Важные (вес 2): влияют на качество/сроки
+    - Рекомендуемые (вес 1): улучшают полноту документации
+
+    Возвращает список проверок [{category, check_name, passed, details, weight}, ...].
     """
     import re
 
     full_lower = full_text.lower()
     checks: list[dict] = []
 
-    def add(category: str, name: str, passed: bool, details: str = ""):
+    def add(category: str, name: str, passed: bool, details: str = "", weight: int = 2):
         checks.append({
             "category": category,
             "check_name": name,
             "passed": passed,
             "details": details,
+            "weight": weight,
         })
 
-    # --- 1. Титульный лист ---
-    cat = "Титульный лист"
-    title_keywords = ['титульный', 'проект', 'объект', 'заказчик', 'договор', 'шифр']
-    title_found = any(
-        any(kw in page.lower() for kw in title_keywords[:3])
-        for page in page_texts[:3]
-    )
-    add(cat, "Наличие титульного листа", title_found,
-        "Найден в первых страницах" if title_found else "Не обнаружен в первых 3 страницах")
+    # ======================================================================
+    # 1. ТИТУЛЬНЫЙ ЛИСТ И РЕКВИЗИТЫ (вес: критический)
+    # ======================================================================
+    cat = "Титульный лист и реквизиты"
 
-    project_name = bool(re.search(r'(проект|объект)\s*[:«"\-]', full_lower))
-    add(cat, "Указано наименование проекта", project_name,
-        "Найдено упоминание проекта/объекта" if project_name else "Наименование проекта не найдено")
+    # Проверяем первые 3 страницы на наличие ключевых реквизитов
+    first_pages = "\n".join(p.lower() for p in page_texts[:3])
 
-    company_variants = ['альдмега', 'aldmega', 'aldmegalab', 'альдмегалаб']
-    company_found = any(v in full_lower for v in company_variants)
-    add(cat, "Указано наименование организации", company_found,
-        "Найдено наименование АЛЬДМЕГА" if company_found else "Наименование организации не обнаружено")
+    # Наименование объекта (адрес, название ЖК/объекта)
+    has_object = bool(re.search(
+        r'(объект|жилая застройка|жилой комплекс|жк\b|корпус|по адресу|'
+        r'строительств|реконструкци|здание)',
+        first_pages
+    ))
+    add(cat, "Наименование объекта строительства", has_object,
+        "Объект строительства указан" if has_object
+        else "Не найдено наименование объекта в первых страницах", 3)
 
-    customer_found = 'заказчик' in full_lower
-    add(cat, "Указан заказчик", customer_found,
-        "Упоминание заказчика найдено" if customer_found else "Информация о заказчике не найдена")
+    # Заказчик
+    has_customer = bool(re.search(r'заказчик|заказ\s*чик', first_pages))
+    add(cat, "Указан заказчик", has_customer,
+        "Заказчик указан" if has_customer else "Информация о заказчике не найдена", 2)
 
-    cipher_found = bool(re.search(r'шифр\s*[:№\-]?\s*\S+', full_lower))
-    add(cat, "Указан шифр проекта", cipher_found,
-        "Шифр проекта найден" if cipher_found else "Шифр проекта не обнаружен")
+    # Договор или номер КМД
+    has_contract = bool(re.search(r'договор|контракт|кмд\s*от|№\s*\d', first_pages))
+    add(cat, "Номер договора / документа", has_contract,
+        "Реквизиты договора найдены" if has_contract
+        else "Номер договора или документа не обнаружен", 2)
 
-    # --- 2. Пояснительная записка ---
+    # Исполнитель (ООО, ИП, ИНН, ОГРН)
+    has_executor = bool(re.search(r'(ооо|ип\s|инн\s*\d|огрн\s*\d|генеральный директор)', first_pages))
+    add(cat, "Указан исполнитель (организация)", has_executor,
+        "Данные исполнителя найдены" if has_executor
+        else "Исполнитель (организация) не указан", 2)
+
+    # Тип конструкций в заголовке
+    has_type = bool(re.search(
+        r'(алюминиев|светопрозрачн|окн[аы]|витраж|фасад|двер[ьи]|балконн|'
+        r'входн[аыеой]|раздвижн)',
+        first_pages
+    ))
+    add(cat, "Указан тип конструкций (окна/витражи/фасады)", has_type,
+        "Тип конструкций определён" if has_type
+        else "Тип конструкций не указан в заглавии", 3)
+
+    # Дата документа
+    has_date = bool(re.search(
+        r'(\d{2}\.\d{2}\.\d{4}|\d{4}\s*г\.?|от\s*\d{2}\.\d{2})', first_pages
+    ))
+    add(cat, "Дата документа", has_date,
+        "Дата обнаружена" if has_date else "Дата документа не найдена", 1)
+
+    # ======================================================================
+    # 2. ПОЯСНИТЕЛЬНАЯ ЗАПИСКА
+    # ======================================================================
     cat = "Пояснительная записка"
-    note_keywords = ['пояснительная записка', 'пояснительная', 'общие сведения']
-    note_found = any(kw in full_lower for kw in note_keywords)
-    add(cat, "Наличие пояснительной записки", note_found,
-        "Раздел найден" if note_found else "Пояснительная записка не обнаружена")
 
-    norms_keywords = ['гост', 'снип', 'сп ', 'нормативн']
-    norms_found = any(kw in full_lower for kw in norms_keywords)
-    add(cat, "Ссылки на нормативные документы", norms_found,
-        "Найдены ссылки на ГОСТы/СНиП/СП" if norms_found else "Ссылки на нормативные документы не найдены")
+    has_note = bool(re.search(r'пояснительн\w*\s+запис', full_lower))
+    add(cat, "Наличие пояснительной записки", has_note,
+        "Пояснительная записка найдена" if has_note
+        else "Пояснительная записка не обнаружена", 2)
 
-    materials_kw = ['материал', 'профильная система', 'reynaers', 'alutech', 'schuco', 'schüco']
-    materials_found = any(kw in full_lower for kw in materials_kw)
-    add(cat, "Описание материалов и систем", materials_found,
-        "Найдено описание материалов/систем" if materials_found else "Описание материалов не найдено")
+    # Состав документации
+    has_composition = bool(re.search(
+        r'(в состав|состав\s+документации|входят|разделы)',
+        full_lower
+    ))
+    add(cat, "Описан состав документации", has_composition,
+        "Состав документации описан" if has_composition
+        else "Состав документации не описан", 1)
 
-    assembly_kw = ['монтаж', 'сборк', 'установк', 'крепление']
-    assembly_found = any(kw in full_lower for kw in assembly_kw)
-    add(cat, "Указания по монтажу/сборке", assembly_found,
-        "Найдены указания по монтажу" if assembly_found else "Указания по монтажу не найдены")
+    # Указания по монтажу
+    has_mounting = bool(re.search(
+        r'(монтаж|при\s+монтаже|установк|сборк[аеи]|указани[яе])',
+        full_lower
+    ))
+    add(cat, "Указания по монтажу/сборке", has_mounting,
+        "Указания по монтажу найдены" if has_mounting
+        else "Указания по монтажу не обнаружены", 2)
 
-    # --- 3. Спецификация ---
-    cat = "Спецификация"
-    spec_found = bool(re.search(r'спецификаци[яи]', full_lower))
-    add(cat, "Наличие раздела спецификации", spec_found,
-        "Раздел спецификации найден" if spec_found else "Спецификация не обнаружена")
+    # Профильная система
+    profile_systems = [
+        'reynaers', 'masterline', 'conceptwall', 'hi-finity', 'alumil',
+        'schuco', 'schüco', 'alutech', 'алютех', 'vidnal', 'виднал',
+        'tatprof', 'татпроф', 'agrisovglass', 'realit', 'provedal',
+        'newtek', 'ньютек', 'sial', 'сиал',
+    ]
+    found_system = None
+    for ps in profile_systems:
+        if ps in full_lower:
+            found_system = ps
+            break
+    add(cat, "Указана профильная система", found_system is not None,
+        f"Профильная система: {found_system}" if found_system
+        else "Профильная система не идентифицирована", 3)
 
-    articles = re.findall(r'\b\d{7,8}\b', full_text)
-    valid_articles = [a for a in articles if int(a) > 100000]
-    add(cat, "Наличие артикулов материалов", len(valid_articles) > 0,
-        f"Найдено {len(valid_articles)} артикулов" if valid_articles else "Артикулы не обнаружены")
-
-    qty_pattern = re.findall(r'(?:кол[\-\.]?во|количество)\s*[:=]?\s*\d+', full_lower)
-    add(cat, "Указано количество элементов", len(qty_pattern) > 0,
-        f"Найдено {len(qty_pattern)} записей с количеством" if qty_pattern
-        else "Записи с количеством не найдены")
-
-    vedomost_found = 'ведомость' in full_lower
-    add(cat, "Ведомость материалов", vedomost_found,
-        "Ведомость найдена" if vedomost_found else "Ведомость материалов не обнаружена")
-
-    # --- 4. Чертежи изделий ---
+    # ======================================================================
+    # 3. ЧЕРТЕЖИ ИЗДЕЛИЙ (КРИТИЧЕСКИЙ РАЗДЕЛ)
+    # ======================================================================
     cat = "Чертежи изделий"
-    positions = re.findall(r'поз\.?\s*[А-Яа-яA-Za-z0-9\-\.]+', full_lower)
-    add(cat, "Наличие позиций изделий", len(positions) > 0,
-        f"Найдено {len(positions)} позиций" if positions else "Позиции изделий не обнаружены")
 
-    dims = re.findall(r'\b\d{3,4}\s*[xхXХ×]\s*\d{3,4}\b', full_text)
-    add(cat, "Указаны габаритные размеры", len(dims) > 0,
-        f"Найдено {len(dims)} размерных записей" if dims else "Габаритные размеры не найдены")
+    # Позиции (Поз.О-1, Поз.БФ1, Поз.В-3 и т.п.)
+    positions = re.findall(
+        r'[Пп]оз\.?\s*([А-Яа-яA-Za-z]{0,3}\-?\d+[\w\-]*)',
+        full_text
+    )
+    unique_positions = list(set(positions))
+    add(cat, "Маркировка позиций изделий", len(unique_positions) > 0,
+        f"Найдено {len(unique_positions)} уникальных позиций" if unique_positions
+        else "Позиции изделий не обнаружены", 3)
 
-    handle_found = bool(re.search(r'высот[аы]\s+ручк', full_lower))
-    add(cat, "Указана высота ручки", handle_found,
-        "Высота ручки указана" if handle_found else "Высота ручки не найдена")
+    # Количество при позиции
+    qty_records = re.findall(
+        r'[Кк]оличество\s*:?\s*(\d+)', full_text
+    )
+    add(cat, "Указано количество изделий по позициям", len(qty_records) > 0,
+        f"Найдено {len(qty_records)} записей с количеством (сумма: {sum(int(q) for q in qty_records)})"
+        if qty_records else "Количество изделий не указано", 3)
 
-    opening_kw = ['открывани', 'поворотн', 'откидн', 'глух']
-    opening_found = any(kw in full_lower for kw in opening_kw)
-    add(cat, "Указан тип открывания", opening_found,
-        "Тип открывания найден" if opening_found else "Тип открывания не указан")
+    # Высота ручки
+    handle_records = re.findall(
+        r'[Вв]ысота\s+ручки\s*:?\s*(\d+)', full_text
+    )
+    add(cat, "Указана высота ручки", len(handle_records) > 0,
+        f"Высота ручки указана для {len(handle_records)} изделий"
+        if handle_records else "Высота ручки не указана", 2)
 
-    glass_kw = ['стеклопакет', 'заполнен', 'стекл']
-    glass_found = any(kw in full_lower for kw in glass_kw)
-    add(cat, "Указан тип заполнения/стеклопакета", glass_found,
-        "Тип заполнения найден" if glass_found else "Тип заполнения не указан")
+    # Размеры (3-4 значные числа, мм — габариты деталей)
+    dims_mm = re.findall(r'\b(\d{3,4}(?:[,\.]\d{1,2})?)\b', full_text)
+    dims_valid = [float(d.replace(',', '.')) for d in dims_mm if 50 < float(d.replace(',', '.')) < 5000]
+    add(cat, "Наличие размеров деталей (мм)", len(dims_valid) > 10,
+        f"Найдено {len(dims_valid)} размерных значений"
+        if dims_valid else "Размеры не обнаружены", 3)
 
-    # --- 5. Маркировка ---
-    cat = "Маркировка"
-    mark_pattern = re.findall(r'(?:Поз|Марк|Изд)\s*[\.:]?\s*[А-ЯA-Z]\s*[\-\.]?\s*\d+', full_text)
-    add(cat, "Маркировка позиций в формате Поз/Марка", len(mark_pattern) > 0,
-        f"Найдено {len(mark_pattern)} маркировок" if mark_pattern
-        else "Маркировка позиций не обнаружена")
+    # Виды (изнутри / снаружи)
+    has_views = bool(re.search(r'вид\s+(изнутри|снаружи|спереди|сзади|сбоку)', full_lower))
+    add(cat, "Указан вид (изнутри/снаружи)", has_views,
+        "Ориентация вида указана" if has_views
+        else "Ориентация вида (изнутри/снаружи) не указана", 2)
 
-    stamp_kw = ['штамп', 'основная надпись', 'рамка чертежа']
-    stamp_found = any(kw in full_lower for kw in stamp_kw)
-    stamp_alt = bool(re.search(r'(лист\s*\d|масштаб|разработал|проверил|изм\.)', full_lower))
-    add(cat, "Наличие штампа/основной надписи", stamp_found or stamp_alt,
-        "Элементы штампа обнаружены" if (stamp_found or stamp_alt)
-        else "Штамп/основная надпись не обнаружены")
+    # Разрезы A-A, B-B и т.п. (линии сечений на чертежах)
+    sections = re.findall(r'\b([A-ZА-Я])\s*[\-–]\s*\1\b', full_text)
+    add(cat, "Наличие линий сечений (A-A, B-B)", len(sections) > 0,
+        f"Найдено {len(set(sections))} типов сечений" if sections
+        else "Линии сечений не обнаружены", 2)
 
-    # --- 6. Узлы и сечения ---
-    cat = "Узлы и сечения"
-    nodes_found = bool(re.search(r'узел\s*[№\d]|узл[ыа]', full_lower))
-    add(cat, "Наличие чертежей узлов", nodes_found,
-        "Узлы найдены" if nodes_found else "Чертежи узлов не обнаружены")
+    # ======================================================================
+    # 4. АРТИКУЛЫ И КОМПЛЕКТУЮЩИЕ (КРИТИЧЕСКИЙ РАЗДЕЛ)
+    # ======================================================================
+    cat = "Артикулы и комплектующие"
 
-    sections_found = bool(re.search(r'сечение\s*[№А-Я\d]|разрез\s*[№А-Я\d]', full_lower))
-    add(cat, "Наличие сечений/разрезов", sections_found,
-        "Сечения/разрезы найдены" if sections_found else "Сечения/разрезы не обнаружены")
+    # Артикулы профилей (7-значные номера — Reynaers, Schuco и др.)
+    articles_7 = set(re.findall(r'\b(\d{7})\b', full_text))
+    articles_valid = {a for a in articles_7 if int(a) > 100000}
+    add(cat, "Артикулы профилей", len(articles_valid) >= 3,
+        f"Найдено {len(articles_valid)} уникальных артикулов"
+        if articles_valid else "Артикулы профилей не обнаружены", 3)
 
-    detail_kw = ['деталь', 'фрагмент', 'вид ', 'выносн']
-    detail_found = any(kw in full_lower for kw in detail_kw)
-    add(cat, "Наличие деталей и фрагментов", detail_found,
-        "Детали/фрагменты найдены" if detail_found else "Детали/фрагменты не обнаружены")
+    # Артикулы крепежа/фурнитуры (часто формат XXXX.XXX или 6-7 цифр)
+    fastener_arts = set(re.findall(r'\b(\d{4,5}\.\d{3,5})\b', full_text))
+    add(cat, "Артикулы крепежа/фурнитуры", len(fastener_arts) > 0,
+        f"Найдено {len(fastener_arts)} артикулов крепежа"
+        if fastener_arts else "Артикулы крепежа не обнаружены (допустимо, если входят в 7-значные)", 1)
 
-    # --- 7. Ведомость элементов ---
-    cat = "Ведомость элементов"
-    element_list = bool(re.search(r'ведомость\s+(элемент|издели|конструкци)', full_lower))
-    add(cat, "Наличие ведомости элементов", element_list,
-        "Ведомость элементов найдена" if element_list else "Ведомость элементов не обнаружена")
+    # Крепёж (саморезы, анкеры, болты, винты)
+    fasteners = re.findall(
+        r'(саморез|анкер|болт|винт|дюбел|шуруп)\w*\s*\d',
+        full_lower
+    )
+    add(cat, "Указан крепёж (саморезы, анкеры)", len(fasteners) > 0,
+        f"Найдено {len(fasteners)} записей о крепеже" if fasteners
+        else "Крепёж не указан", 2)
 
-    weight_found = bool(re.search(r'масс[аы]|вес\b|кг\b', full_lower))
-    add(cat, "Указана масса/вес изделий", weight_found,
-        "Информация о массе найдена" if weight_found else "Масса/вес не указаны")
+    # Уплотнители / шнуры
+    seals = re.findall(
+        r'(шнур|уплотнител|epdm|силикон|резин)\w*',
+        full_lower
+    )
+    add(cat, "Указаны уплотнители/шнуры", len(seals) > 0,
+        f"Найдено {len(seals)} упоминаний уплотнителей" if seals
+        else "Уплотнители не указаны", 2)
 
-    color_found = bool(re.search(r'цвет|ral\s*\d|покраск|порошков', full_lower))
-    add(cat, "Указан цвет/покрытие", color_found,
-        "Информация о цвете/покрытии найдена" if color_found else "Цвет/покрытие не указаны")
+    # ======================================================================
+    # 5. УЗЛЫ И ПРИМЫКАНИЯ
+    # ======================================================================
+    cat = "Узлы и примыкания"
 
-    # --- 8. Общие требования ---
-    cat = "Общие требования"
+    # Узлы (сборки, обработки, примыкания)
+    has_nodes = bool(re.search(
+        r'(узел|узл[ыа]|сборк[аи]|обработк[аи]|примыкани[еяй])',
+        full_lower
+    ))
+    add(cat, "Наличие узлов сборки/обработки", has_nodes,
+        "Узлы найдены" if has_nodes else "Узлы сборки не обнаружены", 2)
 
-    page_nums = re.findall(r'(?:лист|стр\.?|страница)\s*\d+', full_lower)
-    add(cat, "Нумерация страниц/листов", len(page_nums) > 0,
-        f"Найдено {len(page_nums)} ссылок на номера листов" if page_nums
-        else "Нумерация страниц не обнаружена")
+    # Герметизация (силикон, ПСУЛ, вилатерм, мембрана)
+    sealant_kw = ['псул', 'вилатерм', 'силикон', 'герметик', 'мембран', 'пенополиуретан', 'монтажн']
+    sealants_found = [kw for kw in sealant_kw if kw in full_lower]
+    add(cat, "Указана герметизация (ПСУЛ, силикон, вилатерм)", len(sealants_found) > 0,
+        f"Найдено: {', '.join(sealants_found)}" if sealants_found
+        else "Материалы герметизации не указаны", 2)
 
-    scale_found = bool(re.search(r'масштаб\s*[:\d]|м\s*1\s*:\s*\d', full_lower))
-    add(cat, "Указан масштаб чертежей", scale_found,
-        "Масштаб указан" if scale_found else "Масштаб не обнаружен")
+    # Импосты (горизонтальные/вертикальные разделители)
+    has_impost = bool(re.search(r'импост', full_lower))
+    add(cat, "Указаны импосты", has_impost,
+        "Импосты обнаружены в документации" if has_impost
+        else "Импосты не упоминаются (допустимо для простых конструкций)", 1)
 
-    date_found = bool(re.search(r'дата\s*[:.]?\s*\d|(\d{2}[\.\/]\d{2}[\.\/]\d{2,4})', full_lower))
-    add(cat, "Указана дата документа", date_found,
-        "Дата обнаружена" if date_found else "Дата не найдена")
+    # ======================================================================
+    # 6. ПОЛНОТА И КОНСИСТЕНТНОСТЬ
+    # ======================================================================
+    cat = "Полнота и консистентность"
 
-    empty_pages = sum(1 for pt in page_texts if len(pt.strip()) < 10)
-    add(cat, "Отсутствие пустых страниц", empty_pages == 0,
-        "Пустых страниц нет" if empty_pages == 0
-        else f"Обнаружено {empty_pages} пустых/почти пустых страниц")
+    # Достаточный объём документа
+    total_pages = len(page_texts)
+    add(cat, "Достаточный объём документации", total_pages >= 3,
+        f"Всего страниц: {total_pages}"
+        + (" (слишком мало для комплекта КМД)" if total_pages < 3 else ""), 2)
 
-    total = len(page_texts)
-    add(cat, "Документ содержит достаточное количество страниц", total >= 3,
-        f"Всего страниц: {total}" + (" (слишком мало для комплекта КМД)" if total < 3 else ""))
+    # Пустые страницы (страницы без извлекаемого текста)
+    empty_pages = sum(1 for pt in page_texts if len(pt.strip()) < 5)
+    # В КМД чертежи часто почти без текста — это нормально
+    many_empty = empty_pages > total_pages * 0.5
+    add(cat, "Доля страниц с данными", not many_empty,
+        f"{total_pages - empty_pages} из {total_pages} страниц содержат текст"
+        + (f" ({empty_pages} пустых — возможно, графические чертежи)" if empty_pages else ""), 1)
+
+    # Каждая позиция имеет количество
+    if unique_positions and qty_records:
+        coverage = min(len(qty_records) / len(unique_positions), 1.0)
+        add(cat, "Количество указано для всех позиций",
+            coverage >= 0.8,
+            f"Позиций: {len(unique_positions)}, записей с количеством: {len(qty_records)} "
+            f"(покрытие: {coverage:.0%})", 3)
+    elif unique_positions:
+        add(cat, "Количество указано для всех позиций", False,
+            f"Найдено {len(unique_positions)} позиций, но количество не указано", 3)
+
+    # Все артикулы — валидные (7 цифр, > 100000)
+    all_7digit = set(re.findall(r'\b(\d{7})\b', full_text))
+    invalid_arts = {a for a in all_7digit if int(a) <= 100000}
+    add(cat, "Все артикулы корректны (7 цифр)", len(invalid_arts) == 0,
+        f"Некорректных артикулов: {len(invalid_arts)}" if invalid_arts
+        else f"Все {len(articles_valid)} артикулов валидны", 1)
+
+    # Единообразие формата позиций
+    pos_formats = set()
+    for p in unique_positions:
+        if re.match(r'[А-ЯA-Z]{1,3}\-?\d+', p):
+            pos_formats.add("БУКВЫ-ЦИФРЫ")
+        elif re.match(r'\d+', p):
+            pos_formats.add("ЦИФРЫ")
+        else:
+            pos_formats.add("ДРУГОЕ")
+    add(cat, "Единообразный формат позиций", len(pos_formats) <= 2,
+        f"Форматы: {', '.join(pos_formats)}" if pos_formats
+        else "Позиции не найдены", 1)
+
+    # ======================================================================
+    # 7. ОФОРМЛЕНИЕ ДОКУМЕНТАЦИИ
+    # ======================================================================
+    cat = "Оформление документации"
+
+    # Наличие слова КМД
+    has_kmd = 'кмд' in full_lower
+    add(cat, "Документ идентифицирован как КМД", has_kmd,
+        "Маркировка КМД найдена" if has_kmd else "Слово «КМД» не найдено в тексте", 2)
+
+    # Конструкторская/рабочая документация
+    has_doc_type = bool(re.search(
+        r'(конструкторск\w+\s+документаци|рабоч\w+\s+документаци|чертеж\w+\s+кмд)',
+        full_lower
+    ))
+    add(cat, "Указан тип документации", has_doc_type,
+        "Тип документации определён" if has_doc_type
+        else "Тип документации не указан в заголовке", 1)
+
+    # Подписи (генеральный директор, проверил, разработал)
+    has_signatures = bool(re.search(
+        r'(генеральный директор|директор|проверил|разработал|утвердил|гл\.\s*инженер|'
+        r'нач\w*\s+отдел|[А-Я]\.\s*[А-Я]\.)',
+        full_lower
+    ))
+    add(cat, "Наличие подписей / ответственных лиц", has_signatures,
+        "Подписи/ФИО обнаружены" if has_signatures else "Подписи не обнаружены", 1)
 
     return checks
 
@@ -745,7 +879,10 @@ async def api_checklist(file: UploadFile = File(...)):
         checks = _run_checklist(full_text, page_texts)
         passed_checks = sum(1 for c in checks if c["passed"])
         total_checks = len(checks)
-        overall_score = round(passed_checks / total_checks * 100, 1) if total_checks else 0.0
+        # Взвешенная оценка: критические проверки (вес 3) влияют сильнее
+        total_weight = sum(c.get("weight", 2) for c in checks)
+        passed_weight = sum(c.get("weight", 2) for c in checks if c["passed"])
+        overall_score = round(passed_weight / total_weight * 100, 1) if total_weight else 0.0
 
         log_activity("checklist", file.filename,
                      f"Оценка: {overall_score}%, пройдено: {passed_checks}/{total_checks}")
@@ -1295,7 +1432,9 @@ async def api_batch_process(file: UploadFile = File(...)):
                     checks = _run_checklist(full_text, page_texts)
                     passed = sum(1 for c in checks if c["passed"])
                     total = len(checks)
-                    score = round(passed / total * 100, 1) if total else 0.0
+                    tw = sum(c.get("weight", 2) for c in checks)
+                    pw = sum(c.get("weight", 2) for c in checks if c["passed"])
+                    score = round(pw / tw * 100, 1) if tw else 0.0
                 else:
                     checks = []
                     passed = 0
