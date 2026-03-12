@@ -21,6 +21,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 from compare_orders import extract_articles, compare_orders
 from pdf_tools import extract_text_from_pdf, extract_tables_from_pdf
 from docx_tools import read_docx, read_docx_with_tables
+from dxf_tools import parse_dxf_for_web
+from ocr_tools import (
+    ocr_pil_image, preprocess_image,
+    parse_positions, parse_articles, parse_dimensions,
+)
 
 app = FastAPI(title="KMD Assistant", version="1.0")
 
@@ -29,12 +34,39 @@ RESULTS_DIR = Path(__file__).parent / "results"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
+# ============== IN-MEMORY ACTIVITY LOG ==============
+
+activity_log: list[dict] = []
+MAX_ACTIVITY = 100
+
+counters = {
+    "compare": 0,
+    "check_pdf": 0,
+    "parse_kmd": 0,
+    "checklist": 0,
+}
+
+
+def log_activity(op_type: str, filename: str, summary: str):
+    """Добавить запись в лог активности."""
+    counters[op_type] = counters.get(op_type, 0) + 1
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "type": op_type,
+        "filename": filename,
+        "summary": summary,
+    }
+    activity_log.insert(0, entry)
+    if len(activity_log) > MAX_ACTIVITY:
+        activity_log.pop()
+
 
 def save_upload(file: UploadFile) -> Path:
     """Сохранить загруженный файл с уникальным именем."""
-    ext = Path(file.filename).suffix
+    # Берём только имя файла без пути для защиты от path traversal
+    original_name = Path(file.filename).name
     uid = uuid.uuid4().hex[:8]
-    safe_name = f"{uid}_{file.filename}"
+    safe_name = f"{uid}_{original_name}"
     path = UPLOAD_DIR / safe_name
     with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
@@ -148,6 +180,9 @@ async def api_compare(
             "identical": len(df_a) - len(diffs) + len([d for d in diffs if d['status'] == 'extra']),
         }
 
+        log_activity("compare", f"{file_a.filename} / {file_b.filename}",
+                     f"Различий: {len(diffs)}, удалено: {summary['removed']}, изменено: {summary['changed']}")
+
         return {
             "status": "ok",
             "diffs": diffs,
@@ -242,6 +277,9 @@ async def api_check_pdf(file: UploadFile = File(...)):
         checks.append({"check": "Пустые страницы отсутствуют",
                        "passed": type_counts.get('пустая', 0) == 0})
 
+        log_activity("check_pdf", file.filename,
+                     f"Страниц: {total_pages}, позиций: {len(all_positions)}")
+
         return {
             "status": "ok",
             "filename": file.filename,
@@ -322,6 +360,9 @@ async def api_parse_kmd(file: UploadFile = File(...)):
         # Сводка
         total_items = sum(it['quantity'] for it in items)
 
+        log_activity("parse_kmd", file.filename,
+                     f"Позиций: {len(items)}, артикулов: {len(all_articles)}")
+
         return {
             "status": "ok",
             "filename": file.filename,
@@ -338,14 +379,410 @@ async def api_parse_kmd(file: UploadFile = File(...)):
         path.unlink(missing_ok=True)
 
 
+# ============== 4. ПАРСИНГ DXF ЧЕРТЕЖЕЙ ==============
+
+@app.post("/api/parse-dxf")
+async def api_parse_dxf(file: UploadFile = File(...)):
+    """Разобрать DXF чертёж AutoCAD: слои, тексты, размеры, блоки, КМД-данные."""
+    if not file.filename.lower().endswith((".dxf",)):
+        raise HTTPException(status_code=400, detail="Ожидается файл формата .dxf")
+
+    path = save_upload(file)
+
+    try:
+        result = parse_dxf_for_web(str(path))
+
+        log_activity("parse_kmd", file.filename,
+                     f"DXF: слоёв {len(result['layers'])}, текстов {len(result['texts'])}, "
+                     f"размеров {len(result['dimensions'])}, блоков {len(result['blocks'])}")
+
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            **result,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== 5. OCR-ПАРСИНГ СКАНИРОВАННЫХ ЧЕРТЕЖЕЙ ==============
+
+@app.post("/api/ocr-parse")
+async def api_ocr_parse(file: UploadFile = File(...)):
+    """OCR-парсинг сканированного PDF: распознать текст, позиции, артикулы.
+
+    Для каждой страницы:
+    - Если PyMuPDF извлекает текстовый слой — использует его.
+    - Если страница image-only — рендерит в изображение, прогоняет Tesseract
+      (русский + английский, предобработка: grayscale, threshold, denoise).
+    - Парсит позиции (Поз.X-N), артикулы (7-8 цифр), размеры.
+    """
+    path = save_upload(file)
+
+    try:
+        import fitz
+        import io
+        from PIL import Image
+
+        doc = fitz.open(str(path))
+        total_pages = len(doc)
+        DPI = 300
+
+        pages_result = []
+        all_positions = []
+        all_articles = set()
+        ocr_page_count = 0
+        text_page_count = 0
+
+        for i in range(total_pages):
+            page = doc[i]
+            native_text = page.get_text().strip()
+
+            has_text = len(native_text) > 30  # meaningful text threshold
+
+            if has_text:
+                # Страница с текстовым слоем — используем как есть
+                text_page_count += 1
+                ocr_text = ""
+                final_text = native_text
+            else:
+                # Image-only страница — OCR
+                ocr_page_count += 1
+                mat = fitz.Matrix(DPI / 72, DPI / 72)
+                pix = page.get_pixmap(matrix=mat)
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+
+                # Два прохода: block (psm 6) + sparse (psm 11)
+                text_block = ocr_pil_image(img, lang="rus+eng",
+                                           preprocess=True, sparse=False)
+                text_sparse = ocr_pil_image(img, lang="rus+eng",
+                                            preprocess=True, sparse=True)
+
+                # Объединяем: берём более полный, добавляем уникальные строки
+                if len(text_sparse) > len(text_block):
+                    text_block, text_sparse = text_sparse, text_block
+
+                base_lines = set(text_block.strip().splitlines())
+                extra = [ln for ln in text_sparse.strip().splitlines()
+                         if ln.strip() and ln.strip() not in base_lines]
+
+                ocr_text = text_block.strip()
+                if extra:
+                    ocr_text += "\n" + "\n".join(extra)
+
+                final_text = ocr_text
+
+            # Парсим результаты из текста (native или OCR)
+            positions = parse_positions(final_text)
+            articles = parse_articles(final_text)
+            dimensions = parse_dimensions(final_text)
+
+            all_positions.extend(positions)
+            all_articles.update(articles)
+
+            pages_result.append({
+                "page": i + 1,
+                "has_text": has_text,
+                "ocr_text": ocr_text if not has_text else "",
+                "text_preview": final_text[:200] if final_text else "",
+                "positions": positions,
+                "articles": articles,
+                "dimensions": dimensions,
+            })
+
+        doc.close()
+
+        # Сводка
+        total_qty = sum(p.get("quantity", 0) for p in all_positions)
+        summary = {
+            "total_pages": total_pages,
+            "text_pages": text_page_count,
+            "ocr_pages": ocr_page_count,
+            "total_positions": len(all_positions),
+            "total_quantity": total_qty,
+            "unique_articles": sorted(all_articles),
+            "articles_count": len(all_articles),
+        }
+
+        log_activity("parse_kmd", file.filename,
+                     f"OCR: {ocr_page_count} стр., позиций: {len(all_positions)}, "
+                     f"артикулов: {len(all_articles)}")
+
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            "pages": pages_result,
+            "summary": summary,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== 6. ЧЕК-ЛИСТ КМД ==============
+
+def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
+    """
+    Автоматический чек-лист КМД по 8 разделам АЛЬДМЕГА ЛАБ.
+    Возвращает список проверок [{category, check_name, passed, details}, ...].
+    """
+    import re
+
+    full_lower = full_text.lower()
+    checks: list[dict] = []
+
+    def add(category: str, name: str, passed: bool, details: str = ""):
+        checks.append({
+            "category": category,
+            "check_name": name,
+            "passed": passed,
+            "details": details,
+        })
+
+    # --- 1. Титульный лист ---
+    cat = "Титульный лист"
+    title_keywords = ['титульный', 'проект', 'объект', 'заказчик', 'договор', 'шифр']
+    title_found = any(
+        any(kw in page.lower() for kw in title_keywords[:3])
+        for page in page_texts[:3]
+    )
+    add(cat, "Наличие титульного листа", title_found,
+        "Найден в первых страницах" if title_found else "Не обнаружен в первых 3 страницах")
+
+    project_name = bool(re.search(r'(проект|объект)\s*[:«"\-]', full_lower))
+    add(cat, "Указано наименование проекта", project_name,
+        "Найдено упоминание проекта/объекта" if project_name else "Наименование проекта не найдено")
+
+    company_variants = ['альдмега', 'aldmega', 'aldmegalab', 'альдмегалаб']
+    company_found = any(v in full_lower for v in company_variants)
+    add(cat, "Указано наименование организации", company_found,
+        "Найдено наименование АЛЬДМЕГА" if company_found else "Наименование организации не обнаружено")
+
+    customer_found = 'заказчик' in full_lower
+    add(cat, "Указан заказчик", customer_found,
+        "Упоминание заказчика найдено" if customer_found else "Информация о заказчике не найдена")
+
+    cipher_found = bool(re.search(r'шифр\s*[:№\-]?\s*\S+', full_lower))
+    add(cat, "Указан шифр проекта", cipher_found,
+        "Шифр проекта найден" if cipher_found else "Шифр проекта не обнаружен")
+
+    # --- 2. Пояснительная записка ---
+    cat = "Пояснительная записка"
+    note_keywords = ['пояснительная записка', 'пояснительная', 'общие сведения']
+    note_found = any(kw in full_lower for kw in note_keywords)
+    add(cat, "Наличие пояснительной записки", note_found,
+        "Раздел найден" if note_found else "Пояснительная записка не обнаружена")
+
+    norms_keywords = ['гост', 'снип', 'сп ', 'нормативн']
+    norms_found = any(kw in full_lower for kw in norms_keywords)
+    add(cat, "Ссылки на нормативные документы", norms_found,
+        "Найдены ссылки на ГОСТы/СНиП/СП" if norms_found else "Ссылки на нормативные документы не найдены")
+
+    materials_kw = ['материал', 'профильная система', 'reynaers', 'alutech', 'schuco', 'schüco']
+    materials_found = any(kw in full_lower for kw in materials_kw)
+    add(cat, "Описание материалов и систем", materials_found,
+        "Найдено описание материалов/систем" if materials_found else "Описание материалов не найдено")
+
+    assembly_kw = ['монтаж', 'сборк', 'установк', 'крепление']
+    assembly_found = any(kw in full_lower for kw in assembly_kw)
+    add(cat, "Указания по монтажу/сборке", assembly_found,
+        "Найдены указания по монтажу" if assembly_found else "Указания по монтажу не найдены")
+
+    # --- 3. Спецификация ---
+    cat = "Спецификация"
+    spec_found = bool(re.search(r'спецификаци[яи]', full_lower))
+    add(cat, "Наличие раздела спецификации", spec_found,
+        "Раздел спецификации найден" if spec_found else "Спецификация не обнаружена")
+
+    articles = re.findall(r'\b\d{7,8}\b', full_text)
+    valid_articles = [a for a in articles if int(a) > 100000]
+    add(cat, "Наличие артикулов материалов", len(valid_articles) > 0,
+        f"Найдено {len(valid_articles)} артикулов" if valid_articles else "Артикулы не обнаружены")
+
+    qty_pattern = re.findall(r'(?:кол[\-\.]?во|количество)\s*[:=]?\s*\d+', full_lower)
+    add(cat, "Указано количество элементов", len(qty_pattern) > 0,
+        f"Найдено {len(qty_pattern)} записей с количеством" if qty_pattern
+        else "Записи с количеством не найдены")
+
+    vedomost_found = 'ведомость' in full_lower
+    add(cat, "Ведомость материалов", vedomost_found,
+        "Ведомость найдена" if vedomost_found else "Ведомость материалов не обнаружена")
+
+    # --- 4. Чертежи изделий ---
+    cat = "Чертежи изделий"
+    positions = re.findall(r'поз\.?\s*[А-Яа-яA-Za-z0-9\-\.]+', full_lower)
+    add(cat, "Наличие позиций изделий", len(positions) > 0,
+        f"Найдено {len(positions)} позиций" if positions else "Позиции изделий не обнаружены")
+
+    dims = re.findall(r'\b\d{3,4}\s*[xхXХ×]\s*\d{3,4}\b', full_text)
+    add(cat, "Указаны габаритные размеры", len(dims) > 0,
+        f"Найдено {len(dims)} размерных записей" if dims else "Габаритные размеры не найдены")
+
+    handle_found = bool(re.search(r'высот[аы]\s+ручк', full_lower))
+    add(cat, "Указана высота ручки", handle_found,
+        "Высота ручки указана" if handle_found else "Высота ручки не найдена")
+
+    opening_kw = ['открывани', 'поворотн', 'откидн', 'глух']
+    opening_found = any(kw in full_lower for kw in opening_kw)
+    add(cat, "Указан тип открывания", opening_found,
+        "Тип открывания найден" if opening_found else "Тип открывания не указан")
+
+    glass_kw = ['стеклопакет', 'заполнен', 'стекл']
+    glass_found = any(kw in full_lower for kw in glass_kw)
+    add(cat, "Указан тип заполнения/стеклопакета", glass_found,
+        "Тип заполнения найден" if glass_found else "Тип заполнения не указан")
+
+    # --- 5. Маркировка ---
+    cat = "Маркировка"
+    mark_pattern = re.findall(r'(?:Поз|Марк|Изд)\s*[\.:]?\s*[А-ЯA-Z]\s*[\-\.]?\s*\d+', full_text)
+    add(cat, "Маркировка позиций в формате Поз/Марка", len(mark_pattern) > 0,
+        f"Найдено {len(mark_pattern)} маркировок" if mark_pattern
+        else "Маркировка позиций не обнаружена")
+
+    stamp_kw = ['штамп', 'основная надпись', 'рамка чертежа']
+    stamp_found = any(kw in full_lower for kw in stamp_kw)
+    stamp_alt = bool(re.search(r'(лист\s*\d|масштаб|разработал|проверил|изм\.)', full_lower))
+    add(cat, "Наличие штампа/основной надписи", stamp_found or stamp_alt,
+        "Элементы штампа обнаружены" if (stamp_found or stamp_alt)
+        else "Штамп/основная надпись не обнаружены")
+
+    # --- 6. Узлы и сечения ---
+    cat = "Узлы и сечения"
+    nodes_found = bool(re.search(r'узел\s*[№\d]|узл[ыа]', full_lower))
+    add(cat, "Наличие чертежей узлов", nodes_found,
+        "Узлы найдены" if nodes_found else "Чертежи узлов не обнаружены")
+
+    sections_found = bool(re.search(r'сечение\s*[№А-Я\d]|разрез\s*[№А-Я\d]', full_lower))
+    add(cat, "Наличие сечений/разрезов", sections_found,
+        "Сечения/разрезы найдены" if sections_found else "Сечения/разрезы не обнаружены")
+
+    detail_kw = ['деталь', 'фрагмент', 'вид ', 'выносн']
+    detail_found = any(kw in full_lower for kw in detail_kw)
+    add(cat, "Наличие деталей и фрагментов", detail_found,
+        "Детали/фрагменты найдены" if detail_found else "Детали/фрагменты не обнаружены")
+
+    # --- 7. Ведомость элементов ---
+    cat = "Ведомость элементов"
+    element_list = bool(re.search(r'ведомость\s+(элемент|издели|конструкци)', full_lower))
+    add(cat, "Наличие ведомости элементов", element_list,
+        "Ведомость элементов найдена" if element_list else "Ведомость элементов не обнаружена")
+
+    weight_found = bool(re.search(r'масс[аы]|вес\b|кг\b', full_lower))
+    add(cat, "Указана масса/вес изделий", weight_found,
+        "Информация о массе найдена" if weight_found else "Масса/вес не указаны")
+
+    color_found = bool(re.search(r'цвет|ral\s*\d|покраск|порошков', full_lower))
+    add(cat, "Указан цвет/покрытие", color_found,
+        "Информация о цвете/покрытии найдена" if color_found else "Цвет/покрытие не указаны")
+
+    # --- 8. Общие требования ---
+    cat = "Общие требования"
+
+    page_nums = re.findall(r'(?:лист|стр\.?|страница)\s*\d+', full_lower)
+    add(cat, "Нумерация страниц/листов", len(page_nums) > 0,
+        f"Найдено {len(page_nums)} ссылок на номера листов" if page_nums
+        else "Нумерация страниц не обнаружена")
+
+    scale_found = bool(re.search(r'масштаб\s*[:\d]|м\s*1\s*:\s*\d', full_lower))
+    add(cat, "Указан масштаб чертежей", scale_found,
+        "Масштаб указан" if scale_found else "Масштаб не обнаружен")
+
+    date_found = bool(re.search(r'дата\s*[:.]?\s*\d|(\d{2}[\.\/]\d{2}[\.\/]\d{2,4})', full_lower))
+    add(cat, "Указана дата документа", date_found,
+        "Дата обнаружена" if date_found else "Дата не найдена")
+
+    empty_pages = sum(1 for pt in page_texts if len(pt.strip()) < 10)
+    add(cat, "Отсутствие пустых страниц", empty_pages == 0,
+        "Пустых страниц нет" if empty_pages == 0
+        else f"Обнаружено {empty_pages} пустых/почти пустых страниц")
+
+    total = len(page_texts)
+    add(cat, "Документ содержит достаточное количество страниц", total >= 3,
+        f"Всего страниц: {total}" + (" (слишком мало для комплекта КМД)" if total < 3 else ""))
+
+    return checks
+
+
+@app.post("/api/checklist")
+async def api_checklist(file: UploadFile = File(...)):
+    """
+    Автоматический чек-лист КМД по 8 разделам АЛЬДМЕГА ЛАБ.
+    Принимает PDF-файл, извлекает текст со всех страниц (PyMuPDF),
+    прогоняет проверки и возвращает результат с оценкой.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Принимаются только PDF файлы")
+
+    path = save_upload(file)
+
+    try:
+        import fitz
+
+        doc = fitz.open(str(path))
+        page_texts = [doc[i].get_text() for i in range(len(doc))]
+        full_text = "\n".join(page_texts)
+        total_pages = len(doc)
+        doc.close()
+
+        if not full_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="PDF не содержит извлекаемого текста (возможно, это скан-копия без OCR)",
+            )
+
+        checks = _run_checklist(full_text, page_texts)
+        passed_checks = sum(1 for c in checks if c["passed"])
+        total_checks = len(checks)
+        overall_score = round(passed_checks / total_checks * 100, 1) if total_checks else 0.0
+
+        log_activity("checklist", file.filename,
+                     f"Оценка: {overall_score}%, пройдено: {passed_checks}/{total_checks}")
+
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            "total_pages": total_pages,
+            "checks": checks,
+            "overall_score": overall_score,
+            "total_checks": total_checks,
+            "passed_checks": passed_checks,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== 7. СТАТИСТИКА / ДАШБОРД ==============
+
+@app.get("/api/stats")
+async def api_stats():
+    """Вернуть счётчики и последние операции."""
+    return {
+        "counters": counters,
+        "total_operations": sum(counters.values()),
+        "recent": activity_log[:20],
+    }
+
+
 # ============== СКАЧИВАНИЕ РЕЗУЛЬТАТОВ ==============
 
 @app.get("/api/download/{filename}")
 async def download_result(filename: str):
-    path = RESULTS_DIR / filename
-    if not path.exists():
+    # Защита от path traversal: берём только имя файла
+    safe_name = Path(filename).name
+    path = (RESULTS_DIR / safe_name).resolve()
+    if not path.is_relative_to(RESULTS_DIR.resolve()) or not path.exists():
         raise HTTPException(status_code=404, detail="Файл не найден")
-    return FileResponse(path, filename=filename,
+    return FileResponse(path, filename=safe_name,
                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 

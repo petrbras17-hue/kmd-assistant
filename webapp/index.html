@@ -164,7 +164,9 @@
                 <template x-for="tab in [
                     {id: 'compare', label: 'Спецификации'},
                     {id: 'check', label: 'Проверка PDF'},
-                    {id: 'parse', label: 'Парсинг КМД'}
+                    {id: 'parse', label: 'Парсинг КМД'},
+                    {id: 'dashboard', label: 'Дашборд'},
+                    {id: 'checklist', label: 'Чек-лист КМД'}
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
                         :class="activeTab === tab.id
@@ -535,6 +537,198 @@
             </div>
         </section>
 
+        <!-- ===== TAB 4: DASHBOARD ===== -->
+        <section x-show="activeTab === 'dashboard'" x-transition.opacity.duration.200ms x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Дашборд</h2>
+                <p class="text-sm text-ink-400 mt-1 max-w-lg">Сводная статистика по всем операциям и журнал последних действий.</p>
+            </div>
+
+            <div x-show="!dashStats" class="text-center py-16">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="font-mono text-xs text-ink-400 tracking-wider">Загрузка статистики...</p>
+            </div>
+
+            <div x-show="dashStats" class="reveal">
+                <!-- Stats cards -->
+                <div class="grid grid-cols-4 gap-3 mb-6">
+                    <div class="border border-ink-200 rounded-lg p-4 reveal">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего операций</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.total_operations || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">за сессию</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Сравнений</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.compare || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">спецификаций</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Проверок PDF</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.check_pdf || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">документов</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d3">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Парсинг КМД</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="dashStats?.counters?.parse_kmd || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">чертежей</p>
+                    </div>
+                </div>
+
+                <!-- Refresh button -->
+                <div class="mb-5">
+                    <button @click="loadStats()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
+                        Обновить
+                    </button>
+                </div>
+
+                <!-- Recent activity -->
+                <div class="border border-ink-200 rounded-lg overflow-hidden">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Последние операции</h3>
+                    <template x-if="(dashStats?.recent || []).length === 0">
+                        <div class="px-5 pb-5 pt-2">
+                            <p class="text-sm text-ink-400">Операций пока не было. Выполните сравнение, проверку или парсинг.</p>
+                        </div>
+                    </template>
+                    <template x-if="(dashStats?.recent || []).length > 0">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Тип</th>
+                                    <th>Файл</th>
+                                    <th>Результат</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(r, i) in dashStats?.recent || []" :key="i">
+                                    <tr>
+                                        <td class="font-mono text-ink-400 whitespace-nowrap" x-text="r.timestamp.split('T')[1] || r.timestamp"></td>
+                                        <td>
+                                            <span class="badge"
+                                                :class="{
+                                                    'bg-ink-100 text-ink-700': r.type === 'compare',
+                                                    'bg-ink-50 text-ink-600': r.type === 'check_pdf',
+                                                    'bg-ink-100 text-ink-800': r.type === 'parse_kmd',
+                                                    'bg-ink-50 text-ink-700': r.type === 'checklist',
+                                                }"
+                                                x-text="({compare:'Сравнение', check_pdf:'Проверка', parse_kmd:'Парсинг', checklist:'Чек-лист'})[r.type] || r.type"></span>
+                                        </td>
+                                        <td class="font-mono text-xs text-ink-700 max-w-[200px] truncate" x-text="r.filename"></td>
+                                        <td class="text-xs text-ink-500" x-text="r.summary"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 5: CHECKLIST ===== -->
+        <section x-show="activeTab === 'checklist'" x-transition.opacity.duration.200ms>
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Чек-лист КМД</h2>
+                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с КМД. Система проверит документ по 8 категориям и покажет процент соответствия.</p>
+            </div>
+
+            <div x-show="!clResult && !loading">
+                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
+                     :class="{ 'dragover': dragCl, 'loaded': fileCl }"
+                     @dragover.prevent="dragCl = true" @dragleave="dragCl = false"
+                     @drop.prevent="dragCl = false; fileCl = $event.dataTransfer.files[0]"
+                     @click="$refs.inputCl.click()">
+                    <input type="file" x-ref="inputCl" accept=".pdf" class="hidden" @change="fileCl = $event.target.files[0]">
+                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <p class="font-medium text-sm text-ink-700" x-text="fileCl ? fileCl.name : 'Загрузите PDF для проверки'"></p>
+                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileCl ? (fileCl.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-6" x-show="fileCl">
+                    <button @click="runChecklist()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
+                        Проверить по чек-листу
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'checklist'" class="text-center py-16">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="font-mono text-xs text-ink-400 tracking-wider">Проверка по чек-листу...</p>
+            </div>
+
+            <div x-show="clResult" class="reveal">
+                <div class="mb-5 flex gap-2">
+                    <button @click="clResult = null; fileCl = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
+                        Заново
+                    </button>
+                </div>
+
+                <!-- Overall score bar -->
+                <div class="border border-ink-200 rounded-lg p-5 mb-6 reveal">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400">Общий результат</h3>
+                        <span class="font-mono text-lg font-bold"
+                              :style="clResult?.score >= 80 ? 'color:#2b8a3e' : clResult?.score >= 50 ? 'color:#e67700' : 'color:#c92a2a'"
+                              x-text="clResult?.score + '%'"></span>
+                    </div>
+                    <div class="w-full bg-ink-100 rounded-full h-2.5">
+                        <div class="h-2.5 rounded-full transition-all duration-500"
+                             :style="'width:' + (clResult?.score || 0) + '%;background:' + (clResult?.score >= 80 ? '#2b8a3e' : clResult?.score >= 50 ? '#e67700' : '#c92a2a')">
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-ink-400 mt-2">
+                        Пройдено <span class="text-ink-700 font-bold" x-text="clResult?.passed"></span> из <span class="text-ink-700 font-bold" x-text="clResult?.total"></span> проверок
+                    </p>
+                </div>
+
+                <!-- Stats cards -->
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="border border-ink-200 rounded-lg p-4 reveal">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Страниц</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="clResult?.total_pages || 0"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Категорий</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="clResult?.categories?.length || 0"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл</p>
+                        <p class="text-sm font-mono font-semibold text-ink-900 truncate" x-text="clResult?.filename || ''"></p>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="space-y-4">
+                    <template x-for="(cat, ci) in clResult?.categories || []" :key="ci">
+                        <div class="border border-ink-200 rounded-lg p-5 reveal">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400" x-text="cat.name"></h3>
+                                <span class="font-mono text-xs font-bold"
+                                      :style="cat.checks.filter(c => c.passed).length === cat.checks.length ? 'color:#2b8a3e' : 'color:#e67700'"
+                                      x-text="cat.checks.filter(c => c.passed).length + '/' + cat.checks.length"></span>
+                            </div>
+                            <div class="space-y-2.5">
+                                <template x-for="(ch, chi) in cat.checks" :key="chi">
+                                    <div class="flex items-start gap-3">
+                                        <template x-if="ch.passed">
+                                            <svg class="w-4 h-4 check-ok flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        </template>
+                                        <template x-if="!ch.passed">
+                                            <svg class="w-4 h-4 check-fail flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </template>
+                                        <div>
+                                            <span class="text-sm" :class="ch.passed ? 'text-ink-600' : 'text-ink-900 font-medium'" x-text="ch.name"></span>
+                                            <p x-show="ch.detail" class="font-mono text-[10px] text-ink-400 mt-0.5" x-text="ch.detail"></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
         <!-- Error -->
         <div x-show="error" x-transition class="mt-6 p-4 border rounded-lg reveal" style="border-color:#c92a2a;background:#fff5f5;">
             <div class="flex items-start gap-2">
@@ -569,6 +763,11 @@ function app() {
 
         fileKmd: null, dragKmd: false,
         parseResult: null,
+
+        dashStats: null,
+
+        fileCl: null, dragCl: false,
+        clResult: null,
 
         async runCompare() {
             this.loading = true;
@@ -612,6 +811,27 @@ function app() {
                 const res = await fetch('/api/parse-kmd', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.parseResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) throw new Error('Failed to load stats');
+                this.dashStats = await res.json();
+            } catch (e) { this.error = e.message; }
+        },
+
+        async runChecklist() {
+            this.loading = true;
+            this.error = null;
+            const fd = new FormData();
+            fd.append('file', this.fileCl);
+            try {
+                const res = await fetch('/api/checklist', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.clResult = await res.json();
             } catch (e) { this.error = e.message; }
             this.loading = false;
         },

@@ -87,6 +87,115 @@ def dxf_to_image(file_path: str, output_path: str):
     print(f"Сохранено: {output_path}")
 
 
+def parse_dxf_for_web(file_path: str) -> dict:
+    """Полный разбор DXF для веб-интерфейса: тексты, размеры, блоки, слои, КМД-данные."""
+    import re
+    import ezdxf
+
+    doc = ezdxf.readfile(file_path)
+    msp = doc.modelspace()
+
+    # --- Слои ---
+    layer_entity_counts: dict[str, int] = {}
+    for entity in msp:
+        layer = entity.dxf.layer
+        layer_entity_counts[layer] = layer_entity_counts.get(layer, 0) + 1
+
+    layers = [
+        {"name": layer.dxf.name, "entity_count": layer_entity_counts.get(layer.dxf.name, 0)}
+        for layer in doc.layers
+    ]
+
+    # --- Тексты (TEXT + MTEXT) ---
+    texts = []
+    for entity in msp.query("TEXT MTEXT"):
+        if entity.dxftype() == "TEXT":
+            content = entity.dxf.text
+            position = list(entity.dxf.insert)
+        else:
+            content = entity.text
+            position = list(entity.dxf.insert)
+        texts.append({
+            "layer": entity.dxf.layer,
+            "content": content,
+            "position": [round(c, 2) for c in position],
+        })
+
+    # --- Размеры (DIMENSION) ---
+    dimensions = []
+    for entity in msp.query("DIMENSION"):
+        dim_text = getattr(entity.dxf, "text", "")
+        # Попробуем получить measurement (реальное значение)
+        measurement = getattr(entity, "measurement", None)
+        if measurement is not None:
+            value = round(measurement, 2)
+        elif dim_text:
+            # Попробуем извлечь число из текста
+            m = re.search(r'[\d]+[,\.]?\d*', dim_text.replace(",", "."))
+            value = float(m.group()) if m else None
+        else:
+            value = None
+        dimensions.append({
+            "layer": entity.dxf.layer,
+            "value": value,
+            "unit": "mm",
+        })
+
+    # --- Блоки (INSERT) ---
+    block_counts: dict[str, int] = {}
+    for entity in msp.query("INSERT"):
+        name = entity.dxf.name
+        block_counts[name] = block_counts.get(name, 0) + 1
+    blocks = [{"name": n, "count": c} for n, c in sorted(block_counts.items())]
+
+    # --- КМД-данные: позиции, артикулы, профили ---
+    all_content = [t["content"] for t in texts]
+
+    positions = []
+    articles = []
+    profiles = []
+
+    for text in all_content:
+        # Позиции: Поз.О-1, Поз.1, Поз.A2, поз 5 и т.д.
+        for m in re.finditer(r'[Пп]оз\.?\s*([А-Яа-яA-Za-z]?\-?\d+[\-\.\w]*)', text):
+            val = m.group(1).strip()
+            if val and val not in positions:
+                positions.append(val)
+
+        # Артикулы: 7-8 цифр или формат XXXX.XXXX
+        for m in re.finditer(r'\b(\d{7,8})\b', text):
+            art = m.group(1)
+            if int(art) > 100000 and art not in articles:
+                articles.append(art)
+        for m in re.finditer(r'\b(\d{4,5}\.\d{3,5})\b', text):
+            art = m.group(1)
+            if art not in articles:
+                articles.append(art)
+
+        # Профили: типичные обозначения КМД
+        for m in re.finditer(
+            r'(?:профиль|проф\.?|труба|швеллер|уголок|двутавр|лист)\s*[А-Яа-яA-Za-z0-9\.\-\×xх\s]{2,30}',
+            text, re.IGNORECASE
+        ):
+            val = m.group(0).strip()
+            if val not in profiles:
+                profiles.append(val)
+
+    kmd_data = {
+        "positions": positions,
+        "articles": articles,
+        "profiles": profiles,
+    }
+
+    return {
+        "layers": layers,
+        "texts": texts,
+        "dimensions": dimensions,
+        "blocks": blocks,
+        "kmd_data": kmd_data,
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Использование: python dxf_tools.py <команда> <файл>")
