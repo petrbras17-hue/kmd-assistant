@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMD Assistant — АЛЬДМЕГА ЛАБ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Outfit', 'sans-serif'],
+                    mono: ['JetBrains Mono', 'monospace'],
+                },
+                colors: {
+                    ink: {
+                        50: '#f8f9fa',
+                        100: '#f1f3f5',
+                        200: '#e9ecef',
+                        300: '#dee2e6',
+                        400: '#adb5bd',
+                        500: '#868e96',
+                        600: '#495057',
+                        700: '#343a40',
+                        800: '#212529',
+                        900: '#0d0f12',
+                    }
+                }
+            }
+        }
+    }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Outfit', sans-serif; }
+
+        /* Subtle grid */
+        .grid-bg {
+            background-image:
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 1.5px dashed #dee2e6;
+            transition: all 0.25s ease;
+        }
+        .drop-zone:hover {
+            border-color: #343a40;
+            background: #f8f9fa;
+        }
+        .drop-zone.dragover {
+            border-color: #212529;
+            background: #f1f3f5;
+            transform: scale(1.005);
+        }
+        .drop-zone.loaded {
+            border-color: #212529;
+            border-style: solid;
+            background: #f8f9fa;
+        }
+
+        /* Table */
+        .data-table { border-collapse: collapse; width: 100%; }
+        .data-table thead th {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #868e96;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #212529;
+            text-align: left;
+        }
+        .data-table tbody td {
+            padding: 0.625rem 1rem;
+            font-size: 0.8125rem;
+            border-bottom: 1px solid #f1f3f5;
+            color: #495057;
+        }
+        .data-table tbody tr:hover { background: #f8f9fa; }
+
+        /* Row status */
+        .row-removed { border-left: 3px solid #c92a2a; background: #fff5f5; }
+        .row-removed:hover { background: #ffe3e3; }
+        .row-extra { border-left: 3px solid #e67700; background: #fff9db; }
+        .row-extra:hover { background: #fff3bf; }
+        .row-changed-up { border-left: 3px solid #c92a2a; background: #fff5f5; }
+        .row-changed-up:hover { background: #ffe3e3; }
+        .row-changed-down { border-left: 3px solid #2b8a3e; background: #f4fce3; }
+        .row-changed-down:hover { background: #e9fac8; }
+        .row-color { border-left: 3px solid #7048e8; background: #f3f0ff; }
+        .row-color:hover { background: #e5dbff; }
+
+        /* Badge */
+        .badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.1875rem 0.5rem;
+            border-radius: 2px;
+        }
+        .badge-removed { background: #ffe3e3; color: #c92a2a; }
+        .badge-changed { background: #ffe8cc; color: #e67700; }
+        .badge-extra { background: #fff3bf; color: #e67700; }
+        .badge-color { background: #e5dbff; color: #7048e8; }
+
+        /* Spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 28px; height: 28px;
+            border: 2px solid #e9ecef;
+            border-top-color: #212529;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        /* Reveal */
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .reveal { animation: reveal 0.35s ease both; }
+        .d1 { animation-delay: 50ms; }
+        .d2 { animation-delay: 100ms; }
+        .d3 { animation-delay: 150ms; }
+        .d4 { animation-delay: 200ms; }
+
+        /* Check icons */
+        .check-ok { color: #2b8a3e; }
+        .check-fail { color: #c92a2a; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-white min-h-screen grid-bg text-ink-800">
+
+<div x-data="app()" x-cloak>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-ink-200">
+        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-ink-900 rounded flex items-center justify-center">
+                    <span class="font-mono text-[10px] font-bold text-white leading-none">K</span>
+                </div>
+                <div class="leading-tight">
+                    <span class="font-semibold text-sm text-ink-900 tracking-tight">KMD Assistant</span>
+                    <span class="text-ink-400 text-xs ml-1.5 font-light">АЛЬДМЕГА ЛАБ</span>
+                </div>
+            </div>
+            <nav class="flex gap-0.5">
+                <template x-for="tab in [
+                    {id: 'compare', label: 'Спецификации'},
+                    {id: 'check', label: 'Проверка PDF'},
+                    {id: 'parse', label: 'Парсинг КМД'}
+                ]" :key="tab.id">
+                    <button @click="activeTab = tab.id"
+                        :class="activeTab === tab.id
+                            ? 'bg-ink-900 text-white'
+                            : 'text-ink-500 hover:text-ink-800 hover:bg-ink-100'"
+                        class="px-3.5 py-1.5 rounded text-xs font-medium transition-all"
+                        x-text="tab.label">
+                    </button>
+                </template>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-10">
+
+        <!-- ===== TAB 1: COMPARE ===== -->
+        <section x-show="activeTab === 'compare'" x-transition.opacity.duration.200ms>
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Сравнение спецификаций</h2>
+                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите исходную (А) и проверяемую (Б) заявки. Система найдёт расхождения по артикулам, количеству и цветам.</p>
+            </div>
+
+            <!-- Upload -->
+            <div x-show="!compareResult" class="grid grid-cols-2 gap-5 mb-6">
+                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
+                     :class="{ 'dragover': dragA, 'loaded': fileA }"
+                     @dragover.prevent="dragA = true" @dragleave="dragA = false"
+                     @drop.prevent="dragA = false; fileA = $event.dataTransfer.files[0]"
+                     @click="$refs.inputA.click()">
+                    <input type="file" x-ref="inputA" accept=".xlsx,.xls" class="hidden" @change="fileA = $event.target.files[0]">
+                    <template x-if="!fileA">
+                        <div>
+                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="font-medium text-sm text-ink-700">Файл А — Исходник</p>
+                            <p class="text-xs text-ink-400 mt-0.5">Перетащите XLSX или нажмите</p>
+                        </div>
+                    </template>
+                    <template x-if="fileA">
+                        <div>
+                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
+                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileA.name"></p>
+                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileA.size / 1024).toFixed(1) + ' KB'"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer"
+                     :class="{ 'dragover': dragB, 'loaded': fileB }"
+                     @dragover.prevent="dragB = true" @dragleave="dragB = false"
+                     @drop.prevent="dragB = false; fileB = $event.dataTransfer.files[0]"
+                     @click="$refs.inputB.click()">
+                    <input type="file" x-ref="inputB" accept=".xlsx,.xls" class="hidden" @change="fileB = $event.target.files[0]">
+                    <template x-if="!fileB">
+                        <div>
+                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="font-medium text-sm text-ink-700">Файл Б — Проверяемый</p>
+                            <p class="text-xs text-ink-400 mt-0.5">Перетащите XLSX или нажмите</p>
+                        </div>
+                    </template>
+                    <template x-if="fileB">
+                        <div>
+                            <svg class="w-8 h-8 mx-auto mb-3 text-ink-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
+                            <p class="font-mono text-sm font-medium text-ink-800" x-text="fileB.name"></p>
+                            <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="(fileB.size / 1024).toFixed(1) + ' KB'"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="text-center mb-8" x-show="fileA && fileB && !compareResult && !loading">
+                <button @click="runCompare()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
+                    Сравнить
+                </button>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loading && activeTab === 'compare'" class="text-center py-16">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="font-mono text-xs text-ink-400 tracking-wider">Анализ файлов...</p>
+            </div>
+
+            <!-- Results -->
+            <div x-show="compareResult" class="reveal">
+                <div class="grid grid-cols-4 gap-3 mb-6">
+                    <div class="border border-ink-200 rounded-lg p-4 reveal">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл А</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="compareResult?.summary?.total_a || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">позиций</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Файл Б</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="compareResult?.summary?.total_b || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">позиций</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d2" style="border-left:3px solid #c92a2a">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Дозаказать</p>
+                        <p class="text-2xl font-bold" style="color:#c92a2a" x-text="compareResult?.summary?.removed || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">нет в Б</p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d3" style="border-left:3px solid #e67700">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Изменено</p>
+                        <p class="text-2xl font-bold" style="color:#e67700" x-text="compareResult?.summary?.changed || 0"></p>
+                        <p class="font-mono text-[10px] text-ink-400">кол-во</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-5">
+                    <a :href="compareResult?.download" x-show="compareResult?.download"
+                       class="inline-flex items-center gap-1.5 px-4 py-2 bg-ink-900 text-white text-xs font-semibold rounded hover:bg-ink-700 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Скачать XLSX
+                    </a>
+                    <button @click="resetCompare()" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
+                        Заново
+                    </button>
+                </div>
+
+                <div class="border border-ink-200 rounded-lg overflow-hidden">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Артикул</th>
+                                <th>Описание</th>
+                                <th class="text-right">А</th>
+                                <th class="text-right">Б</th>
+                                <th class="text-right">Разница</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(d, i) in compareResult?.diffs || []" :key="i">
+                                <tr :class="{
+                                    'row-removed': d.status === 'removed',
+                                    'row-changed-up': d.status === 'changed' && d.diff > 0,
+                                    'row-changed-down': d.status === 'changed' && d.diff < 0,
+                                    'row-extra': d.status === 'extra',
+                                    'row-color': d.status === 'color',
+                                }">
+                                    <td class="font-mono font-semibold text-ink-900" x-text="d.article"></td>
+                                    <td class="text-ink-500 text-xs" x-text="d.description"></td>
+                                    <td class="text-right font-mono" x-text="d.qty_a"></td>
+                                    <td class="text-right font-mono" x-text="d.qty_b"></td>
+                                    <td class="text-right font-mono font-bold"
+                                        :style="d.diff > 0 ? 'color:#c92a2a' : 'color:#2b8a3e'"
+                                        x-text="d.diff > 0 ? '+' + d.diff : d.diff"></td>
+                                    <td>
+                                        <span :class="{
+                                            'badge-removed': d.status === 'removed',
+                                            'badge-changed': d.status === 'changed',
+                                            'badge-extra': d.status === 'extra',
+                                            'badge-color': d.status === 'color',
+                                        }" class="badge" x-text="d.status_text"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 2: CHECK PDF ===== -->
+        <section x-show="activeTab === 'check'" x-transition.opacity.duration.200ms>
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Проверка комплектности PDF</h2>
+                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с чертежами КМД. Система проверит наличие титульного листа, пояснительной записки и чертежей.</p>
+            </div>
+
+            <div x-show="!checkResult && !loading">
+                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
+                     :class="{ 'dragover': dragPdf, 'loaded': filePdf }"
+                     @dragover.prevent="dragPdf = true" @dragleave="dragPdf = false"
+                     @drop.prevent="dragPdf = false; filePdf = $event.dataTransfer.files[0]"
+                     @click="$refs.inputPdf.click()">
+                    <input type="file" x-ref="inputPdf" accept=".pdf" class="hidden" @change="filePdf = $event.target.files[0]">
+                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <p class="font-medium text-sm text-ink-700" x-text="filePdf ? filePdf.name : 'Загрузите PDF'"></p>
+                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="filePdf ? (filePdf.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-6" x-show="filePdf">
+                    <button @click="runCheckPdf()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
+                        Проверить
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'check'" class="text-center py-16">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="font-mono text-xs text-ink-400 tracking-wider">Анализ PDF...</p>
+            </div>
+
+            <div x-show="checkResult" class="reveal">
+                <div class="mb-5">
+                    <button @click="checkResult = null; filePdf = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
+                        Заново
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="border border-ink-200 rounded-lg p-4 reveal">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Страниц</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.total_pages"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.positions?.length || 0"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего изделий</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="checkResult?.total_positions || 0"></p>
+                    </div>
+                </div>
+
+                <!-- Checks -->
+                <div class="border border-ink-200 rounded-lg p-5 mb-5">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Проверки</h3>
+                    <div class="space-y-2.5">
+                        <template x-for="c in checkResult?.checks || []" :key="c.check">
+                            <div class="flex items-center gap-3">
+                                <template x-if="c.passed">
+                                    <svg class="w-4 h-4 check-ok flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                </template>
+                                <template x-if="!c.passed">
+                                    <svg class="w-4 h-4 check-fail flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </template>
+                                <span class="text-sm" :class="c.passed ? 'text-ink-600' : 'text-ink-900 font-medium'" x-text="c.check"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Doc composition -->
+                <div class="border border-ink-200 rounded-lg p-5 mb-5">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-4">Состав документа</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="(count, type) in checkResult?.type_counts || {}" :key="type">
+                            <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-ink-50 rounded border border-ink-100">
+                                <span class="text-xs text-ink-600" x-text="type"></span>
+                                <span class="font-mono text-xs font-bold text-ink-900" x-text="count"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Positions table -->
+                <div class="border border-ink-200 rounded-lg overflow-hidden" x-show="checkResult?.positions?.length > 0">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Позиции изделий</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Позиция</th>
+                                <th class="text-right">Количество</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(p, i) in checkResult?.positions || []" :key="i">
+                                <tr>
+                                    <td class="font-mono font-semibold text-ink-900" x-text="p.pos"></td>
+                                    <td class="text-right font-mono" x-text="p.qty + ' шт.'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 3: PARSE KMD ===== -->
+        <section x-show="activeTab === 'parse'" x-transition.opacity.duration.200ms>
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-ink-900 tracking-tight">Парсинг КМД чертежей</h2>
+                <p class="text-sm text-ink-400 mt-1 max-w-lg">Загрузите PDF с КМД. Система извлечёт позиции, артикулы профилей, размеры и количество.</p>
+            </div>
+
+            <div x-show="!parseResult && !loading">
+                <div class="drop-zone rounded-lg p-12 text-center cursor-pointer max-w-xl mx-auto"
+                     :class="{ 'dragover': dragKmd, 'loaded': fileKmd }"
+                     @dragover.prevent="dragKmd = true" @dragleave="dragKmd = false"
+                     @drop.prevent="dragKmd = false; fileKmd = $event.dataTransfer.files[0]"
+                     @click="$refs.inputKmd.click()">
+                    <input type="file" x-ref="inputKmd" accept=".pdf" class="hidden" @change="fileKmd = $event.target.files[0]">
+                    <svg class="w-8 h-8 mx-auto mb-3 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                    <p class="font-medium text-sm text-ink-700" x-text="fileKmd ? fileKmd.name : 'Загрузите PDF с КМД'"></p>
+                    <p class="font-mono text-xs text-ink-400 mt-0.5" x-text="fileKmd ? (fileKmd.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-6" x-show="fileKmd">
+                    <button @click="runParseKmd()" class="px-6 py-2.5 bg-ink-900 text-white text-xs font-semibold tracking-wide uppercase rounded hover:bg-ink-700 transition-colors">
+                        Извлечь данные
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'parse'" class="text-center py-16">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="font-mono text-xs text-ink-400 tracking-wider">Парсинг чертежей...</p>
+            </div>
+
+            <div x-show="parseResult" class="reveal">
+                <div class="mb-5">
+                    <button @click="parseResult = null; fileKmd = null" class="px-4 py-2 border border-ink-200 text-xs font-medium text-ink-600 rounded hover:bg-ink-50 transition-colors">
+                        Заново
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="border border-ink-200 rounded-lg p-4 reveal">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Позиций</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.total_positions"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d1">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Всего изделий</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.total_items"></p>
+                    </div>
+                    <div class="border border-ink-200 rounded-lg p-4 reveal d2">
+                        <p class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-1">Артикулов</p>
+                        <p class="text-2xl font-bold text-ink-900" x-text="parseResult?.articles_count"></p>
+                    </div>
+                </div>
+
+                <div class="border border-ink-200 rounded-lg overflow-hidden mb-5">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 px-5 pt-4 pb-2">Извлечённые позиции</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Стр</th>
+                                <th>Позиция</th>
+                                <th class="text-right">Кол-во</th>
+                                <th>Артикулы</th>
+                                <th>Размеры</th>
+                                <th class="text-right">Ручка</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(item, i) in parseResult?.items || []" :key="i">
+                                <tr>
+                                    <td class="font-mono text-ink-400" x-text="item.page"></td>
+                                    <td class="font-mono font-bold text-ink-900" x-text="item.position"></td>
+                                    <td class="text-right font-mono" x-text="item.quantity + ' шт.'"></td>
+                                    <td>
+                                        <div class="flex flex-wrap gap-1">
+                                            <template x-for="a in item.articles.slice(0, 5)" :key="a">
+                                                <span class="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-[11px] text-ink-700" x-text="a"></span>
+                                            </template>
+                                            <span x-show="item.articles.length > 5" class="font-mono text-[11px] text-ink-400" x-text="'+' + (item.articles.length - 5)"></span>
+                                        </div>
+                                    </td>
+                                    <td class="font-mono text-[11px] text-ink-500" x-text="item.dimensions.join(' x ')"></td>
+                                    <td class="text-right font-mono text-ink-400" x-text="item.handle_height ? item.handle_height + ' мм' : '—'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="border border-ink-200 rounded-lg p-5">
+                    <h3 class="font-mono text-[10px] uppercase tracking-wider text-ink-400 mb-3">
+                        Все артикулы <span class="text-ink-900 font-bold" x-text="parseResult?.articles_count"></span>
+                    </h3>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="a in parseResult?.unique_articles || []" :key="a">
+                            <span class="px-2 py-1 bg-ink-50 border border-ink-100 rounded font-mono text-xs text-ink-700" x-text="a"></span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error -->
+        <div x-show="error" x-transition class="mt-6 p-4 border rounded-lg reveal" style="border-color:#c92a2a;background:#fff5f5;">
+            <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#c92a2a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                <div>
+                    <p class="text-sm font-semibold" style="color:#c92a2a">Ошибка</p>
+                    <p class="text-xs text-ink-600 mt-0.5" x-text="error"></p>
+                </div>
+            </div>
+            <button @click="error = null" class="mt-2 ml-6 text-xs font-medium text-ink-500 hover:text-ink-700">Закрыть</button>
+        </div>
+
+    </main>
+
+    <footer class="py-6 text-center border-t border-ink-100 mt-16">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink-300">KMD Assistant v1.0 — АЛЬДМЕГА ЛАБ</p>
+    </footer>
+</div>
+
+<script>
+function app() {
+    return {
+        activeTab: 'compare',
+        loading: false,
+        error: null,
+
+        fileA: null, fileB: null, dragA: false, dragB: false,
+        compareResult: null,
+
+        filePdf: null, dragPdf: false,
+        checkResult: null,
+
+        fileKmd: null, dragKmd: false,
+        parseResult: null,
+
+        async runCompare() {
+            this.loading = true;
+            this.error = null;
+            const fd = new FormData();
+            fd.append('file_a', this.fileA);
+            fd.append('file_b', this.fileB);
+            try {
+                const res = await fetch('/api/compare', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.compareResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        resetCompare() {
+            this.compareResult = null;
+            this.fileA = null;
+            this.fileB = null;
+        },
+
+        async runCheckPdf() {
+            this.loading = true;
+            this.error = null;
+            const fd = new FormData();
+            fd.append('file', this.filePdf);
+            try {
+                const res = await fetch('/api/check-pdf', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.checkResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runParseKmd() {
+            this.loading = true;
+            this.error = null;
+            const fd = new FormData();
+            fd.append('file', this.fileKmd);
+            try {
+                const res = await fetch('/api/parse-kmd', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.parseResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+    }
+}
+</script>
+
+</body>
+</html>
