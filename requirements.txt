@@ -36,5 +36,11 @@ pinecone>=5.0.0
 # === Rate Limiting ===
 slowapi>=0.1.9
 
+# === Database ===
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+alembic>=1.13
+aiosqlite>=0.19
+
 # === Utilities ===
 chardet>=5.2.0
