@@ -43,7 +43,29 @@ from ocr_tools import (
     parse_positions, parse_articles, parse_dimensions,
 )
 
-app = FastAPI(title="KMD Assistant", version="1.0")
+tags_metadata = [
+    {"name": "Documentation", "description": "KMD document parsing, comparison, validation, checklists, and cross-validation."},
+    {"name": "Calculators", "description": "Engineering calculators: thermal, wind load, sash weight, glass thickness, fasteners."},
+    {"name": "3D & Optimization", "description": "3D preview, cutting optimization, profile recommendation, spec generation."},
+    {"name": "AI Tools", "description": "AI-powered review, notes, GOST lookup, hardware, visual compare, KMD generation, translation, and chat."},
+    {"name": "Production", "description": "CNC programs, QR labels, photo reports, acceptance acts, requisitions."},
+    {"name": "Analytics & Projects", "description": "Statistics, activity log, project management, versioning, nodes library, file downloads."},
+]
+
+app = FastAPI(
+    title="KMD Assistant API",
+    description=(
+        "Engineering platform API for ALDMEGA LAB. "
+        "Tools for KMD documentation verification, engineering calculations, "
+        "AI-assisted review, 3D visualization, cutting optimization, "
+        "CNC program generation, and project management. "
+        "**Modules:** 32 | **Endpoints:** 46"
+    ),
+    version="2.0.0",
+    openapi_tags=tags_metadata,
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -132,7 +154,7 @@ async def index():
 
 # ============== 1. СРАВНЕНИЕ СПЕЦИФИКАЦИЙ ==============
 
-@app.post("/api/compare")
+@app.post("/api/compare", tags=["Documentation"], summary="Compare two order specifications")
 async def api_compare(
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
@@ -248,7 +270,7 @@ async def api_compare(
 
 # ============== 2. ПРОВЕРКА КОМПЛЕКТНОСТИ PDF ==============
 
-@app.post("/api/check-pdf")
+@app.post("/api/check-pdf", tags=["Documentation"], summary="Validate KMD PDF completeness")
 async def api_check_pdf(file: UploadFile = File(...)):
     """Проверить комплектность PDF чертежей КМД."""
     path = save_upload(file)
@@ -345,7 +367,7 @@ async def api_check_pdf(file: UploadFile = File(...)):
 
 # ============== 3. ПАРСИНГ КМД ЧЕРТЕЖЕЙ ==============
 
-@app.post("/api/parse-kmd")
+@app.post("/api/parse-kmd", tags=["Documentation"], summary="Parse KMD positions from PDF")
 async def api_parse_kmd(file: UploadFile = File(...)):
     """Извлечь данные из PDF чертежей КМД: позиции, артикулы, размеры."""
     path = save_upload(file)
@@ -426,7 +448,7 @@ async def api_parse_kmd(file: UploadFile = File(...)):
 
 # ============== 4. ПАРСИНГ DXF ЧЕРТЕЖЕЙ ==============
 
-@app.post("/api/parse-dxf")
+@app.post("/api/parse-dxf", tags=["Documentation"], summary="Parse DXF drawing file")
 async def api_parse_dxf(file: UploadFile = File(...)):
     """Разобрать DXF чертёж AutoCAD: слои, тексты, размеры, блоки, КМД-данные."""
     if not file.filename.lower().endswith((".dxf",)):
@@ -455,7 +477,7 @@ async def api_parse_dxf(file: UploadFile = File(...)):
 
 # ============== 5. OCR-ПАРСИНГ СКАНИРОВАННЫХ ЧЕРТЕЖЕЙ ==============
 
-@app.post("/api/ocr-parse")
+@app.post("/api/ocr-parse", tags=["Documentation"], summary="OCR-parse scanned drawing")
 async def api_ocr_parse(file: UploadFile = File(...)):
     """OCR-парсинг сканированного PDF: распознать текст, позиции, артикулы.
 
@@ -886,7 +908,7 @@ def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
     return checks
 
 
-@app.post("/api/checklist")
+@app.post("/api/checklist", tags=["Documentation"], summary="Run KMD checklist audit")
 async def api_checklist(file: UploadFile = File(...)):
     """
     Автоматический чек-лист КМД по 8 разделам АЛЬДМЕГА ЛАБ.
@@ -944,7 +966,7 @@ async def api_checklist(file: UploadFile = File(...)):
 
 # ============== 7. КРОСС-ВАЛИДАЦИЯ ЧЕРТЁЖ vs СПЕЦИФИКАЦИЯ ==============
 
-@app.post("/api/cross-validate")
+@app.post("/api/cross-validate", tags=["Documentation"], summary="Cross-validate drawing vs spec")
 async def api_cross_validate(
     drawing: UploadFile = File(...),
     spec: UploadFile = File(...),
@@ -1183,7 +1205,7 @@ def _extract_kmd_data(text: str):
     return positions, articles
 
 
-@app.post("/api/compare-pdf")
+@app.post("/api/compare-pdf", tags=["Documentation"], summary="Compare two PDF versions")
 async def api_compare_pdf(
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
@@ -1385,7 +1407,7 @@ async def api_compare_pdf(
 MAX_ZIP_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
-@app.post("/api/batch-process")
+@app.post("/api/batch-process", tags=["Documentation"], summary="Batch-process ZIP archive")
 async def api_batch_process(file: UploadFile = File(...)):
     """
     Пакетная обработка ZIP-архива с проектом КМД.
@@ -1912,7 +1934,7 @@ def _generate_spec_xlsx(positions: list[dict], source_file: str) -> Path:
     return result_path
 
 
-@app.post("/api/generate-spec")
+@app.post("/api/generate-spec", tags=["3D & Optimization"], summary="Generate specification from drawing")
 async def api_generate_spec(file: UploadFile = File(...)):
     """Сгенерировать XLSX спецификацию из КМД чертежа (PDF или DXF)."""
     fname_lower = file.filename.lower()
@@ -2152,7 +2174,7 @@ def _build_scene(params: dict) -> dict:
     }
 
 
-@app.post("/api/preview-3d")
+@app.post("/api/preview-3d", tags=["3D & Optimization"], summary="Generate 3D scene from parameters")
 async def api_preview_3d(params: dict):
     """Build 3D scene data from manual construction parameters."""
     try:
@@ -2169,7 +2191,7 @@ async def api_preview_3d(params: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/api/preview-3d-from-pdf")
+@app.post("/api/preview-3d-from-pdf", tags=["3D & Optimization"], summary="Generate 3D scene from PDF")
 async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
     """Extract construction data from a KMD PDF and return 3D scene."""
     path = UPLOAD_DIR / f"{uuid.uuid4().hex}_{file.filename}"
@@ -2467,7 +2489,7 @@ def _optimize_cutting(req: CuttingRequest) -> dict:
     }
 
 
-@app.post("/api/optimize-cutting")
+@app.post("/api/optimize-cutting", tags=["3D & Optimization"], summary="Optimize linear cutting layout")
 async def api_optimize_cutting(req: CuttingRequest):
     """Оптимизировать раскрой профилей (ручной ввод)."""
     try:
@@ -2481,7 +2503,7 @@ async def api_optimize_cutting(req: CuttingRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/api/optimize-cutting-from-pdf")
+@app.post("/api/optimize-cutting-from-pdf", tags=["3D & Optimization"], summary="Optimize cutting from PDF")
 async def api_optimize_cutting_from_pdf(
     file: UploadFile = File(...),
     stock_length_mm: int = Form(6500),
@@ -3021,7 +3043,7 @@ def _score_profile(profile: dict, params: dict, wind_pa: float) -> int:
     return max(0, min(100, round(score)))
 
 
-@app.post("/api/recommend-profile")
+@app.post("/api/recommend-profile", tags=["3D & Optimization"], summary="Recommend profile system")
 async def api_recommend_profile(data: dict):
     """AI-подбор профильной системы по параметрам проекта."""
     try:
@@ -3138,7 +3160,7 @@ async def api_recommend_profile(data: dict):
 # ============== F8. ТЕПЛОТЕХНИЧЕСКИЙ КАЛЬКУЛЯТОР ==============
 
 
-@app.post("/api/calc-thermal")
+@app.post("/api/calc-thermal", tags=["Calculators"], summary="Thermal resistance (GOST 26602.1)")
 async def api_calc_thermal(data: dict):
     """Расчёт приведённого сопротивления теплопередаче по ГОСТ 26602.1 / ГОСТ 23166."""
     try:
@@ -3230,7 +3252,7 @@ def _interpolate_kz(height_m: float, terrain: str) -> float:
     return table[-1]
 
 
-@app.post("/api/calc-wind")
+@app.post("/api/calc-wind", tags=["Calculators"], summary="Wind load (SP 20.13330)")
 async def api_calc_wind(data: dict):
     """Расчёт ветровой нагрузки по СП 20.13330.2016."""
     try:
@@ -3351,7 +3373,7 @@ _SASH_WEIGHT_LIMITS = {
 }
 
 
-@app.post("/api/calc-sash-weight")
+@app.post("/api/calc-sash-weight", tags=["Calculators"], summary="Sash weight calculation")
 async def api_calc_sash_weight(data: dict):
     """Расчёт веса створки."""
     try:
@@ -3436,7 +3458,7 @@ _GLASS_DATABASE = [
 ]
 
 
-@app.post("/api/calc-glass")
+@app.post("/api/calc-glass", tags=["Calculators"], summary="Glass package selection")
 async def api_calc_glass(data: dict):
     """Подбор оптимального стеклопакета по параметрам."""
     try:
@@ -3573,7 +3595,7 @@ _ANCHOR_CAPACITY = {
 }
 
 
-@app.post("/api/calc-fasteners")
+@app.post("/api/calc-fasteners", tags=["Calculators"], summary="Fastener calculation (GOST 30971)")
 async def api_calc_fasteners(data: dict):
     """Расчёт крепежа оконной/дверной рамы по ГОСТ."""
     try:
@@ -3692,7 +3714,7 @@ def _pdf_pages_to_base64(pdf_path: str, max_pages: int = 3) -> list[str]:
 
 # ============== F1: AI DRAWING REVIEW ==============
 
-@app.post("/api/ai-review")
+@app.post("/api/ai-review", tags=["AI Tools"], summary="AI review of KMD drawing")
 async def api_ai_review(file: UploadFile = File(...)):
     """AI review of a KMD drawing PDF."""
     path = save_upload(file)
@@ -3740,7 +3762,7 @@ async def api_ai_review(file: UploadFile = File(...)):
 
 # ============== F2: AI EXPLANATORY NOTE GENERATOR ==============
 
-@app.post("/api/ai-generate-note")
+@app.post("/api/ai-generate-note", tags=["AI Tools"], summary="AI engineering note generation")
 async def api_ai_generate_note(file: UploadFile = File(...)):
     """AI-generated explanatory note (пояснительная записка) from a KMD PDF."""
     path = save_upload(file)
@@ -3790,7 +3812,7 @@ async def api_ai_generate_note(file: UploadFile = File(...)):
 
 # ============== F3: AI GOST ASSISTANT ==============
 
-@app.post("/api/ai-gost")
+@app.post("/api/ai-gost", tags=["AI Tools"], summary="AI GOST/standard consultant")
 async def api_ai_gost(payload: dict):
     """AI GOST assistant — answers questions about norms and standards for aluminum constructions."""
     question = payload.get("question", "").strip()
@@ -3849,7 +3871,7 @@ async def api_ai_gost(payload: dict):
 
 # ============== F4: AI HARDWARE SELECTOR ==============
 
-@app.post("/api/ai-hardware")
+@app.post("/api/ai-hardware", tags=["AI Tools"], summary="AI hardware recommendation")
 async def api_ai_hardware(payload: dict):
     """AI hardware recommendation for aluminum constructions."""
     try:
@@ -3911,7 +3933,7 @@ async def api_ai_hardware(payload: dict):
 
 # ============== F5: AI VISUAL DRAWING COMPARISON ==============
 
-@app.post("/api/ai-compare-visual")
+@app.post("/api/ai-compare-visual", tags=["AI Tools"], summary="AI visual drawing comparison")
 async def api_ai_compare_visual(
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
@@ -3973,7 +3995,7 @@ async def api_ai_compare_visual(
 
 # ============== F6: AI KMD GENERATION ==============
 
-@app.post("/api/ai-generate-kmd")
+@app.post("/api/ai-generate-kmd", tags=["AI Tools"], summary="AI KMD document generation")
 async def api_ai_generate_kmd(payload: dict):
     """AI generation of KMD documentation from a technical brief."""
     try:
@@ -4067,7 +4089,7 @@ async def api_ai_generate_kmd(payload: dict):
 
 # ============== F7: AI KMD TRANSLATOR ==============
 
-@app.post("/api/ai-translate")
+@app.post("/api/ai-translate", tags=["AI Tools"], summary="AI GOST/EN translation")
 async def api_ai_translate(payload: dict):
     """AI translation of KMD documentation between GOST and EN standards."""
     try:
@@ -4200,7 +4222,7 @@ def _save_versions_db(db: dict):
     tmp.replace(VERSIONS_JSON)
 
 
-@app.post("/api/versioning/upload")
+@app.post("/api/versioning/upload", tags=["Analytics & Projects"], summary="Upload document version")
 async def api_versioning_upload(file: UploadFile = File(...)):
     """Upload a new version of a KMD document."""
     import fitz
@@ -4248,7 +4270,7 @@ async def api_versioning_upload(file: UploadFile = File(...)):
         path.unlink(missing_ok=True)
 
 
-@app.get("/api/versioning/history")
+@app.get("/api/versioning/history", tags=["Analytics & Projects"], summary="Get version history")
 async def api_versioning_history(filename: str = ""):
     """Return version history for a file or all files."""
     db = _load_versions_db()
@@ -4262,7 +4284,7 @@ async def api_versioning_history(filename: str = ""):
     return {"status": "ok", "files": result}
 
 
-@app.get("/api/versioning/diff/{v1}/{v2}")
+@app.get("/api/versioning/diff/{v1}/{v2}", tags=["Analytics & Projects"], summary="Diff two versions")
 async def api_versioning_diff(v1: str, v2: str, filename: str = ""):
     """Compare text of two versions. v1 and v2 are version numbers."""
     import fitz
@@ -4319,7 +4341,7 @@ async def api_versioning_diff(v1: str, v2: str, filename: str = ""):
 
 # ============== F14. AUTO MATERIAL REQUISITION ==============
 
-@app.post("/api/generate-requisition")
+@app.post("/api/generate-requisition", tags=["Production"], summary="Generate material requisition")
 async def api_generate_requisition(file: UploadFile = File(...)):
     """Extract articles from KMD PDF and generate material requisition XLSX."""
     import fitz
@@ -4476,7 +4498,7 @@ async def api_generate_requisition(file: UploadFile = File(...)):
 
 # ============== F15. PROJECT TRACKER ==============
 
-@app.post("/api/projects/create")
+@app.post("/api/projects/create", tags=["Analytics & Projects"], summary="Create project")
 async def api_project_create(data: dict):
     """Create a new project."""
     required = ["name", "customer", "address", "positions_count", "deadline"]
@@ -4505,13 +4527,13 @@ async def api_project_create(data: dict):
     return {"status": "ok", "project": project}
 
 
-@app.get("/api/projects/list")
+@app.get("/api/projects/list", tags=["Analytics & Projects"], summary="List all projects")
 async def api_projects_list():
     """Return all projects with statuses."""
     return {"status": "ok", "projects": projects_list, "stages": PROJECT_STAGES}
 
 
-@app.post("/api/projects/{project_id}/update-status")
+@app.post("/api/projects/{project_id}/update-status", tags=["Analytics & Projects"], summary="Update project status")
 async def api_project_update_status(project_id: str):
     """Move project to next stage."""
     project = next((p for p in projects_list if p["id"] == project_id), None)
@@ -4536,7 +4558,7 @@ async def api_project_update_status(project_id: str):
 
 # ============== F16. ACT GENERATOR (KC-2) ==============
 
-@app.post("/api/generate-act")
+@app.post("/api/generate-act", tags=["Production"], summary="Generate acceptance act")
 async def api_generate_act(data: dict):
     """Generate KS-2 style act document."""
     from docx import Document
@@ -4661,7 +4683,7 @@ async def api_generate_act(data: dict):
     }
 
 
-@app.get("/api/download-act/{filename}")
+@app.get("/api/download-act/{filename}", tags=["Production"], summary="Download act file")
 async def download_act(filename: str):
     safe_name = Path(filename).name
     path = (RESULTS_DIR / safe_name).resolve()
@@ -4673,7 +4695,7 @@ async def download_act(filename: str):
 
 # ============== F17. CNC PROGRAM GENERATOR ==============
 
-@app.post("/api/generate-cnc")
+@app.post("/api/generate-cnc", tags=["Production"], summary="Generate CNC program")
 async def api_generate_cnc(data: dict):
     """Generate CNC program for aluminum cutting."""
     cuts = data.get("cuts", [])
@@ -4810,7 +4832,7 @@ async def api_generate_cnc(data: dict):
     }
 
 
-@app.get("/api/download-nc/{filename}")
+@app.get("/api/download-nc/{filename}", tags=["Production"], summary="Download NC file")
 async def download_nc(filename: str):
     safe_name = Path(filename).name
     path = (RESULTS_DIR / safe_name).resolve()
@@ -4821,7 +4843,7 @@ async def download_nc(filename: str):
 
 # ============== F18. QR / LABEL GENERATOR ==============
 
-@app.post("/api/generate-qr")
+@app.post("/api/generate-qr", tags=["Production"], summary="Generate QR labels")
 async def api_generate_qr(data: dict):
     """Generate printable labels with position data."""
     positions = data.get("positions", [])
@@ -4885,7 +4907,7 @@ async def api_generate_qr(data: dict):
 
 # ============== F19. PHOTO REPORT TEMPLATE ==============
 
-@app.post("/api/generate-photo-report")
+@app.post("/api/generate-photo-report", tags=["Production"], summary="Generate photo report template")
 async def api_generate_photo_report(data: dict):
     """Generate photo report template as XLSX."""
     from openpyxl import Workbook
@@ -5356,7 +5378,7 @@ NODES_LIBRARY = {
 }
 
 
-@app.get("/api/nodes-library")
+@app.get("/api/nodes-library", tags=["Analytics & Projects"], summary="Get standard nodes catalog")
 async def api_nodes_library():
     """Return list of all standard nodes."""
     nodes_list = []
@@ -5372,7 +5394,7 @@ async def api_nodes_library():
     return {"status": "ok", "nodes": nodes_list}
 
 
-@app.get("/api/nodes-library/{node_type}")
+@app.get("/api/nodes-library/{node_type}", tags=["Analytics & Projects"], summary="Get nodes by type")
 async def api_node_detail(node_type: str):
     """Return detailed info about a specific node."""
     node = NODES_LIBRARY.get(node_type)
@@ -5383,7 +5405,7 @@ async def api_node_detail(node_type: str):
 
 # ============== 13. СТАТИСТИКА / ДАШБОРД ==============
 
-@app.get("/api/stats")
+@app.get("/api/stats", tags=["Analytics & Projects"], summary="Get usage statistics")
 async def api_stats():
     """Вернуть счётчики и последние операции."""
     return {
@@ -5395,7 +5417,7 @@ async def api_stats():
 
 # ============== СКАЧИВАНИЕ РЕЗУЛЬТАТОВ ==============
 
-@app.get("/api/download/{filename}")
+@app.get("/api/download/{filename}", tags=["Analytics & Projects"], summary="Download result file")
 async def download_result(filename: str):
     # Защита от path traversal: берём только имя файла
     safe_name = Path(filename).name
@@ -5404,6 +5426,22 @@ async def download_result(filename: str):
         raise HTTPException(status_code=404, detail="Файл не найден")
     return FileResponse(path, filename=safe_name,
                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.post("/api/export-zip", tags=["Analytics & Projects"], summary="Bulk download results as ZIP")
+async def export_zip(payload: dict):
+    """Download multiple result files as a single ZIP archive."""
+    filenames = payload.get("filenames", [])
+    if not filenames:
+        raise HTTPException(status_code=400, detail="Укажите список файлов")
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False, dir=str(RESULTS_DIR)) as tmp:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fn in filenames:
+                safe = Path(fn).name
+                fpath = (RESULTS_DIR / safe).resolve()
+                if fpath.is_relative_to(RESULTS_DIR.resolve()) and fpath.exists():
+                    zf.write(fpath, safe)
+        return FileResponse(tmp.name, filename="kmd_results.zip", media_type="application/zip")
 
 
 # ============== AI CHAT ASSISTANT ==============
@@ -5446,7 +5484,7 @@ MODULE_DESCRIPTIONS = {
 _MODULE_CONTEXT_STR = "\n".join(f"- {k}: {v}" for k, v in MODULE_DESCRIPTIONS.items())
 
 
-@app.post("/api/ai-chat")
+@app.post("/api/ai-chat", tags=["AI Tools"], summary="AI chat assistant")
 async def api_ai_chat(payload: dict):
     """AI chat assistant that explains modules and answers KMD questions."""
     question = payload.get("question", "").strip()

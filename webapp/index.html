@@ -516,6 +516,41 @@
         .data-table tbody tr { transition: background 0.2s ease; }
         .data-table tbody tr:hover { background: rgba(255,255,255,0.6); }
 
+        /* ===== Table Sort & Filter ===== */
+        .data-table thead th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.75rem; transition: color 0.2s ease; }
+        .data-table thead th.sortable:hover { color: #2A2A22; }
+        .data-table thead th.sortable::after { content: '\21C5'; position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.625rem; color: #C8C8B8; transition: color 0.2s ease; }
+        .data-table thead th.sortable.sort-asc::after { content: '\2191'; color: #B8963B; }
+        .data-table thead th.sortable.sort-desc::after { content: '\2193'; color: #B8963B; }
+        .data-table thead th.sortable.sort-asc, .data-table thead th.sortable.sort-desc { color: #2A2A22; }
+        .table-filter-row th { padding: 0.375rem 0.5rem !important; border-bottom: 1px solid rgba(26,26,20,0.08) !important; background: rgba(255,255,255,0.4); }
+        .table-filter-input {
+            width: 100%; padding: 0.375rem 0.625rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem;
+            color: #565648; background: rgba(255,255,255,0.8); border: 1px solid rgba(26,26,20,0.08); border-radius: 0.375rem; outline: none; transition: border-color 0.2s ease;
+        }
+        .table-filter-input:focus { border-color: #B8963B; }
+        .table-filter-input::placeholder { color: #C8C8B8; }
+        .table-filter-select {
+            width: 100%; padding: 0.375rem 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem;
+            color: #565648; background: rgba(255,255,255,0.8); border: 1px solid rgba(26,26,20,0.08); border-radius: 0.375rem; outline: none; cursor: pointer;
+        }
+        .table-filter-select:focus { border-color: #B8963B; }
+        .table-results-count { font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; color: #9A9A8C; letter-spacing: 0.05em; padding: 0.5rem 1.25rem; border-bottom: 1px solid rgba(26,26,20,0.04); }
+
+        /* ===== TABLE PAGINATION ===== */
+        .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-top: 1px solid rgba(26,26,20,0.06); background: rgba(255,255,255,0.3); font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: #717164; }
+        .pagination-bar .pg-info strong { color: #2A2A22; font-weight: 600; }
+        .pagination-bar .pg-controls { display: flex; align-items: center; gap: 0.25rem; }
+        .pagination-bar .pg-btn { min-width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; color: #565648; background: transparent; cursor: pointer; transition: all 0.2s ease; }
+        .pagination-bar .pg-btn:hover:not(:disabled):not(.active) { border-color: #C4C4B8; background: rgba(255,255,255,0.6); }
+        .pagination-bar .pg-btn.active { background: #2A2A22; color: #F5F2EC; border-color: #2A2A22; }
+        .pagination-bar .pg-btn:disabled { opacity: 0.3; cursor: default; }
+        .pagination-bar .pg-size-select { display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(26,26,20,0.08); }
+        .pagination-bar .pg-size-select label { font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9A9A8C; }
+        .pagination-bar .pg-size-select select { appearance: none; padding: 0.25rem 0.5rem; border: 1px solid #C4C4B8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: #2A2A22; cursor: pointer; }
+        .pagination-bar .pg-size-select select:focus { outline: none; border-color: #B8963B; }
+        @media (max-width: 768px) { .pagination-bar { flex-direction: column; gap: 0.75rem; } .pagination-bar .pg-size-select { margin-left: 0; padding-left: 0; border-left: none; } }
+
         /* Status rows */
         .row-removed { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
         .row-removed:hover { background: rgba(161,66,66,0.08); }
@@ -563,6 +598,47 @@
 
         /* Progress bar animation */
         .progress-bar-animated { animation: progressFill 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        /* ===== AI PROGRESS BAR ===== */
+        @keyframes progressShimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes progressPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .ai-progress-container { max-width: 420px; margin: 0 auto; }
+        .ai-progress-track { height: 3px; background: #EEEEE9; border-radius: 2px; overflow: hidden; }
+        .ai-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8A7030, #B8963B, #D4B66A);
+            background-size: 200% 100%;
+            animation: progressShimmer 2s linear infinite;
+            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .ai-progress-stages { display: flex; justify-content: space-between; margin-top: 16px; gap: 4px; }
+        .ai-progress-stage {
+            display: flex; align-items: center; gap: 6px;
+            font-family: 'JetBrains Mono', monospace; font-size: 10px;
+            letter-spacing: 0.08em; text-transform: uppercase; color: #C4C4B8;
+            transition: color 0.4s ease;
+        }
+        .ai-progress-stage.active { color: #B8963B; animation: progressPulse 1.8s ease-in-out infinite; }
+        .ai-progress-stage.done { color: #4A7C59; animation: none; }
+        .ai-progress-stage-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: #DDDDD4;
+            transition: background 0.4s ease, box-shadow 0.4s ease; flex-shrink: 0;
+        }
+        .ai-progress-stage.active .ai-progress-stage-dot { background: #B8963B; box-shadow: 0 0 6px rgba(184,150,59,0.4); }
+        .ai-progress-stage.done .ai-progress-stage-dot { background: #4A7C59; }
+        .ai-progress-label {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            letter-spacing: 0.12em; text-transform: uppercase; color: #717164;
+            text-align: center; margin-bottom: 14px;
+        }
+        .ai-progress-percent { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9A9A8C; text-align: right; margin-top: 6px; }
 
         /* Section panel */
         .section-panel {
@@ -1735,19 +1811,26 @@
                 </div>
 
                 <div class="section-panel overflow-hidden">
+                    <div class="table-results-count" x-show="compareResult">Показано <span class="text-carbon-700 font-bold" x-text="filteredCompareDiffs.length"></span> из <span x-text="compareResult?.diffs?.length || 0"></span></div>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Артикул</th>
-                                <th>Описание</th>
-                                <th class="text-right">А</th>
-                                <th class="text-right">Б</th>
-                                <th class="text-right">Разница</th>
-                                <th>Статус</th>
+                                <th class="sortable" :class="tblSortClass('compare','article')" @click="tblSort('compare','article')">Артикул</th>
+                                <th class="sortable" :class="tblSortClass('compare','description')" @click="tblSort('compare','description')">Описание</th>
+                                <th class="sortable text-right" :class="tblSortClass('compare','qty_a')" @click="tblSort('compare','qty_a')">А</th>
+                                <th class="sortable text-right" :class="tblSortClass('compare','qty_b')" @click="tblSort('compare','qty_b')">Б</th>
+                                <th class="sortable text-right" :class="tblSortClass('compare','diff')" @click="tblSort('compare','diff')">Разница</th>
+                                <th class="sortable" :class="tblSortClass('compare','status')" @click="tblSort('compare','status')">Статус</th>
+                            </tr>
+                            <tr class="table-filter-row">
+                                <th><input class="table-filter-input" placeholder="Поиск..." @input="tblFilter('compare','article',$event.target.value)"></th>
+                                <th><input class="table-filter-input" placeholder="Поиск..." @input="tblFilter('compare','description',$event.target.value)"></th>
+                                <th></th><th></th><th></th>
+                                <th><select class="table-filter-select" @change="tblFilter('compare','status',$event.target.value)"><option value="">Все</option><option value="removed">Удалено</option><option value="changed">Изменено</option><option value="extra">Лишнее</option></select></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-for="(d, i) in compareResult?.diffs || []" :key="i">
+                            <template x-for="(d, i) in paginate(pgTrack(filteredCompareDiffs, 'cmpDiffs'), 'cmpDiffs')" :key="i">
                                 <tr :class="{
                                     'row-removed': d.status === 'removed',
                                     'row-changed-up': d.status === 'changed' && d.diff > 0,
@@ -1774,6 +1857,17 @@
                             </template>
                         </tbody>
                     </table>
+                    <div class="pagination-bar" x-show="filteredCompareDiffs.length > 25">
+                        <div class="pg-info">Показано <strong x-text="pgRangeText(filteredCompareDiffs, 'cmpDiffs')"></strong></div>
+                        <div class="pg-controls">
+                            <button class="pg-btn" :disabled="pg('cmpDiffs').page<=1" @click="pgGoTo('cmpDiffs',1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+                            <button class="pg-btn" :disabled="pg('cmpDiffs').page<=1" @click="pgGoTo('cmpDiffs',pg('cmpDiffs').page-1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+                            <span class="pg-info" x-text="pg('cmpDiffs').page + ' / ' + totalPages(filteredCompareDiffs,'cmpDiffs')"></span>
+                            <button class="pg-btn" :disabled="pg('cmpDiffs').page>=totalPages(filteredCompareDiffs,'cmpDiffs')" @click="pgGoTo('cmpDiffs',pg('cmpDiffs').page+1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+                            <button class="pg-btn" :disabled="pg('cmpDiffs').page>=totalPages(filteredCompareDiffs,'cmpDiffs')" @click="pgGoTo('cmpDiffs',totalPages(filteredCompareDiffs,'cmpDiffs'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+                            <div class="pg-size-select"><label>Строк</label><select @change="pgSetSize('cmpDiffs',$event.target.value)" :value="pg('cmpDiffs').perPage"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="0">Все</option></select></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1913,10 +2007,27 @@
 
                 <div class="section-panel overflow-hidden mb-6">
                     <h3 class="section-label mb-4">Извлеченные позиции</h3>
+                    <div class="table-results-count">Показано <span class="text-carbon-700 font-bold" x-text="filteredParseItems.length"></span> из <span x-text="parseResult?.items?.length || 0"></span></div>
                     <table class="data-table">
-                        <thead><tr><th>Стр</th><th>Позиция</th><th class="text-right">Кол-во</th><th>Артикулы</th><th>Размеры</th><th class="text-right">Ручка</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th class="sortable" :class="tblSortClass('parse','page')" @click="tblSort('parse','page')">Стр</th>
+                                <th class="sortable" :class="tblSortClass('parse','position')" @click="tblSort('parse','position')">Позиция</th>
+                                <th class="sortable text-right" :class="tblSortClass('parse','quantity')" @click="tblSort('parse','quantity')">Кол-во</th>
+                                <th class="sortable" :class="tblSortClass('parse','articles')" @click="tblSort('parse','articles')">Артикулы</th>
+                                <th class="sortable" :class="tblSortClass('parse','dimensions')" @click="tblSort('parse','dimensions')">Размеры</th>
+                                <th>Ручка</th>
+                            </tr>
+                            <tr class="table-filter-row">
+                                <th></th>
+                                <th><input class="table-filter-input" placeholder="Поиск..." @input="tblFilter('parse','position',$event.target.value)"></th>
+                                <th></th>
+                                <th><input class="table-filter-input" placeholder="Артикул..." @input="tblFilter('parse','articles',$event.target.value)"></th>
+                                <th></th><th></th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-for="(item, i) in parseResult?.items || []" :key="i">
+                            <template x-for="(item, i) in filteredParseItems" :key="i">
                                 <tr>
                                     <td class="font-mono text-carbon-400" x-text="item.page"></td>
                                     <td class="font-mono font-bold text-carbon-900" x-text="item.position"></td>
@@ -3536,7 +3647,7 @@
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'aireview'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI анализирует чертёж...</p></div>
+            <div x-show="loading && activeTab === 'aireview'" class="text-center py-20"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
             <div x-show="aiReviewResult" class="fade-up">
                 <div class="section-panel p-6 mb-4">
@@ -3576,7 +3687,7 @@
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'ainote'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI генерирует пояснительную записку...</p></div>
+            <div x-show="loading && activeTab === 'ainote'" class="text-center py-20"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
             <div x-show="aiNoteResult" class="fade-up">
                 <div class="section-panel p-6 mb-4">
@@ -3612,7 +3723,7 @@
                     </div>
                 </div>
 
-                <div x-show="loading && activeTab === 'aigost'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI ищет ответ в нормативах...</p></div>
+                <div x-show="loading && activeTab === 'aigost'" class="text-center py-12"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
                 <div x-show="gostResult" class="section-panel p-6">
                     <div class="flex justify-between items-center mb-4">
@@ -3702,7 +3813,7 @@
                     </div>
                 </div>
 
-                <div x-show="loading && activeTab === 'aihardware'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI подбирает фурнитуру...</p></div>
+                <div x-show="loading && activeTab === 'aihardware'" class="text-center py-12"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
                 <div x-show="aiHardwareResult" class="fade-up">
                     <div class="section-panel p-6 mb-4">
@@ -3768,7 +3879,7 @@
                 </div>
             </div>
 
-            <div x-show="loading && activeTab === 'aicompare'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI сравнивает чертежи...</p></div>
+            <div x-show="loading && activeTab === 'aicompare'" class="text-center py-20"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
             <div x-show="aiCompareResult" class="fade-up">
                 <div class="section-panel p-6 mb-4">
@@ -3908,7 +4019,7 @@
                 <button @click="runAiGenerateKmd()" :disabled="!kmdGenParams.object_name || kmdGenParams.positions.length === 0" class="btn-primary" :class="(!kmdGenParams.object_name || kmdGenParams.positions.length === 0) ? 'opacity-50 cursor-not-allowed' : ''">Сгенерировать КМД</button>
             </div>
 
-            <div x-show="loading && activeTab === 'aigenkmd'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI генерирует КМД документацию...</p></div>
+            <div x-show="loading && activeTab === 'aigenkmd'" class="text-center py-12"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
             <div x-show="kmdGenResult" class="fade-up">
                 <div class="bg-white/60 backdrop-blur rounded-2xl border border-carbon-100 p-6">
@@ -3953,7 +4064,7 @@
                 <button @click="runAiTranslate()" :disabled="!translateText.trim()" class="btn-primary" :class="!translateText.trim() ? 'opacity-50 cursor-not-allowed' : ''">Перевести</button>
             </div>
 
-            <div x-show="loading && activeTab === 'aitranslate'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI переводит документацию...</p></div>
+            <div x-show="loading && activeTab === 'aitranslate'" class="text-center py-12"><div class="ai-progress-container"><p class="ai-progress-label" x-text="aiProgress.currentLabel || 'Обработка...'"></p><div class="ai-progress-track"><div class="ai-progress-fill" :style="'width:' + aiProgress.percent + '%'"></div></div><p class="ai-progress-percent" x-text="aiProgress.percent + '%'"></p><div class="ai-progress-stages"><template x-for="(stage, idx) in aiProgress.stages" :key="idx"><div class="ai-progress-stage" :class="{ active: idx === aiProgress.currentStage, done: idx < aiProgress.currentStage }"><span class="ai-progress-stage-dot"></span><span x-text="stage.label" class="hidden sm:inline"></span></div></template></div></div></div>
 
             <div x-show="translateResult" class="fade-up">
                 <div class="bg-white/60 backdrop-blur rounded-2xl border border-carbon-100 p-6">
@@ -4498,6 +4609,10 @@ function app() {
         showLanding: true,
         loading: false,
         error: null,
+        aiProgress: { active: false, percent: 0, currentStage: 0, currentLabel: '', stages: [], timers: [] },
+        _STORAGE_KEY: 'kmd_app_state',
+        _STORAGE_VERSION: 1,
+        _saveTimer: null,
 
         // Navigation state
         sidebarOpen: false,
@@ -4630,6 +4745,180 @@ function app() {
         scrollToCatalog() {
             this.$refs.catalogSection.scrollIntoView({ behavior: 'smooth' });
         },
+
+        // AI Progress bar methods
+        startProgress(stages, estimatedMs = 15000) {
+            this.aiProgress.active = true;
+            this.aiProgress.percent = 0;
+            this.aiProgress.currentStage = 0;
+            this.aiProgress.stages = stages;
+            this.aiProgress.currentLabel = stages[0]?.label || '';
+            this.aiProgress.timers = [];
+            const perStage = estimatedMs / stages.length;
+            stages.forEach((stage, i) => {
+                const timer = setTimeout(() => {
+                    this.aiProgress.currentStage = i;
+                    this.aiProgress.currentLabel = stage.label;
+                    const target = i < stages.length - 1 ? stages[i + 1].at : 92;
+                    this._animateProgressTo(target, perStage * 0.8);
+                }, i * perStage);
+                this.aiProgress.timers.push(timer);
+            });
+        },
+        _animateProgressTo(target, duration) {
+            const start = this.aiProgress.percent;
+            const diff = target - start;
+            const startTime = performance.now();
+            const step = (now) => {
+                if (!this.aiProgress.active) return;
+                const elapsed = now - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - t, 3);
+                this.aiProgress.percent = Math.round(start + diff * eased);
+                if (t < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        },
+        completeProgress() {
+            this.aiProgress.timers.forEach(t => clearTimeout(t));
+            this.aiProgress.timers = [];
+            this.aiProgress.currentStage = this.aiProgress.stages.length - 1;
+            this.aiProgress.currentLabel = 'Готово';
+            this._animateProgressTo(100, 300);
+            setTimeout(() => {
+                this.aiProgress.active = false;
+                this.aiProgress.percent = 0;
+                this.aiProgress.currentStage = 0;
+                this.aiProgress.stages = [];
+            }, 600);
+        },
+
+        // === localStorage persistence ===
+        saveState() {
+            try {
+                const state = {
+                    _version: this._STORAGE_VERSION, _savedAt: Date.now(),
+                    activeTab: this.activeTab, showLanding: this.showLanding,
+                    thermalParams: this.thermalParams, windParams: this.windParams,
+                    sashParams: this.sashParams, glassParams: this.glassParams,
+                    fastenersParams: this.fastenersParams, cuttingParams: this.cuttingParams,
+                    profileParams: this.profileParams, preview3dParams: this.preview3dParams,
+                    preview3dMode: this.preview3dMode, hwParams: this.hwParams,
+                    kmdGenParams: this.kmdGenParams, translateDirection: this.translateDirection,
+                    aiChatMessages: this.aiChatMessages, projectsList: this.projectsList,
+                    cncForm: this.cncForm, qrPositions: this.qrPositions,
+                    actForm: this.actForm, photoForm: this.photoForm, projForm: this.projForm,
+                    sidebarOpen: this.sidebarOpen, openCategories: this.openCategories,
+                };
+                const json = JSON.stringify(state);
+                if (json.length > 4 * 1024 * 1024) return;
+                localStorage.setItem(this._STORAGE_KEY, json);
+            } catch (e) { console.warn('[KMD] Save failed:', e.message); }
+        },
+        loadState() {
+            try {
+                const raw = localStorage.getItem(this._STORAGE_KEY);
+                if (!raw) return;
+                let saved;
+                try { saved = JSON.parse(raw); } catch (_) { localStorage.removeItem(this._STORAGE_KEY); return; }
+                if (!saved._version || saved._version < this._STORAGE_VERSION) { localStorage.removeItem(this._STORAGE_KEY); return; }
+                if (saved._savedAt && (Date.now() - saved._savedAt > 30*24*60*60*1000)) { localStorage.removeItem(this._STORAGE_KEY); return; }
+                const merge = (def, ov) => {
+                    if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return ov;
+                    const r = { ...def };
+                    for (const k of Object.keys(def)) { if (k in ov) r[k] = typeof def[k] === 'object' && def[k] && !Array.isArray(def[k]) ? merge(def[k], ov[k]) : ov[k]; }
+                    return r;
+                };
+                if (saved.activeTab) this.activeTab = saved.activeTab;
+                if (typeof saved.showLanding === 'boolean') this.showLanding = saved.showLanding;
+                if (typeof saved.sidebarOpen === 'boolean') this.sidebarOpen = saved.sidebarOpen;
+                if (Array.isArray(saved.openCategories)) this.openCategories = saved.openCategories;
+                if (saved.translateDirection) this.translateDirection = saved.translateDirection;
+                if (saved.preview3dMode) this.preview3dMode = saved.preview3dMode;
+                const params = ['thermalParams','windParams','sashParams','glassParams','fastenersParams','profileParams','hwParams','preview3dParams'];
+                for (const p of params) { if (saved[p]) this[p] = merge(this[p], saved[p]); }
+                if (saved.cuttingParams) {
+                    this.cuttingParams.stock_length = saved.cuttingParams.stock_length ?? this.cuttingParams.stock_length;
+                    this.cuttingParams.blade_width = saved.cuttingParams.blade_width ?? this.cuttingParams.blade_width;
+                    this.cuttingParams.min_remnant = saved.cuttingParams.min_remnant ?? this.cuttingParams.min_remnant;
+                    if (Array.isArray(saved.cuttingParams.cuts) && saved.cuttingParams.cuts.length) this.cuttingParams.cuts = saved.cuttingParams.cuts;
+                }
+                if (saved.kmdGenParams) { this.kmdGenParams = merge(this.kmdGenParams, saved.kmdGenParams); if (Array.isArray(saved.kmdGenParams.positions)) this.kmdGenParams.positions = saved.kmdGenParams.positions; }
+                if (saved.cncForm) { this.cncForm = merge(this.cncForm, saved.cncForm); if (Array.isArray(saved.cncForm?.cuts)) this.cncForm.cuts = saved.cncForm.cuts; }
+                if (Array.isArray(saved.qrPositions) && saved.qrPositions.length) this.qrPositions = saved.qrPositions;
+                if (saved.actForm) { this.actForm = merge(this.actForm, saved.actForm); if (Array.isArray(saved.actForm?.works)) this.actForm.works = saved.actForm.works; }
+                if (saved.photoForm) { this.photoForm = merge(this.photoForm, saved.photoForm); if (Array.isArray(saved.photoForm?.positions)) this.photoForm.positions = saved.photoForm.positions; }
+                if (saved.projForm) this.projForm = merge(this.projForm, saved.projForm);
+                if (Array.isArray(saved.aiChatMessages) && saved.aiChatMessages.length) {
+                    if (saved.aiChatMessages.every(m => m && typeof m.role === 'string' && typeof m.text === 'string')) this.aiChatMessages = saved.aiChatMessages;
+                }
+                if (Array.isArray(saved.projectsList)) this.projectsList = saved.projectsList;
+            } catch (e) { console.warn('[KMD] Load failed:', e.message); localStorage.removeItem(this._STORAGE_KEY); }
+        },
+        _scheduleSave() { if (this._saveTimer) clearTimeout(this._saveTimer); this._saveTimer = setTimeout(() => this.saveState(), 500); },
+        clearSavedState() { localStorage.removeItem(this._STORAGE_KEY); },
+        init() {
+            this.loadState();
+            const watchProps = ['activeTab','showLanding','sidebarOpen','openCategories','thermalParams','windParams','sashParams','glassParams','fastenersParams','cuttingParams','profileParams','preview3dParams','preview3dMode','aiChatMessages','projectsList','hwParams','kmdGenParams','translateDirection','cncForm','qrPositions','actForm','photoForm','projForm'];
+            for (const prop of watchProps) { this.$watch(prop, () => this._scheduleSave(), { deep: true }); }
+            window.addEventListener('beforeunload', () => this.saveState());
+        },
+
+        // === Table Sort & Filter ===
+        _tableState: {},
+        _tblState(tableId) {
+            if (!this._tableState[tableId]) this._tableState[tableId] = { sortCol: null, sortDir: 'asc', filters: {} };
+            return this._tableState[tableId];
+        },
+        tblSort(tableId, colKey) {
+            const st = this._tblState(tableId);
+            if (st.sortCol === colKey) { st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc'; }
+            else { st.sortCol = colKey; st.sortDir = 'asc'; }
+        },
+        tblSortClass(tableId, colKey) {
+            const st = this._tblState(tableId);
+            if (st.sortCol !== colKey) return '';
+            return st.sortDir === 'asc' ? 'sort-asc' : 'sort-desc';
+        },
+        tblFilter(tableId, colKey, value) { this._tblState(tableId).filters[colKey] = value; },
+        tblFilterVal(tableId, colKey) { return this._tblState(tableId).filters[colKey] || ''; },
+        tblProcess(tableId, rows, cols) {
+            if (!rows || !rows.length) return rows || [];
+            const st = this._tblState(tableId);
+            let result = rows.filter(row => {
+                for (const [ck, acc] of Object.entries(cols)) {
+                    const fv = (st.filters[ck] || '').toLowerCase().trim();
+                    if (!fv) continue;
+                    if (!String(acc(row) ?? '').toLowerCase().includes(fv)) return false;
+                }
+                return true;
+            });
+            if (st.sortCol && cols[st.sortCol]) {
+                const acc = cols[st.sortCol], dir = st.sortDir === 'asc' ? 1 : -1;
+                result = [...result].sort((a, b) => {
+                    let va = acc(a), vb = acc(b);
+                    const na = parseFloat(va), nb = parseFloat(vb);
+                    if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+                    return String(va ?? '').toLowerCase().localeCompare(String(vb ?? '').toLowerCase(), 'ru') * dir;
+                });
+            }
+            return result;
+        },
+        _compareCols: { article: d=>d.article, description: d=>d.description, qty_a: d=>d.qty_a, qty_b: d=>d.qty_b, diff: d=>d.diff, status: d=>d.status_text },
+        _parseCols: { page: r=>r.page, position: r=>r.position, quantity: r=>r.quantity, articles: r=>(r.articles||[]).join(', '), dimensions: r=>(r.dimensions||[]).join(' x ') },
+        get filteredCompareDiffs() { return this.tblProcess('compare', this.compareResult?.diffs || [], this._compareCols); },
+        get filteredParseItems() { return this.tblProcess('parse', this.parseResult?.items || [], this._parseCols); },
+
+        // === Pagination ===
+        paginationState: {},
+        _pgLastItems: {},
+        pg(t, d=25) { if (!this.paginationState[t]) this.paginationState[t] = {page:1, perPage:d}; return this.paginationState[t]; },
+        paginate(items, t) { if (!items) return []; const s=this.pg(t); if (s.perPage===0) return items; const st=(s.page-1)*s.perPage; return items.slice(st, st+s.perPage); },
+        totalPages(items, t) { if (!items||!items.length) return 1; const s=this.pg(t); if (s.perPage===0) return 1; return Math.ceil(items.length/s.perPage); },
+        pgGoTo(t, p) { const s=this.pg(t); const tp=this.totalPages(this._pgLastItems[t]||[], t); s.page=Math.max(1, Math.min(p, tp)); },
+        pgSetSize(t, v) { this.pg(t).perPage=parseInt(v); this.pg(t).page=1; },
+        pgRangeText(items, t) { if (!items||!items.length) return '0'; const s=this.pg(t); if (s.perPage===0) return `1-${items.length} / ${items.length}`; const st=(s.page-1)*s.perPage+1; return `${st}-${Math.min(s.page*s.perPage, items.length)} / ${items.length}`; },
+        pgTrack(items, t) { this._pgLastItems[t]=items||[]; const s=this.pg(t); const tp=this.totalPages(items,t); if (s.page>tp) s.page=Math.max(1,tp); return items; },
 
         switchTab(tabId) {
             if (this.activeTab === tabId && !this.showLanding) return;
@@ -5095,28 +5384,31 @@ function app() {
 
         async runAiReview() {
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Загрузка чертежа...',at:0},{label:'Извлечение данных...',at:20},{label:'AI анализирует конструкцию...',at:45},{label:'Формирование ревью...',at:75}], 20000);
             const fd = new FormData(); fd.append('file', this.fileAiReview);
             try {
                 const res = await fetch('/api/ai-review', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.aiReviewResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiNote() {
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Загрузка чертежа...',at:0},{label:'Анализ конструктива...',at:20},{label:'AI генерирует записку...',at:45},{label:'Оформление по ГОСТ...',at:80}], 25000);
             const fd = new FormData(); fd.append('file', this.fileAiNote);
             try {
                 const res = await fetch('/api/ai-generate-note', { method: 'POST', body: fd });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.aiNoteResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiGost() {
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Отправка запроса...',at:0},{label:'Поиск по нормативам...',at:25},{label:'AI формирует ответ...',at:55},{label:'Подготовка результата...',at:85}], 12000);
             try {
                 const res = await fetch('/api/ai-gost', {
                     method: 'POST',
@@ -5126,11 +5418,12 @@ function app() {
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.gostResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiHardware() {
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Анализ параметров...',at:0},{label:'Поиск по каталогам...',at:25},{label:'AI подбирает фурнитуру...',at:50},{label:'Формирование спецификации...',at:80}], 15000);
             try {
                 const res = await fetch('/api/ai-hardware', {
                     method: 'POST',
@@ -5140,11 +5433,12 @@ function app() {
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.aiHardwareResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiCompare() {
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Загрузка чертежей...',at:0},{label:'Извлечение элементов...',at:20},{label:'AI сравнивает версии...',at:45},{label:'Формирование отчёта...',at:78}], 20000);
             const fd = new FormData();
             fd.append('file_a', this.fileAiCmpA); fd.append('file_b', this.fileAiCmpB);
             try {
@@ -5152,13 +5446,14 @@ function app() {
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.aiCompareResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiGenerateKmd() {
             const p = this.kmdGenParams;
             if (!p.object_name || p.positions.length === 0) { this.error = 'Укажите название объекта и добавьте позиции'; return; }
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Подготовка данных...',at:0},{label:'AI проектирует узлы...',at:20},{label:'Генерация КМД...',at:50},{label:'Оформление по стандартам...',at:80}], 30000);
             try {
                 const res = await fetch('/api/ai-generate-kmd', {
                     method: 'POST',
@@ -5168,12 +5463,13 @@ function app() {
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.kmdGenResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         async runAiTranslate() {
             if (!this.translateText.trim()) { this.error = 'Введите текст для перевода'; return; }
             this.loading = true; this.error = null;
+            this.startProgress([{label:'Подготовка текста...',at:0},{label:'AI переводит термины...',at:30},{label:'Адаптация под стандарты...',at:60},{label:'Финализация перевода...',at:85}], 12000);
             try {
                 const res = await fetch('/api/ai-translate', {
                     method: 'POST',
@@ -5183,7 +5479,7 @@ function app() {
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.translateResult = await res.json();
             } catch (e) { this.error = e.message; }
-            this.loading = false;
+            this.completeProgress(); this.loading = false;
         },
 
         downloadKmdAsTxt() {
