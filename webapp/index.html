@@ -6,8 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KMD Assistant">
-    <meta name="theme-color" content="#1A1A14">
-    <meta name="msapplication-TileColor" content="#1A1A14">
+    <meta name="theme-color" content="#FAF9F7">
+    <meta name="msapplication-TileColor" content="#1B2631">
     <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -36,21 +36,22 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
     tailwind.config = {
         theme: {
             extend: {
                 fontFamily: {
-                    display: ['Playfair Display', 'serif'],
-                    body: ['Instrument Sans', 'sans-serif'],
-                    mono: ['JetBrains Mono', 'monospace'],
+                    display: ['Cormorant Garamond', 'serif'],
+                    body: ['DM Sans', 'sans-serif'],
+                    mono: ['IBM Plex Mono', 'monospace'],
                 },
                 colors: {
-                    canvas: { DEFAULT: '#F5F2EC', dark: '#EDE9E0', deep: '#E5E0D6' },
-                    carbon: { 50: '#F7F7F6', 100: '#EEEEE9', 200: '#DDDDD4', 300: '#C4C4B8', 400: '#9A9A8C', 500: '#717164', 600: '#565648', 700: '#3D3D32', 800: '#2A2A22', 900: '#1A1A14' },
-                    brass: { DEFAULT: '#B8963B', light: '#D4B66A', pale: '#F0E8D0', dark: '#8A7030' },
-                    status: { ok: '#4A7C59', warn: '#C4873B', fail: '#A14242', info: '#4A6FA5' }
+                    canvas: { DEFAULT: '#FAF9F7', dark: '#F3F1EE', deep: '#EBE8E4' },
+                    carbon: { 50: '#F8F9FA', 100: '#F0F1F2', 200: '#E2E4E6', 300: '#C8CCCE', 400: '#9DA3A7', 500: '#636E72', 600: '#4A5459', 700: '#343D42', 800: '#2D3436', 900: '#1B2631' },
+                    sage: { DEFAULT: '#7B8B6F', light: '#A8B89F', pale: '#EEF2EB', dark: '#5A6B4F', deep: '#3D4A35' },
+                    terra: { DEFAULT: '#C4956A', light: '#D4B08E', pale: '#F5EDE4' },
+                    status: { ok: '#6B8F71', warn: '#C4956A', fail: '#B85C5C', info: '#6B8FAF' }
                 }
             }
         }
@@ -59,62 +60,68 @@
     <style>
         [x-cloak] { display: none !important; }
         * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        body { font-family: 'Instrument Sans', sans-serif; background: #F5F2EC; color: #2A2A22; }
+        body { font-family: 'DM Sans', sans-serif; background: #FAF9F7; color: #2D3436; }
 
-        /* Architectural grid overlay */
+        /* Architectural grid overlay — finer, more refined */
         .arch-grid {
             background-image:
-                linear-gradient(rgba(26,26,20,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(26,26,20,0.02) 1px, transparent 1px);
-            background-size: 80px 80px;
+                linear-gradient(rgba(27,38,49,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(27,38,49,0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
         }
 
-        /* Grain texture */
+        /* Fine paper grain texture */
         .grain::after {
             content: '';
             position: fixed;
             inset: 0;
-            opacity: 0.025;
+            opacity: 0.018;
             pointer-events: none;
             z-index: 9999;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
 
-        /* ===== ZOOM TRANSITION SYSTEM ===== */
-        @keyframes zoomIn {
-            from { opacity: 0; transform: scale(0.94) translateY(12px); filter: blur(4px); }
-            to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        /* ===== BOOK-OPENING TRANSITION SYSTEM ===== */
+        @keyframes bookOpen {
+            from { opacity: 0; transform: perspective(1200px) rotateY(-8deg) scale(0.96); filter: blur(3px); }
+            to { opacity: 1; transform: perspective(1200px) rotateY(0deg) scale(1); filter: blur(0); }
         }
-        @keyframes zoomOut {
-            from { opacity: 1; transform: scale(1); }
-            to { opacity: 0; transform: scale(0.97); }
+        @keyframes bookClose {
+            from { opacity: 1; transform: perspective(1200px) rotateY(0deg); }
+            to { opacity: 0; transform: perspective(1200px) rotateY(4deg) scale(0.98); }
         }
         .tab-zoom-enter {
-            animation: zoomIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation: bookOpen 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+            transform-origin: left center;
         }
         .tab-zoom-leave {
-            animation: zoomOut 0.2s ease both;
+            animation: bookClose 0.25s ease both;
+            transform-origin: right center;
         }
 
-        /* Stagger children inside zoomed sections */
-        .tab-zoom-enter .section-hero { animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
-        .tab-zoom-enter .section-body { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+        /* Stagger children — magazine page reveals */
+        .tab-zoom-enter .section-hero { animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+        .tab-zoom-enter .section-body { animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
 
-        /* Reveal animations */
+        /* Reveal animations — editorial style */
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(24px); }
+            from { opacity: 0; transform: translateY(28px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes revealUp {
+            from { opacity: 0; transform: translateY(40px); filter: blur(2px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
         }
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
         @keyframes slideRight {
-            from { opacity: 0; transform: translateX(-20px); }
+            from { opacity: 0; transform: translateX(-24px); }
             to { opacity: 1; transform: translateX(0); }
         }
         @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
+            from { opacity: 0; transform: scale(0.94); }
             to { opacity: 1; transform: scale(1); }
         }
         @keyframes drawLine {
@@ -129,13 +136,19 @@
             100% { background-position: 200% 0; }
         }
         @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(184,150,59,0.3); }
-            50% { box-shadow: 0 0 0 6px rgba(184,150,59,0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(123,139,111,0.25); }
+            50% { box-shadow: 0 0 0 8px rgba(123,139,111,0); }
         }
-        .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
-        .fade-in { animation: fadeIn 0.5s ease both; }
-        .slide-right { animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-        .scale-in { animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        /* Magazine page-turn for sections */
+        @keyframes pageTurn {
+            from { opacity: 0; transform: perspective(1000px) rotateY(-12deg) translateX(-30px); }
+            to { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateX(0); }
+        }
+        .fade-up { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .fade-in { animation: fadeIn 0.6s ease both; }
+        .slide-right { animation: slideRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .page-turn { animation: pageTurn 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .d1 { animation-delay: 80ms; }
         .d2 { animation-delay: 160ms; }
         .d3 { animation-delay: 240ms; }
@@ -147,67 +160,67 @@
 
         /* ===== GLASS TOP BAR ===== */
         .glass-nav {
-            background: rgba(245, 242, 236, 0.88);
-            backdrop-filter: blur(24px) saturate(1.3);
-            -webkit-backdrop-filter: blur(24px) saturate(1.3);
-            border-bottom: 1px solid rgba(26,26,20,0.05);
+            background: rgba(250, 249, 247, 0.92);
+            backdrop-filter: blur(28px) saturate(1.2);
+            -webkit-backdrop-filter: blur(28px) saturate(1.2);
+            border-bottom: 1px solid rgba(27,38,49,0.04);
         }
 
-        /* ===== PREMIUM SIDEBAR ===== */
+        /* ===== EDITORIAL SIDEBAR ===== */
         .sidebar {
             position: fixed;
             left: 0;
             top: 0;
             bottom: 0;
             width: 290px;
-            background: linear-gradient(180deg, #16160F 0%, #1A1A14 40%, #1E1E17 100%);
+            background: linear-gradient(180deg, #1B2631 0%, #1E2D3A 40%, #213240 100%);
             z-index: 100;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: #3D3D32 transparent;
-            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-            box-shadow: 4px 0 40px rgba(0,0,0,0.15);
+            scrollbar-color: #343D42 transparent;
+            transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 4px 0 48px rgba(27,38,49,0.12);
         }
         .sidebar.collapsed { transform: translateX(-290px); }
         .sidebar::-webkit-scrollbar { width: 3px; }
-        .sidebar::-webkit-scrollbar-thumb { background: #3D3D32; border-radius: 3px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #343D42; border-radius: 3px; }
 
         .sidebar-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(26,26,20,0.5);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(27,38,49,0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 99;
         }
 
         /* Sidebar search */
         .sidebar-search {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: 10px;
-            color: #EEEEE9;
+            color: #E2E4E6;
             font-size: 0.8125rem;
-            font-family: 'Instrument Sans', sans-serif;
+            font-family: 'DM Sans', sans-serif;
             padding: 0.65rem 0.75rem 0.65rem 2.25rem;
             width: 100%;
             outline: none;
             transition: all 0.25s ease;
         }
-        .sidebar-search::placeholder { color: #565648; }
+        .sidebar-search::placeholder { color: #4A5459; }
         .sidebar-search:focus {
-            border-color: rgba(184,150,59,0.5);
-            background: rgba(255,255,255,0.08);
-            box-shadow: 0 0 0 3px rgba(184,150,59,0.08);
+            border-color: rgba(123,139,111,0.5);
+            background: rgba(255,255,255,0.09);
+            box-shadow: 0 0 0 3px rgba(123,139,111,0.1);
         }
 
         /* Category header */
         .nav-category {
             font-size: 0.5625rem;
-            font-weight: 700;
+            font-weight: 600;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #565648;
+            color: #4A5459;
             padding: 1.1rem 1.5rem 0.4rem;
             cursor: pointer;
             display: flex;
@@ -216,7 +229,7 @@
             user-select: none;
             transition: color 0.2s;
         }
-        .nav-category:hover { color: #9A9A8C; }
+        .nav-category:hover { color: #9DA3A7; }
         .nav-category .cat-chevron {
             transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
             font-size: 0.45rem;
@@ -230,8 +243,8 @@
             font-weight: 600;
             padding: 0.1rem 0.4rem;
             border-radius: 3px;
-            background: rgba(255,255,255,0.05);
-            color: #565648;
+            background: rgba(255,255,255,0.06);
+            color: #4A5459;
             margin-right: 0.5rem;
         }
 
@@ -242,7 +255,7 @@
             gap: 0.7rem;
             padding: 0.55rem 1.5rem;
             font-size: 0.8rem;
-            color: #9A9A8C;
+            color: #9DA3A7;
             cursor: pointer;
             transition: all 0.2s ease;
             border-left: 2px solid transparent;
@@ -257,14 +270,14 @@
             transition: background 0.2s ease;
             z-index: -1;
         }
-        .nav-item:hover { color: #EEEEE9; }
+        .nav-item:hover { color: #E2E4E6; }
         .nav-item:hover::before { background: rgba(255,255,255,0.04); }
         .nav-item.active {
-            color: #D4B66A;
-            border-left-color: #B8963B;
+            color: #A8B89F;
+            border-left-color: #7B8B6F;
         }
         .nav-item.active::before {
-            background: linear-gradient(90deg, rgba(184,150,59,0.1), rgba(184,150,59,0.02));
+            background: linear-gradient(90deg, rgba(123,139,111,0.12), rgba(123,139,111,0.02));
         }
         .nav-item .nav-icon {
             width: 18px;
@@ -280,7 +293,7 @@
         .nav-item.active .nav-icon { opacity: 1; }
 
         /* Content offset when sidebar open */
-        .main-shifted { margin-left: 290px; transition: margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+        .main-shifted { margin-left: 290px; transition: margin-left 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 
         /* ===== AI CHAT PANEL ===== */
         .ai-chat-panel {
@@ -289,11 +302,11 @@
             bottom: 1.25rem;
             width: 400px;
             max-height: 560px;
-            background: rgba(250,250,247,0.98);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(26,26,20,0.06);
+            background: rgba(250,249,247,0.98);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(27,38,49,0.06);
             border-radius: 20px;
-            box-shadow: 0 24px 80px rgba(26,26,20,0.12), 0 4px 20px rgba(26,26,20,0.06);
+            box-shadow: 0 24px 80px rgba(27,38,49,0.1), 0 4px 20px rgba(27,38,49,0.04);
             z-index: 200;
             display: flex;
             flex-direction: column;
@@ -304,7 +317,7 @@
             overflow-y: auto;
             padding: 1rem 1.25rem;
             scrollbar-width: thin;
-            scrollbar-color: #DDDDD4 transparent;
+            scrollbar-color: #E2E4E6 transparent;
         }
         .ai-msg {
             margin-bottom: 0.75rem;
@@ -316,17 +329,17 @@
         }
         .ai-msg.user {
             margin-left: auto;
-            background: #2A2A22;
-            color: #EEEEE9;
+            background: #1B2631;
+            color: #E2E4E6;
             border-bottom-right-radius: 4px;
         }
         .ai-msg.bot {
-            background: #EEEEE9;
-            color: #2A2A22;
+            background: #EEF2EB;
+            color: #2D3436;
             border-bottom-left-radius: 4px;
         }
         .ai-chat-input {
-            border-top: 1px solid rgba(26,26,20,0.05);
+            border-top: 1px solid rgba(27,38,49,0.05);
             padding: 0.875rem 1rem;
             display: flex;
             gap: 0.5rem;
@@ -334,16 +347,16 @@
         }
         .ai-chat-input input {
             flex: 1;
-            border: 1px solid #DDDDD4;
+            border: 1px solid #E2E4E6;
             border-radius: 10px;
             padding: 0.6rem 0.875rem;
             font-size: 0.8125rem;
-            font-family: 'Instrument Sans', sans-serif;
+            font-family: 'DM Sans', sans-serif;
             outline: none;
             background: white;
             transition: border-color 0.2s;
         }
-        .ai-chat-input input:focus { border-color: #B8963B; box-shadow: 0 0 0 3px rgba(184,150,59,0.08); }
+        .ai-chat-input input:focus { border-color: #7B8B6F; box-shadow: 0 0 0 3px rgba(123,139,111,0.1); }
 
         /* Menu toggle button */
         .menu-toggle {
@@ -358,12 +371,12 @@
             border-radius: 10px;
             transition: all 0.2s;
         }
-        .menu-toggle:hover { background: rgba(26,26,20,0.05); }
+        .menu-toggle:hover { background: rgba(27,38,49,0.04); }
         .menu-toggle span {
             display: block;
             width: 17px;
             height: 1.5px;
-            background: #2A2A22;
+            background: #2D3436;
             border-radius: 1px;
             transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
         }
@@ -374,11 +387,11 @@
             align-items: center;
             padding: 0.15rem 0.4rem;
             font-size: 0.6rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             background: rgba(255,255,255,0.06);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 5px;
-            color: #565648;
+            color: #4A5459;
         }
 
         /* ===== SECTION HERO HEADER ===== */
@@ -389,10 +402,10 @@
             position: relative;
         }
         .section-hero .hero-number {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Cormorant Garamond', serif;
             font-size: 5rem;
-            font-weight: 800;
-            color: rgba(184,150,59,0.06);
+            font-weight: 300;
+            color: rgba(123,139,111,0.07);
             line-height: 1;
             position: absolute;
             top: 0;
@@ -400,14 +413,15 @@
             transform: translateX(-50%);
             pointer-events: none;
             user-select: none;
+            font-style: italic;
         }
         .section-hero .hero-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.625rem;
-            font-weight: 600;
+            font-weight: 500;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #B8963B;
+            color: #7B8B6F;
             margin-bottom: 0.75rem;
             position: relative;
         }
@@ -417,94 +431,94 @@
             display: inline-block;
             width: 24px;
             height: 1px;
-            background: #B8963B;
+            background: #7B8B6F;
             vertical-align: middle;
-            opacity: 0.4;
+            opacity: 0.35;
         }
         .section-hero .hero-label::before { margin-right: 0.75rem; }
         .section-hero .hero-label::after { margin-left: 0.75rem; }
         .section-hero .hero-title {
-            font-family: 'Playfair Display', serif;
-            font-weight: 600;
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 500;
             font-size: clamp(1.75rem, 4vw, 2.75rem);
-            color: #1A1A14;
-            letter-spacing: -0.03em;
+            color: #1B2631;
+            letter-spacing: -0.02em;
             line-height: 1.15;
             margin-bottom: 0.75rem;
         }
         .section-hero .hero-desc {
             font-size: 0.875rem;
-            color: #9A9A8C;
+            color: #9DA3A7;
             max-width: 28rem;
             margin: 0 auto;
             line-height: 1.7;
         }
         .section-hero .hero-divider {
             width: 40px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #B8963B, transparent);
+            height: 1.5px;
+            background: linear-gradient(90deg, transparent, #7B8B6F, transparent);
             margin: 1.25rem auto 0;
             border-radius: 1px;
         }
 
-        /* ===== OLD SECTION HEADINGS (kept for non-hero sections) ===== */
+        /* ===== SECTION HEADINGS ===== */
         .section-title {
-            font-family: 'Playfair Display', serif;
-            font-weight: 600;
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 500;
             font-size: 2rem;
-            color: #1A1A14;
+            color: #1B2631;
             letter-spacing: -0.02em;
             line-height: 1.1;
         }
         .section-subtitle {
             font-size: 0.8125rem;
-            color: #9A9A8C;
+            color: #9DA3A7;
             margin-top: 0.5rem;
             max-width: 32rem;
             line-height: 1.6;
         }
         .section-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5625rem;
-            font-weight: 600;
+            font-weight: 500;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #B8963B;
+            color: #7B8B6F;
         }
 
         /* ===== DROP ZONES ===== */
         .drop-zone {
-            border: 1.5px dashed #C4C4B8;
+            border: 1.5px dashed #C8CCCE;
             background: rgba(255,255,255,0.5);
             border-radius: 14px;
             transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
             cursor: pointer;
         }
         .drop-zone:hover {
-            border-color: #B8963B;
-            background: rgba(255,255,255,0.8);
+            border-color: #7B8B6F;
+            background: rgba(255,255,255,0.85);
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(26,26,20,0.06);
+            box-shadow: 0 8px 30px rgba(27,38,49,0.05);
         }
         .drop-zone.dragover {
-            border-color: #B8963B;
-            background: #F0E8D0;
+            border-color: #7B8B6F;
+            background: #EEF2EB;
             transform: translateY(-4px) scale(1.005);
-            box-shadow: 0 12px 40px rgba(184,150,59,0.12);
+            box-shadow: 0 12px 40px rgba(123,139,111,0.1);
         }
         .drop-zone.loaded {
-            border: 1.5px solid #B8963B;
-            background: rgba(240,232,208,0.3);
+            border: 1.5px solid #7B8B6F;
+            background: rgba(238,242,235,0.3);
         }
 
         /* Bulk ZIP checkboxes */
-        .zip-checkbox { width: 16px; height: 16px; accent-color: #C4A24C; cursor: pointer; border-radius: 3px; }
+        .zip-checkbox { width: 16px; height: 16px; accent-color: #7B8B6F; cursor: pointer; border-radius: 3px; }
         .zip-checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
 
         /* Cards */
         .metric-card {
             background: rgba(255,255,255,0.6);
-            border: 1px solid rgba(26,26,20,0.06);
+            border: 1px solid rgba(27,38,49,0.06);
             border-radius: 14px;
             padding: 1.25rem;
             transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -512,111 +526,111 @@
         .metric-card:hover {
             background: rgba(255,255,255,0.9);
             transform: translateY(-3px);
-            box-shadow: 0 12px 40px rgba(26,26,20,0.06);
+            box-shadow: 0 12px 40px rgba(27,38,49,0.06);
         }
-        .metric-card.accent-left { border-left: 3px solid #B8963B; }
+        .metric-card.accent-left { border-left: 3px solid #7B8B6F; }
 
         /* Tables */
         .data-table { border-collapse: collapse; width: 100%; }
         .data-table thead th {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5625rem;
             font-weight: 600;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: #9A9A8C;
+            color: #9DA3A7;
             padding: 0.875rem 1.25rem;
-            border-bottom: 2px solid #2A2A22;
+            border-bottom: 2px solid #2D3436;
             text-align: left;
         }
         .data-table tbody td {
             padding: 0.75rem 1.25rem;
             font-size: 0.8125rem;
-            border-bottom: 1px solid rgba(26,26,20,0.04);
-            color: #565648;
+            border-bottom: 1px solid rgba(27,38,49,0.04);
+            color: #4A5459;
         }
         .data-table tbody tr { transition: background 0.2s ease; }
         .data-table tbody tr:hover { background: rgba(255,255,255,0.6); }
 
         /* ===== Table Sort & Filter ===== */
         .data-table thead th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.75rem; transition: color 0.2s ease; }
-        .data-table thead th.sortable:hover { color: #2A2A22; }
-        .data-table thead th.sortable::after { content: '\21C5'; position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.625rem; color: #C8C8B8; transition: color 0.2s ease; }
-        .data-table thead th.sortable.sort-asc::after { content: '\2191'; color: #B8963B; }
-        .data-table thead th.sortable.sort-desc::after { content: '\2193'; color: #B8963B; }
-        .data-table thead th.sortable.sort-asc, .data-table thead th.sortable.sort-desc { color: #2A2A22; }
-        .table-filter-row th { padding: 0.375rem 0.5rem !important; border-bottom: 1px solid rgba(26,26,20,0.08) !important; background: rgba(255,255,255,0.4); }
+        .data-table thead th.sortable:hover { color: #2D3436; }
+        .data-table thead th.sortable::after { content: '\21C5'; position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.625rem; color: #C8CCCE; transition: color 0.2s ease; }
+        .data-table thead th.sortable.sort-asc::after { content: '\2191'; color: #7B8B6F; }
+        .data-table thead th.sortable.sort-desc::after { content: '\2193'; color: #7B8B6F; }
+        .data-table thead th.sortable.sort-asc, .data-table thead th.sortable.sort-desc { color: #2D3436; }
+        .table-filter-row th { padding: 0.375rem 0.5rem !important; border-bottom: 1px solid rgba(27,38,49,0.08) !important; background: rgba(255,255,255,0.4); }
         .table-filter-input {
-            width: 100%; padding: 0.375rem 0.625rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem;
-            color: #565648; background: rgba(255,255,255,0.8); border: 1px solid rgba(26,26,20,0.08); border-radius: 0.375rem; outline: none; transition: border-color 0.2s ease;
+            width: 100%; padding: 0.375rem 0.625rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem;
+            color: #4A5459; background: rgba(255,255,255,0.8); border: 1px solid rgba(27,38,49,0.08); border-radius: 0.375rem; outline: none; transition: border-color 0.2s ease;
         }
-        .table-filter-input:focus { border-color: #B8963B; }
-        .table-filter-input::placeholder { color: #C8C8B8; }
+        .table-filter-input:focus { border-color: #7B8B6F; }
+        .table-filter-input::placeholder { color: #C8CCCE; }
         .table-filter-select {
-            width: 100%; padding: 0.375rem 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem;
-            color: #565648; background: rgba(255,255,255,0.8); border: 1px solid rgba(26,26,20,0.08); border-radius: 0.375rem; outline: none; cursor: pointer;
+            width: 100%; padding: 0.375rem 0.5rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem;
+            color: #4A5459; background: rgba(255,255,255,0.8); border: 1px solid rgba(27,38,49,0.08); border-radius: 0.375rem; outline: none; cursor: pointer;
         }
-        .table-filter-select:focus { border-color: #B8963B; }
-        .table-results-count { font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; color: #9A9A8C; letter-spacing: 0.05em; padding: 0.5rem 1.25rem; border-bottom: 1px solid rgba(26,26,20,0.04); }
+        .table-filter-select:focus { border-color: #7B8B6F; }
+        .table-results-count { font-family: 'IBM Plex Mono', monospace; font-size: 0.625rem; color: #9DA3A7; letter-spacing: 0.05em; padding: 0.5rem 1.25rem; border-bottom: 1px solid rgba(27,38,49,0.04); }
 
         /* ===== TABLE PAGINATION ===== */
-        .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-top: 1px solid rgba(26,26,20,0.06); background: rgba(255,255,255,0.3); font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: #717164; }
-        .pagination-bar .pg-info strong { color: #2A2A22; font-weight: 600; }
+        .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-top: 1px solid rgba(27,38,49,0.06); background: rgba(255,255,255,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem; color: #636E72; }
+        .pagination-bar .pg-info strong { color: #2D3436; font-weight: 600; }
         .pagination-bar .pg-controls { display: flex; align-items: center; gap: 0.25rem; }
-        .pagination-bar .pg-btn { min-width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; color: #565648; background: transparent; cursor: pointer; transition: all 0.2s ease; }
-        .pagination-bar .pg-btn:hover:not(:disabled):not(.active) { border-color: #C4C4B8; background: rgba(255,255,255,0.6); }
-        .pagination-bar .pg-btn.active { background: #2A2A22; color: #F5F2EC; border-color: #2A2A22; }
+        .pagination-bar .pg-btn { min-width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 0.625rem; color: #4A5459; background: transparent; cursor: pointer; transition: all 0.2s ease; }
+        .pagination-bar .pg-btn:hover:not(:disabled):not(.active) { border-color: #C8CCCE; background: rgba(255,255,255,0.6); }
+        .pagination-bar .pg-btn.active { background: #2D3436; color: #FAF9F7; border-color: #2D3436; }
         .pagination-bar .pg-btn:disabled { opacity: 0.3; cursor: default; }
-        .pagination-bar .pg-size-select { display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(26,26,20,0.08); }
-        .pagination-bar .pg-size-select label { font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9A9A8C; }
-        .pagination-bar .pg-size-select select { appearance: none; padding: 0.25rem 0.5rem; border: 1px solid #C4C4B8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: #2A2A22; cursor: pointer; }
-        .pagination-bar .pg-size-select select:focus { outline: none; border-color: #B8963B; }
+        .pagination-bar .pg-size-select { display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(27,38,49,0.08); }
+        .pagination-bar .pg-size-select label { font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9DA3A7; }
+        .pagination-bar .pg-size-select select { appearance: none; padding: 0.25rem 0.5rem; border: 1px solid #C8CCCE; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem; color: #2D3436; cursor: pointer; }
+        .pagination-bar .pg-size-select select:focus { outline: none; border-color: #7B8B6F; }
         @media (max-width: 768px) { .pagination-bar { flex-direction: column; gap: 0.75rem; } .pagination-bar .pg-size-select { margin-left: 0; padding-left: 0; border-left: none; } }
 
         /* Status rows */
-        .row-removed { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
-        .row-removed:hover { background: rgba(161,66,66,0.08); }
-        .row-extra { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.04); }
-        .row-extra:hover { background: rgba(196,135,59,0.08); }
-        .row-changed-up { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
-        .row-changed-down { border-left: 3px solid #4A7C59; background: rgba(74,124,89,0.04); }
-        .row-color { border-left: 3px solid #4A6FA5; background: rgba(74,111,165,0.04); }
-        .row-cv-match { border-left: 3px solid #4A7C59; background: rgba(74,124,89,0.04); }
-        .row-cv-missing { border-left: 3px solid #A14242; background: rgba(161,66,66,0.04); }
-        .row-cv-extra { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.04); }
-        .row-cv-mismatch { border-left: 3px solid #C4873B; background: rgba(196,135,59,0.06); }
+        .row-removed { border-left: 3px solid #B85C5C; background: rgba(184,92,92,0.04); }
+        .row-removed:hover { background: rgba(184,92,92,0.08); }
+        .row-extra { border-left: 3px solid #C4956A; background: rgba(196,149,106,0.04); }
+        .row-extra:hover { background: rgba(196,149,106,0.08); }
+        .row-changed-up { border-left: 3px solid #B85C5C; background: rgba(184,92,92,0.04); }
+        .row-changed-down { border-left: 3px solid #6B8F71; background: rgba(107,143,113,0.04); }
+        .row-color { border-left: 3px solid #6B8FAF; background: rgba(107,143,175,0.04); }
+        .row-cv-match { border-left: 3px solid #6B8F71; background: rgba(107,143,113,0.04); }
+        .row-cv-missing { border-left: 3px solid #B85C5C; background: rgba(184,92,92,0.04); }
+        .row-cv-extra { border-left: 3px solid #C4956A; background: rgba(196,149,106,0.04); }
+        .row-cv-mismatch { border-left: 3px solid #C4956A; background: rgba(196,149,106,0.06); }
 
         /* Badges */
         .badge {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5625rem;
             font-weight: 600;
             padding: 0.25rem 0.625rem;
             border-radius: 4px;
             letter-spacing: 0.03em;
         }
-        .badge-removed { background: rgba(161,66,66,0.1); color: #A14242; }
-        .badge-changed { background: rgba(196,135,59,0.1); color: #C4873B; }
-        .badge-extra { background: rgba(196,135,59,0.1); color: #C4873B; }
-        .badge-color { background: rgba(74,111,165,0.1); color: #4A6FA5; }
-        .badge-cv-match { background: rgba(74,124,89,0.1); color: #4A7C59; }
-        .badge-cv-missing { background: rgba(161,66,66,0.1); color: #A14242; }
-        .badge-cv-extra { background: rgba(196,135,59,0.1); color: #C4873B; }
-        .badge-cv-mismatch { background: rgba(196,135,59,0.15); color: #8A7030; }
+        .badge-removed { background: rgba(184,92,92,0.1); color: #B85C5C; }
+        .badge-changed { background: rgba(196,149,106,0.1); color: #C4956A; }
+        .badge-extra { background: rgba(196,149,106,0.1); color: #C4956A; }
+        .badge-color { background: rgba(107,143,175,0.1); color: #6B8FAF; }
+        .badge-cv-match { background: rgba(107,143,113,0.1); color: #6B8F71; }
+        .badge-cv-missing { background: rgba(184,92,92,0.1); color: #B85C5C; }
+        .badge-cv-extra { background: rgba(196,149,106,0.1); color: #C4956A; }
+        .badge-cv-mismatch { background: rgba(196,149,106,0.15); color: #5A6B4F; }
 
         /* Spinner */
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
             width: 32px; height: 32px;
-            border: 2px solid #DDDDD4;
-            border-top-color: #B8963B;
+            border: 2px solid #E2E4E6;
+            border-top-color: #7B8B6F;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
 
         /* Check icons */
-        .check-ok { color: #4A7C59; }
-        .check-fail { color: #A14242; }
+        .check-ok { color: #6B8F71; }
+        .check-fail { color: #B85C5C; }
 
         /* Progress bar animation */
         .progress-bar-animated { animation: progressFill 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -631,10 +645,10 @@
             50% { opacity: 0.6; }
         }
         .ai-progress-container { max-width: 420px; margin: 0 auto; }
-        .ai-progress-track { height: 3px; background: #EEEEE9; border-radius: 2px; overflow: hidden; }
+        .ai-progress-track { height: 3px; background: #F0F1F2; border-radius: 2px; overflow: hidden; }
         .ai-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #8A7030, #B8963B, #D4B66A);
+            background: linear-gradient(90deg, #5A6B4F, #7B8B6F, #A8B89F);
             background-size: 200% 100%;
             animation: progressShimmer 2s linear infinite;
             border-radius: 2px;
@@ -643,29 +657,29 @@
         .ai-progress-stages { display: flex; justify-content: space-between; margin-top: 16px; gap: 4px; }
         .ai-progress-stage {
             display: flex; align-items: center; gap: 6px;
-            font-family: 'JetBrains Mono', monospace; font-size: 10px;
-            letter-spacing: 0.08em; text-transform: uppercase; color: #C4C4B8;
+            font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+            letter-spacing: 0.08em; text-transform: uppercase; color: #C8CCCE;
             transition: color 0.4s ease;
         }
-        .ai-progress-stage.active { color: #B8963B; animation: progressPulse 1.8s ease-in-out infinite; }
-        .ai-progress-stage.done { color: #4A7C59; animation: none; }
+        .ai-progress-stage.active { color: #7B8B6F; animation: progressPulse 1.8s ease-in-out infinite; }
+        .ai-progress-stage.done { color: #6B8F71; animation: none; }
         .ai-progress-stage-dot {
-            width: 6px; height: 6px; border-radius: 50%; background: #DDDDD4;
+            width: 6px; height: 6px; border-radius: 50%; background: #E2E4E6;
             transition: background 0.4s ease, box-shadow 0.4s ease; flex-shrink: 0;
         }
-        .ai-progress-stage.active .ai-progress-stage-dot { background: #B8963B; box-shadow: 0 0 6px rgba(184,150,59,0.4); }
-        .ai-progress-stage.done .ai-progress-stage-dot { background: #4A7C59; }
+        .ai-progress-stage.active .ai-progress-stage-dot { background: #7B8B6F; box-shadow: 0 0 6px rgba(123,139,111,0.4); }
+        .ai-progress-stage.done .ai-progress-stage-dot { background: #6B8F71; }
         .ai-progress-label {
-            font-family: 'JetBrains Mono', monospace; font-size: 11px;
-            letter-spacing: 0.12em; text-transform: uppercase; color: #717164;
+            font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+            letter-spacing: 0.12em; text-transform: uppercase; color: #636E72;
             text-align: center; margin-bottom: 14px;
         }
-        .ai-progress-percent { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9A9A8C; text-align: right; margin-top: 6px; }
+        .ai-progress-percent { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #9DA3A7; text-align: right; margin-top: 6px; }
 
         /* Section panel */
         .section-panel {
             background: rgba(255,255,255,0.4);
-            border: 1px solid rgba(26,26,20,0.05);
+            border: 1px solid rgba(27,38,49,0.05);
             border-radius: 16px;
             padding: 1.5rem;
         }
@@ -676,8 +690,8 @@
             align-items: center;
             gap: 0.5rem;
             padding: 0.75rem 2rem;
-            background: #2A2A22;
-            color: #F5F2EC;
+            background: #2D3436;
+            color: #FAF9F7;
             font-size: 0.6875rem;
             font-weight: 600;
             letter-spacing: 0.08em;
@@ -685,7 +699,7 @@
             border-radius: 10px;
             transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .btn-primary:hover { background: #B8963B; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(184,150,59,0.25); }
+        .btn-primary:hover { background: #7B8B6F; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(123,139,111,0.25); }
         .btn-primary:active { transform: translateY(0); }
 
         .btn-secondary {
@@ -693,19 +707,19 @@
             align-items: center;
             gap: 0.375rem;
             padding: 0.5rem 1.25rem;
-            border: 1px solid #C4C4B8;
-            color: #565648;
+            border: 1px solid #C8CCCE;
+            color: #4A5459;
             font-size: 0.6875rem;
             font-weight: 500;
             border-radius: 8px;
             transition: all 0.25s ease;
         }
-        .btn-secondary:hover { border-color: #B8963B; color: #B8963B; background: rgba(184,150,59,0.04); }
+        .btn-secondary:hover { border-color: #7B8B6F; color: #7B8B6F; background: rgba(123,139,111,0.04); }
 
         /* Divider with brass accent */
         .brass-divider {
             height: 1px;
-            background: linear-gradient(90deg, #B8963B, transparent);
+            background: linear-gradient(90deg, #7B8B6F, transparent);
             margin: 2rem 0;
             opacity: 0.3;
         }
@@ -713,8 +727,8 @@
         /* Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #C4C4B8; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #B8963B; }
+        ::-webkit-scrollbar-thumb { background: #C8CCCE; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #7B8B6F; }
 
         /* ===== MOBILE BOTTOM NAV ===== */
         .mobile-bottom-nav {
@@ -723,7 +737,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(26,26,20,0.97);
+            background: rgba(27,38,49,0.97);
             backdrop-filter: blur(20px);
             z-index: 150;
             padding: 0.25rem 0.5rem env(safe-area-inset-bottom, 0.5rem);
@@ -740,7 +754,7 @@
             align-items: center;
             gap: 0.2rem;
             padding: 0.5rem 0.25rem;
-            color: #717164;
+            color: #636E72;
             font-size: 0.5625rem;
             font-weight: 500;
             letter-spacing: 0.05em;
@@ -749,7 +763,7 @@
             -webkit-tap-highlight-color: transparent;
             min-width: 50px;
         }
-        .mob-nav-btn.active { color: #D4B66A; }
+        .mob-nav-btn.active { color: #A8B89F; }
         .mob-nav-btn svg { width: 20px; height: 20px; }
 
         /* ===== RESPONSIVE ===== */
@@ -815,7 +829,7 @@
         /* Tab transition (Alpine x-transition fallback) */
         .tab-content { transition: opacity 0.3s ease, transform 0.3s ease; }
 
-        /* ===== LANDING PAGE — AWARD-WINNING REDESIGN ===== */
+        /* ===== LANDING PAGE — HIGH LUXE EDITORIAL ===== */
 
         /* Text clip-path reveal animation */
         @keyframes clipReveal {
@@ -828,8 +842,8 @@
         }
         @keyframes floatOrb {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -20px) scale(1.1); }
-            66% { transform: translate(-20px, 15px) scale(0.95); }
+            33% { transform: translate(30px, -20px) scale(1.05); }
+            66% { transform: translate(-20px, 15px) scale(0.97); }
         }
         @keyframes marqueeScroll {
             0% { transform: translateX(0); }
@@ -841,15 +855,25 @@
         }
         @keyframes heroGlow {
             0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(1%, -1.5%) scale(1.03); }
+            100% { transform: translate(0.5%, -1%) scale(1.02); }
         }
         @keyframes scrollPulse {
-            0%, 100% { opacity: 0.2; transform: scaleY(0.5); transform-origin: top; }
-            50% { opacity: 0.8; transform: scaleY(1); }
+            0%, 100% { opacity: 0.15; transform: scaleY(0.4); transform-origin: top; }
+            50% { opacity: 0.7; transform: scaleY(1); }
         }
         @keyframes drawLineV {
             from { height: 0; opacity: 0; }
             to { height: 80px; opacity: 1; }
+        }
+        /* Book page flip — for catalog sections */
+        @keyframes bookPageFlip {
+            from { opacity: 0; transform: perspective(800px) rotateY(-15deg); transform-origin: left center; }
+            to { opacity: 1; transform: perspective(800px) rotateY(0deg); }
+        }
+        /* Architectural line draw */
+        @keyframes archLineDraw {
+            from { stroke-dashoffset: 200; opacity: 0; }
+            to { stroke-dashoffset: 0; opacity: 1; }
         }
 
         .landing-hero {
@@ -863,122 +887,122 @@
             position: relative;
             overflow: hidden;
         }
-        /* Multi-layer ambient background */
+        /* Subtle architectural ambient layers */
         .landing-hero::before {
             content: '';
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 80% 50% at 20% 10%, rgba(184,150,59,0.08) 0%, transparent 60%),
-                radial-gradient(ellipse 50% 70% at 80% 90%, rgba(26,26,20,0.04) 0%, transparent 50%),
-                radial-gradient(ellipse 120% 80% at 50% 50%, rgba(184,150,59,0.015) 0%, transparent 70%);
+                radial-gradient(ellipse 80% 50% at 20% 10%, rgba(123,139,111,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 70% at 80% 90%, rgba(27,38,49,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse 100% 60% at 50% 50%, rgba(196,149,106,0.025) 0%, transparent 70%);
             pointer-events: none;
-            animation: heroGlow 20s ease-in-out infinite alternate;
+            animation: heroGlow 25s ease-in-out infinite alternate;
         }
-        /* Floating orbs */
+        /* Soft atmospheric orbs — sage and stone */
         .hero-orb {
             position: absolute;
             border-radius: 50%;
             pointer-events: none;
-            filter: blur(60px);
+            filter: blur(80px);
             will-change: transform;
             backface-visibility: hidden;
         }
         .hero-orb-1 {
-            width: 400px; height: 400px;
-            top: -10%; left: -5%;
-            background: rgba(184,150,59,0.06);
-            animation: floatOrb 18s ease-in-out infinite;
+            width: 500px; height: 500px;
+            top: -15%; left: -8%;
+            background: rgba(123,139,111,0.05);
+            animation: floatOrb 20s ease-in-out infinite;
         }
         .hero-orb-2 {
-            width: 300px; height: 300px;
-            bottom: -5%; right: -5%;
-            background: rgba(184,150,59,0.04);
-            animation: floatOrb 22s ease-in-out infinite reverse;
+            width: 350px; height: 350px;
+            bottom: -8%; right: -5%;
+            background: rgba(196,149,106,0.035);
+            animation: floatOrb 24s ease-in-out infinite reverse;
         }
         .hero-orb-3 {
-            width: 200px; height: 200px;
-            top: 40%; right: 20%;
-            background: rgba(184,150,59,0.03);
-            animation: floatOrb 15s ease-in-out infinite 3s;
+            width: 250px; height: 250px;
+            top: 35%; right: 15%;
+            background: rgba(123,139,111,0.025);
+            animation: floatOrb 18s ease-in-out infinite 3s;
         }
-        /* Architectural decoration */
+        /* Architectural decoration — refined geometric lines */
         .hero-deco-line {
             position: absolute;
-            background: rgba(184,150,59,0.1);
+            background: rgba(123,139,111,0.1);
         }
         .hero-deco-line.horizontal {
-            height: 1px; width: 120px;
-            top: 20%; left: 5%;
-            animation: drawLine 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+            height: 1px; width: 160px;
+            top: 18%; left: 4%;
+            animation: drawLine 2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
         }
         .hero-deco-line.vertical {
-            width: 1px; height: 80px;
-            bottom: 15%; right: 12%;
-            animation: drawLineV 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
+            width: 1px; height: 100px;
+            bottom: 12%; right: 10%;
+            animation: drawLineV 2s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
         }
         .hero-deco-cross {
             position: absolute;
-            width: 14px; height: 14px;
-            top: 28%; left: 8%;
-            animation: fadeIn 1s ease 1.8s both;
+            width: 16px; height: 16px;
+            top: 26%; left: 7%;
+            animation: fadeIn 1.2s ease 1.8s both;
         }
         .hero-deco-cross::before, .hero-deco-cross::after {
             content: '';
             position: absolute;
-            background: rgba(184,150,59,0.15);
+            background: rgba(123,139,111,0.12);
         }
-        .hero-deco-cross::before { width: 14px; height: 1px; top: 50%; left: 0; }
-        .hero-deco-cross::after { width: 1px; height: 14px; left: 50%; top: 0; }
+        .hero-deco-cross::before { width: 16px; height: 1px; top: 50%; left: 0; }
+        .hero-deco-cross::after { width: 1px; height: 16px; left: 50%; top: 0; }
         /* Second cross */
         .hero-deco-cross-2 {
             position: absolute;
-            width: 10px; height: 10px;
-            bottom: 25%; right: 15%;
-            animation: fadeIn 1s ease 2.2s both;
+            width: 12px; height: 12px;
+            bottom: 22%; right: 13%;
+            animation: fadeIn 1.2s ease 2.2s both;
         }
         .hero-deco-cross-2::before, .hero-deco-cross-2::after {
             content: '';
             position: absolute;
-            background: rgba(184,150,59,0.1);
+            background: rgba(123,139,111,0.08);
         }
-        .hero-deco-cross-2::before { width: 10px; height: 1px; top: 50%; left: 0; }
-        .hero-deco-cross-2::after { width: 1px; height: 10px; left: 50%; top: 0; }
-        /* Corner accents */
+        .hero-deco-cross-2::before { width: 12px; height: 1px; top: 50%; left: 0; }
+        .hero-deco-cross-2::after { width: 1px; height: 12px; left: 50%; top: 0; }
+        /* Corner accents — architectural framing */
         .hero-corner {
             position: absolute;
-            width: 40px; height: 40px;
+            width: 48px; height: 48px;
         }
-        .hero-corner-tl { top: 6%; left: 4%; border-top: 1px solid rgba(184,150,59,0.12); border-left: 1px solid rgba(184,150,59,0.12); animation: fadeIn 1s ease 1s both; }
-        .hero-corner-br { bottom: 8%; right: 4%; border-bottom: 1px solid rgba(184,150,59,0.12); border-right: 1px solid rgba(184,150,59,0.12); animation: fadeIn 1s ease 1.2s both; }
+        .hero-corner-tl { top: 5%; left: 3.5%; border-top: 1px solid rgba(123,139,111,0.1); border-left: 1px solid rgba(123,139,111,0.1); animation: fadeIn 1.2s ease 1s both; }
+        .hero-corner-br { bottom: 7%; right: 3.5%; border-bottom: 1px solid rgba(123,139,111,0.1); border-right: 1px solid rgba(123,139,111,0.1); animation: fadeIn 1.2s ease 1.2s both; }
 
-        /* Badge */
+        /* Badge — editorial label */
         .landing-hero .hero-badge {
             display: inline-flex;
             align-items: center;
             gap: 0.625rem;
-            padding: 0.45rem 1.5rem;
-            border: 1px solid rgba(184,150,59,0.18);
+            padding: 0.5rem 1.75rem;
+            border: 1px solid rgba(123,139,111,0.2);
             border-radius: 100px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5rem;
-            font-weight: 600;
-            letter-spacing: 0.2em;
+            font-weight: 500;
+            letter-spacing: 0.22em;
             text-transform: uppercase;
-            color: #B8963B;
-            background: rgba(184,150,59,0.03);
-            backdrop-filter: blur(8px);
-            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+            color: #7B8B6F;
+            background: rgba(123,139,111,0.03);
+            backdrop-filter: blur(10px);
+            animation: textBlur 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
-        /* Title with clip-path reveal */
+        /* Title — editorial serif with dramatic weight */
         .landing-hero .hero-main-title {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(3.5rem, 10vw, 8rem);
-            font-weight: 700;
-            color: #1A1A14;
-            letter-spacing: -0.06em;
-            line-height: 0.88;
-            margin-top: 2rem;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(3.5rem, 10vw, 9rem);
+            font-weight: 300;
+            color: #1B2631;
+            letter-spacing: -0.04em;
+            line-height: 0.9;
+            margin-top: 2.5rem;
             position: relative;
         }
         .landing-hero .hero-main-title .line {
@@ -987,39 +1011,40 @@
         }
         .landing-hero .hero-main-title .line span {
             display: inline-block;
-            animation: counterUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation: counterUp 1s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
-        .landing-hero .hero-main-title .line:nth-child(1) span { animation-delay: 0.1s; }
-        .landing-hero .hero-main-title .line:nth-child(2) span { animation-delay: 0.25s; }
+        .landing-hero .hero-main-title .line:nth-child(1) span { animation-delay: 0.15s; }
+        .landing-hero .hero-main-title .line:nth-child(2) span { animation-delay: 0.3s; }
         .landing-hero .hero-main-title .accent {
-            background: linear-gradient(135deg, #B8963B 0%, #D4B66A 30%, #B8963B 60%, #8A7030 100%);
-            background-size: 200% 200%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #7B8B6F;
+            -webkit-text-fill-color: #7B8B6F;
             font-style: italic;
-            animation: counterUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both, shimmer 8s ease-in-out infinite 2s;
+            font-weight: 400;
+            animation: counterUp 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
         }
         .landing-hero .hero-divider-line {
-            width: 60px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #B8963B, transparent);
-            margin: 2rem auto 0;
-            animation: clipReveal 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+            width: 48px;
+            height: 1.5px;
+            background: linear-gradient(90deg, transparent, #7B8B6F, transparent);
+            margin: 2.5rem auto 0;
+            animation: clipReveal 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
         }
         .landing-hero .hero-subtitle {
+            font-family: 'DM Sans', sans-serif;
             font-size: clamp(0.875rem, 1.8vw, 1.0625rem);
-            color: #717164;
-            max-width: 34rem;
+            font-weight: 300;
+            color: #636E72;
+            max-width: 36rem;
             line-height: 1.9;
-            margin-top: 1.75rem;
-            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+            margin-top: 2rem;
+            letter-spacing: 0.01em;
+            animation: textBlur 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
         }
         .landing-hero .hero-cta-group {
             display: flex;
             gap: 1.25rem;
-            margin-top: 3rem;
-            animation: textBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
+            margin-top: 3.5rem;
+            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 0.9s both;
         }
         /* Enhanced CTA */
         .hero-cta-primary {
@@ -1027,9 +1052,9 @@
             align-items: center;
             gap: 0.625rem;
             padding: 1rem 2.75rem;
-            background: #1A1A14;
-            color: #F5F2EC;
-            font-family: 'JetBrains Mono', monospace;
+            background: #1B2631;
+            color: #FAF9F7;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.625rem;
             font-weight: 600;
             letter-spacing: 0.12em;
@@ -1043,13 +1068,13 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg, #B8963B, #D4B66A);
+            background: linear-gradient(135deg, #7B8B6F, #A8B89F);
             opacity: 0;
             transition: opacity 0.4s ease;
         }
         .hero-cta-primary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 16px 48px rgba(26,26,20,0.2);
+            box-shadow: 0 16px 48px rgba(27,38,49,0.15);
         }
         .hero-cta-primary:hover::before { opacity: 1; }
         .hero-cta-primary span, .hero-cta-primary svg { position: relative; z-index: 1; }
@@ -1059,9 +1084,9 @@
             align-items: center;
             gap: 0.5rem;
             padding: 1rem 2.25rem;
-            border: 1px solid rgba(26,26,20,0.12);
-            color: #565648;
-            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid rgba(27,38,49,0.12);
+            color: #4A5459;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.625rem;
             font-weight: 500;
             letter-spacing: 0.1em;
@@ -1071,9 +1096,9 @@
             backdrop-filter: blur(4px);
         }
         .hero-cta-secondary:hover {
-            border-color: #B8963B;
-            color: #B8963B;
-            background: rgba(184,150,59,0.04);
+            border-color: #7B8B6F;
+            color: #5A6B4F;
+            background: rgba(123,139,111,0.04);
             transform: translateY(-2px);
         }
 
@@ -1086,16 +1111,16 @@
         }
         .landing-hero .stat-item {
             padding: 0 clamp(1.25rem, 3vw, 2.75rem);
-            border-right: 1px solid rgba(26,26,20,0.06);
+            border-right: 1px solid rgba(27,38,49,0.06);
             text-align: center;
             position: relative;
         }
         .landing-hero .stat-item:last-child { border-right: none; }
         .landing-hero .stat-item .stat-num {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Cormorant Garamond', serif;
             font-size: clamp(1.75rem, 3.5vw, 2.5rem);
             font-weight: 700;
-            color: #1A1A14;
+            color: #1B2631;
             letter-spacing: -0.04em;
             overflow: hidden;
         }
@@ -1108,11 +1133,11 @@
         .landing-hero .stat-item:nth-child(3) .stat-num span { animation-delay: 1.4s; }
         .landing-hero .stat-item:nth-child(4) .stat-num span { animation-delay: 1.55s; }
         .landing-hero .stat-item .stat-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.4375rem;
             letter-spacing: 0.18em;
             text-transform: uppercase;
-            color: #B8963B;
+            color: #7B8B6F;
             margin-top: 0.4rem;
         }
 
@@ -1122,8 +1147,8 @@
             overflow: hidden;
             padding: 2rem 0;
             margin-top: 3rem;
-            border-top: 1px solid rgba(26,26,20,0.04);
-            border-bottom: 1px solid rgba(26,26,20,0.04);
+            border-top: 1px solid rgba(27,38,49,0.04);
+            border-bottom: 1px solid rgba(27,38,49,0.04);
             animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 1.2s both;
         }
         .hero-marquee-track {
@@ -1134,11 +1159,11 @@
             width: max-content;
         }
         .hero-marquee-item {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5rem;
             letter-spacing: 0.15em;
             text-transform: uppercase;
-            color: #C4C4B8;
+            color: #C8CCCE;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -1146,7 +1171,7 @@
         .hero-marquee-item .dot {
             width: 3px; height: 3px;
             border-radius: 50%;
-            background: rgba(184,150,59,0.3);
+            background: rgba(123,139,111,0.3);
         }
 
         /* Scroll hint */
@@ -1164,7 +1189,7 @@
         .landing-scroll-hint .scroll-line {
             width: 1px;
             height: 48px;
-            background: linear-gradient(to bottom, #B8963B, transparent);
+            background: linear-gradient(to bottom, #7B8B6F, transparent);
             animation: scrollPulse 2.5s ease-in-out infinite;
         }
 
@@ -1176,7 +1201,7 @@
         }
         .catalog-divider-inner {
             height: 1px;
-            background: linear-gradient(90deg, transparent 0%, rgba(184,150,59,0.2) 20%, rgba(184,150,59,0.2) 80%, transparent 100%);
+            background: linear-gradient(90deg, transparent 0%, rgba(123,139,111,0.2) 20%, rgba(123,139,111,0.2) 80%, transparent 100%);
         }
         .catalog-section {
             padding: 5rem 1.5rem 3rem;
@@ -1191,30 +1216,30 @@
             position: relative;
         }
         .catalog-chapter .chapter-num {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Cormorant Garamond', serif;
             font-size: clamp(3.5rem, 7vw, 6rem);
             font-weight: 800;
-            color: rgba(184,150,59,0.06);
+            color: rgba(123,139,111,0.06);
             line-height: 0.85;
             flex-shrink: 0;
             letter-spacing: -0.04em;
         }
         .catalog-chapter .chapter-title {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Cormorant Garamond', serif;
             font-size: clamp(1.5rem, 3.5vw, 2.5rem);
             font-weight: 600;
-            color: #1A1A14;
+            color: #1B2631;
             letter-spacing: -0.03em;
             line-height: 1.1;
         }
         .catalog-chapter .chapter-count {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5625rem;
             font-weight: 600;
             letter-spacing: 0.1em;
-            color: #B8963B;
+            color: #7B8B6F;
             padding: 0.2rem 0.625rem;
-            border: 1px solid rgba(184,150,59,0.2);
+            border: 1px solid rgba(123,139,111,0.2);
             border-radius: 4px;
             margin-left: auto;
             flex-shrink: 0;
@@ -1222,7 +1247,7 @@
         }
         .catalog-chapter-desc {
             font-size: 0.9375rem;
-            color: #9A9A8C;
+            color: #9DA3A7;
             max-width: 40rem;
             line-height: 1.75;
             margin-bottom: 2.75rem;
@@ -1237,7 +1262,7 @@
         }
         .product-card {
             background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(26,26,20,0.05);
+            border: 1px solid rgba(27,38,49,0.05);
             border-radius: 14px;
             padding: 1.75rem 1.75rem 2.25rem;
             cursor: pointer;
@@ -1250,7 +1275,7 @@
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 2px;
-            background: linear-gradient(90deg, #B8963B, #D4B66A, transparent);
+            background: linear-gradient(90deg, #7B8B6F, #A8B89F, transparent);
             transform: scaleX(0);
             transform-origin: left;
             transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1259,7 +1284,7 @@
             content: '';
             position: absolute;
             bottom: 0; left: 0; right: 0; top: 0;
-            background: radial-gradient(ellipse at bottom right, rgba(184,150,59,0.04) 0%, transparent 70%);
+            background: radial-gradient(ellipse at bottom right, rgba(123,139,111,0.04) 0%, transparent 70%);
             opacity: 0;
             transition: opacity 0.4s ease;
             pointer-events: none;
@@ -1267,8 +1292,8 @@
         .product-card:hover {
             background: rgba(255,255,255,0.98);
             transform: translateY(-8px) scale(1.01);
-            box-shadow: 0 24px 64px rgba(26,26,20,0.07), 0 8px 24px rgba(26,26,20,0.03);
-            border-color: rgba(184,150,59,0.12);
+            box-shadow: 0 24px 64px rgba(27,38,49,0.07), 0 8px 24px rgba(27,38,49,0.03);
+            border-color: rgba(123,139,111,0.12);
         }
         .product-card:hover::before { transform: scaleX(1); }
         .product-card:hover::after { opacity: 1; }
@@ -1279,48 +1304,48 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 1.125rem;
-            background: linear-gradient(135deg, rgba(184,150,59,0.06), rgba(184,150,59,0.02));
-            border: 1px solid rgba(184,150,59,0.08);
-            color: #8A7030;
+            background: linear-gradient(135deg, rgba(123,139,111,0.06), rgba(123,139,111,0.02));
+            border: 1px solid rgba(123,139,111,0.08);
+            color: #5A6B4F;
             transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .product-card:hover .card-icon {
-            background: linear-gradient(135deg, rgba(184,150,59,0.12), rgba(184,150,59,0.05));
-            border-color: rgba(184,150,59,0.2);
+            background: linear-gradient(135deg, rgba(123,139,111,0.12), rgba(123,139,111,0.05));
+            border-color: rgba(123,139,111,0.2);
             transform: scale(1.06) rotate(-2deg);
         }
         .product-card .card-title {
-            font-family: 'Instrument Sans', sans-serif;
+            font-family: 'DM Sans', sans-serif;
             font-size: 0.9375rem;
             font-weight: 600;
-            color: #1A1A14;
+            color: #1B2631;
             margin-bottom: 0.5rem;
             letter-spacing: -0.01em;
         }
         .product-card .card-desc {
             font-size: 0.8125rem;
-            color: #9A9A8C;
+            color: #9DA3A7;
             line-height: 1.7;
         }
         .product-card .card-ai-badge {
             position: absolute;
             top: 1.125rem; right: 1.125rem;
             padding: 0.25rem 0.7rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5rem;
             font-weight: 700;
             letter-spacing: 0.12em;
             border-radius: 5px;
-            background: linear-gradient(135deg, rgba(184,150,59,0.1), rgba(212,182,106,0.06));
-            color: #B8963B;
-            border: 1px solid rgba(184,150,59,0.1);
+            background: linear-gradient(135deg, rgba(123,139,111,0.1), rgba(168,184,159,0.06));
+            color: #7B8B6F;
+            border: 1px solid rgba(123,139,111,0.1);
         }
         .product-card .card-arrow {
             position: absolute;
             bottom: 1.25rem; right: 1.25rem;
             width: 30px; height: 30px;
             border-radius: 8px;
-            background: rgba(26,26,20,0.03);
+            background: rgba(27,38,49,0.03);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1331,7 +1356,7 @@
         .product-card:hover .card-arrow {
             opacity: 1;
             transform: translateX(0);
-            background: rgba(184,150,59,0.08);
+            background: rgba(123,139,111,0.08);
         }
 
         /* Scroll-triggered animations */
@@ -1357,18 +1382,18 @@
             align-items: center;
             gap: 0.5rem;
             padding: 0.5rem 1rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.6875rem;
             font-weight: 500;
             letter-spacing: 0.05em;
-            color: #9A9A8C;
+            color: #9DA3A7;
             border-radius: 8px;
             transition: all 0.25s ease;
             cursor: pointer;
         }
         .back-to-catalog:hover {
-            color: #B8963B;
-            background: rgba(184,150,59,0.06);
+            color: #7B8B6F;
+            background: rgba(123,139,111,0.06);
         }
 
         /* Landing footer */
@@ -1382,14 +1407,14 @@
             position: absolute;
             top: 0; left: 10%; right: 10%;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(26,26,20,0.08), transparent);
+            background: linear-gradient(90deg, transparent, rgba(27,38,49,0.08), transparent);
         }
 
         @media (max-width: 768px) {
             .landing-hero { min-height: 90vh; padding: 1.5rem 1rem; }
             .landing-hero .hero-main-title { font-size: clamp(2.25rem, 10vw, 3.5rem); margin-top: 1.5rem; }
             .landing-hero .hero-stats { gap: 0; flex-wrap: wrap; justify-content: center; }
-            .landing-hero .stat-item { padding: 0.75rem 1.5rem; border-right: none; border-bottom: 1px solid rgba(26,26,20,0.06); }
+            .landing-hero .stat-item { padding: 0.75rem 1.5rem; border-right: none; border-bottom: 1px solid rgba(27,38,49,0.06); }
             .landing-hero .stat-item:last-child { border-bottom: none; }
             .landing-hero .hero-cta-group { flex-direction: column; align-items: stretch; width: 100%; max-width: 320px; }
             .landing-hero .hero-cta-group .hero-cta-primary,
@@ -1419,32 +1444,83 @@
             display: inline-block;
             width: 5px; height: 5px;
             border-radius: 50%;
-            background: #4A7C59;
-            box-shadow: 0 0 8px rgba(74,124,89,0.5);
+            background: #6B8F71;
+            box-shadow: 0 0 8px rgba(107,143,113,0.5);
         }
         .scroll-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.5rem;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #C4C4B8;
+            color: #C8CCCE;
         }
 
         /* ===== Keyboard Shortcuts Overlay ===== */
-        .shortcuts-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(26,26,20,0.85); backdrop-filter: blur(12px); }
-        .shortcuts-panel { background: linear-gradient(145deg, #2A2A22, #1E1E1A); border: 1px solid rgba(184,150,59,0.25); border-radius: 1rem; padding: 2.5rem 3rem; max-width: 640px; width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
-        .shortcuts-panel h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 600; color: #F5F2EC; margin-bottom: 0.25rem; }
-        .shortcuts-panel .shortcuts-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #717164; margin-bottom: 2rem; }
+        .shortcuts-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(27,38,49,0.85); backdrop-filter: blur(12px); }
+        .shortcuts-panel { background: linear-gradient(145deg, #2D3436, #1E1E1A); border: 1px solid rgba(123,139,111,0.25); border-radius: 1rem; padding: 2.5rem 3rem; max-width: 640px; width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
+        .shortcuts-panel h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; color: #FAF9F7; margin-bottom: 0.25rem; }
+        .shortcuts-panel .shortcuts-subtitle { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #636E72; margin-bottom: 2rem; }
         .shortcuts-group { margin-bottom: 1.75rem; }
-        .shortcuts-group-title { font-family: 'Playfair Display', serif; font-size: 0.85rem; font-weight: 600; color: #B8963B; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(184,150,59,0.15); }
+        .shortcuts-group-title { font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; font-weight: 600; color: #7B8B6F; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(123,139,111,0.15); }
         .shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; }
         .shortcut-row + .shortcut-row { border-top: 1px solid rgba(255,255,255,0.04); }
         .shortcut-keys { display: flex; align-items: center; gap: 0.35rem; }
-        .shortcut-key { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; height: 1.75rem; padding: 0 0.5rem; background: rgba(184,150,59,0.1); border: 1px solid rgba(184,150,59,0.3); border-radius: 0.375rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 500; color: #D4B66A; }
-        .shortcut-key-sep { color: #565648; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; }
-        .shortcut-desc { font-family: 'Instrument Sans', sans-serif; font-size: 0.8rem; color: #C4C4B8; }
-        .shortcuts-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(184,150,59,0.12); text-align: center; }
-        .shortcuts-footer span { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #565648; letter-spacing: 0.1em; }
+        .shortcut-key { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; height: 1.75rem; padding: 0 0.5rem; background: rgba(123,139,111,0.1); border: 1px solid rgba(123,139,111,0.3); border-radius: 0.375rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; font-weight: 500; color: #A8B89F; }
+        .shortcut-key-sep { color: #4A5459; font-size: 0.65rem; font-family: 'IBM Plex Mono', monospace; }
+        .shortcut-desc { font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: #C8CCCE; }
+        .shortcuts-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(123,139,111,0.12); text-align: center; }
+        .shortcuts-footer span { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #4A5459; letter-spacing: 0.1em; }
+
+        /* ===== HIGH LUXE EDITORIAL ENHANCEMENTS ===== */
+
+        /* Scroll-triggered reveal for catalog sections */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Architectural thin rule accent */
+        .arch-rule {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(123,139,111,0.15), transparent);
+            margin: 3rem 0;
+        }
+
+        /* Editorial number typography */
+        .editorial-num {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 300;
+            font-style: italic;
+            color: rgba(123,139,111,0.08);
+        }
+
+        /* Smooth hover lift for all interactive cards */
+        .product-card, .metric-card {
+            will-change: transform;
+        }
+
+        /* Premium focus states */
+        button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+            outline: 2px solid rgba(123,139,111,0.4);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* Luxe selection color */
+        ::selection {
+            background: rgba(123,139,111,0.15);
+            color: #1B2631;
+        }
+
+        /* Smooth page scroll */
+        html {
+            scroll-behavior: smooth;
+        }
     </style>
 </head>
 <body class="min-h-screen arch-grid grain">
@@ -1459,12 +1535,12 @@
         <div class="px-6 pt-6 pb-4">
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #B8963B, #D4B66A);">
-                        <span class="font-mono text-xs font-bold text-carbon-900">K</span>
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #7B8B6F, #A8B89F);">
+                        <span class="font-mono text-xs font-bold" style="color:#1B2631">K</span>
                     </div>
                     <div>
                         <h2 class="font-display text-base text-white tracking-tight leading-none" style="font-weight:600">KMD Assistant</h2>
-                        <p class="font-mono text-[7px] tracking-[0.25em] uppercase mt-0.5" style="color:#717164">ALDMEGA LAB</p>
+                        <p class="font-mono text-[7px] tracking-[0.25em] uppercase mt-0.5" style="color:#636E72">ALDMEGA LAB</p>
                     </div>
                 </div>
                 <button @click="sidebarOpen = false" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/5 text-carbon-500 hover:text-white transition-all">
@@ -1473,14 +1549,14 @@
             </div>
             <!-- Search -->
             <div class="relative">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color:#565648" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color:#4A5459" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                 <input type="text" x-model="navSearch" x-ref="navSearchInput" @keydown.escape="navSearch = ''" class="sidebar-search" placeholder="Найти модуль...">
                 <span class="absolute right-2.5 top-1/2 -translate-y-1/2 kbd" x-show="!navSearch">Ctrl+K</span>
             </div>
         </div>
 
         <!-- Separator -->
-        <div class="mx-6 mb-2" style="height:1px;background:linear-gradient(90deg,rgba(184,150,59,0.2),transparent)"></div>
+        <div class="mx-6 mb-2" style="height:1px;background:linear-gradient(90deg,rgba(123,139,111,0.2),transparent)"></div>
 
         <!-- Nav categories -->
         <nav class="pb-6 px-2">
@@ -1500,7 +1576,7 @@
                                  class="nav-item">
                                 <span class="nav-icon" x-html="item.icon"></span>
                                 <span x-text="item.label" class="truncate text-[0.8rem]"></span>
-                                <span x-show="item.ai" class="ml-auto px-1.5 py-0.5 text-[8px] font-mono font-bold rounded-md" style="background:linear-gradient(135deg,rgba(184,150,59,0.15),rgba(212,182,106,0.1));color:#D4B66A;letter-spacing:0.05em">AI</span>
+                                <span x-show="item.ai" class="ml-auto px-1.5 py-0.5 text-[8px] font-mono font-bold rounded-md" style="background:linear-gradient(135deg,rgba(123,139,111,0.15),rgba(168,184,159,0.1));color:#A8B89F;letter-spacing:0.05em">AI</span>
                             </div>
                         </template>
                     </div>
@@ -1510,7 +1586,7 @@
 
         <!-- Bulk download -->
         <div class="px-4 pb-3">
-            <button @click="downloadBatchZip()" :disabled="bulkDownloading" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-mono text-[10px] tracking-[0.1em] uppercase transition-all" style="background:rgba(184,150,59,0.1);color:#D4B66A;border:1px solid rgba(184,150,59,0.15)" :style="bulkDownloading ? 'opacity:0.5;cursor:wait' : ''" @mouseenter="$el.style.background='rgba(184,150,59,0.2)'" @mouseleave="$el.style.background='rgba(184,150,59,0.1)'">
+            <button @click="downloadBatchZip()" :disabled="bulkDownloading" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-mono text-[10px] tracking-[0.1em] uppercase transition-all" style="background:rgba(123,139,111,0.1);color:#A8B89F;border:1px solid rgba(123,139,111,0.15)" :style="bulkDownloading ? 'opacity:0.5;cursor:wait' : ''" @mouseenter="$el.style.background='rgba(123,139,111,0.2)'" @mouseleave="$el.style.background='rgba(123,139,111,0.1)'">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 <span x-text="bulkDownloading ? 'Загрузка...' : 'Скачать все (ZIP)'"></span>
             </button>
@@ -1520,12 +1596,12 @@
         <div style="border-top:1px solid rgba(255,255,255,0.04)" class="px-6 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <div class="w-1.5 h-1.5 rounded-full" style="background:#4A7C59;box-shadow:0 0 6px rgba(74,124,89,0.4)"></div>
-                    <span class="font-mono text-[9px] tracking-[0.1em] uppercase" style="color:#565648">Online</span>
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:#6B8F71;box-shadow:0 0 6px rgba(107,143,113,0.4)"></div>
+                    <span class="font-mono text-[9px] tracking-[0.1em] uppercase" style="color:#4A5459">Online</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="font-mono text-[9px]" style="color:#3D3D32">v3.0</span>
-                    <span class="font-mono text-[9px]" style="color:#3D3D32">32 modules</span>
+                    <span class="font-mono text-[9px]" style="color:#343D42">v3.0</span>
+                    <span class="font-mono text-[9px]" style="color:#343D42">32 modules</span>
                 </div>
             </div>
         </div>
@@ -1549,11 +1625,11 @@
                     <!-- Current module breadcrumb -->
                     <div class="hidden md:flex items-center gap-2">
                         <span class="font-mono text-[9px] tracking-[0.08em] uppercase text-carbon-300" x-text="currentCategoryLabel()"></span>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4C4B8" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C8CCCE" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                         <span class="font-mono text-[9px] tracking-[0.08em] uppercase text-carbon-500 font-semibold" x-text="currentModuleLabel()"></span>
                     </div>
                     <!-- AI toggle -->
-                    <button @click="showAiChat = !showAiChat" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" :class="showAiChat ? 'bg-carbon-800 text-brass-light shadow-lg' : 'bg-carbon-50 text-carbon-500 hover:bg-carbon-100 hover:text-carbon-700'" style="font-family:'JetBrains Mono',monospace;font-size:0.625rem;letter-spacing:0.05em">
+                    <button @click="showAiChat = !showAiChat" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" :class="showAiChat ? 'bg-carbon-800 text-brass-light shadow-lg' : 'bg-carbon-50 text-carbon-500 hover:bg-carbon-100 hover:text-carbon-700'" style="font-family:'IBM Plex Mono',monospace;font-size:0.625rem;letter-spacing:0.05em">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         AI CHAT
                     </button>
@@ -1567,7 +1643,7 @@
         <div class="flex items-center justify-between px-4 py-3 border-b border-carbon-100">
             <div class="flex items-center gap-2">
                 <div class="w-6 h-6 rounded-full bg-carbon-800 flex items-center justify-center">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4B66A" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A8B89F" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/></svg>
                 </div>
                 <div>
                     <span class="text-sm font-semibold text-carbon-800">KMD AI</span>
@@ -1715,7 +1791,7 @@
                                         <span class="card-ai-badge">AI</span>
                                     </template>
                                     <div class="card-arrow">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1A14" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1B2631" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                                     </div>
                                 </div>
                             </template>
@@ -1728,12 +1804,12 @@
         <!-- LANDING FOOTER -->
         <div class="landing-footer">
             <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:0.75rem">
-                <div style="width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#B8963B,#D4B66A)">
-                    <span style="font-family:'JetBrains Mono',monospace;font-size:0.6875rem;font-weight:700;color:#1A1A14">K</span>
+                <div style="width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#7B8B6F,#A8B89F)">
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6875rem;font-weight:700;color:#1B2631">K</span>
                 </div>
-                <span style="font-family:'Playfair Display',serif;font-size:1rem;color:#9A9A8C;font-style:italic">KMD Assistant</span>
+                <span style="font-family:'Cormorant Garamond',serif;font-size:1rem;color:#9DA3A7;font-style:italic">KMD Assistant</span>
             </div>
-            <p style="font-family:'JetBrains Mono',monospace;font-size:0.5625rem;letter-spacing:0.2em;text-transform:uppercase;color:#C4C4B8">
+            <p style="font-family:'IBM Plex Mono',monospace;font-size:0.5625rem;letter-spacing:0.2em;text-transform:uppercase;color:#C8CCCE">
                 ALDMEGA LAB / Intelligent Documentation Platform / v3.0
             </p>
         </div>
@@ -1836,14 +1912,14 @@
                         <p class="font-display text-3xl text-carbon-900" x-text="compareResult?.summary?.total_b || 0"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">позиций</p>
                     </div>
-                    <div class="metric-card fade-up d2" style="border-left:3px solid #A14242">
+                    <div class="metric-card fade-up d2" style="border-left:3px solid #B85C5C">
                         <p class="section-label mb-2">Дозаказать</p>
-                        <p class="font-display text-3xl" style="color:#A14242" x-text="compareResult?.summary?.removed || 0"></p>
+                        <p class="font-display text-3xl" style="color:#B85C5C" x-text="compareResult?.summary?.removed || 0"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">нет в Б</p>
                     </div>
-                    <div class="metric-card fade-up d3" style="border-left:3px solid #C4873B">
+                    <div class="metric-card fade-up d3" style="border-left:3px solid #C4956A">
                         <p class="section-label mb-2">Изменено</p>
-                        <p class="font-display text-3xl" style="color:#C4873B" x-text="compareResult?.summary?.changed || 0"></p>
+                        <p class="font-display text-3xl" style="color:#C4956A" x-text="compareResult?.summary?.changed || 0"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">количество</p>
                     </div>
                 </div>
@@ -1889,7 +1965,7 @@
                                     <td class="text-right font-mono" x-text="d.qty_a"></td>
                                     <td class="text-right font-mono" x-text="d.qty_b"></td>
                                     <td class="text-right font-mono font-bold"
-                                        :style="d.diff > 0 ? 'color:#A14242' : 'color:#4A7C59'"
+                                        :style="d.diff > 0 ? 'color:#B85C5C' : 'color:#6B8F71'"
                                         x-text="d.diff > 0 ? '+' + d.diff : d.diff"></td>
                                     <td>
                                         <span :class="{
@@ -2176,9 +2252,9 @@
                 <div class="grid grid-cols-5 gap-4 mb-8">
                     <div class="metric-card"><p class="section-label mb-2">Чертеж</p><p class="font-display text-3xl text-carbon-900" x-text="cvResult?.summary?.total_drawing_articles || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">артикулов</p></div>
                     <div class="metric-card"><p class="section-label mb-2">Спецификация</p><p class="font-display text-3xl text-carbon-900" x-text="cvResult?.summary?.total_spec_articles || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">артикулов</p></div>
-                    <div class="metric-card" style="border-left:3px solid #4A7C59"><p class="section-label mb-2">Совпадения</p><p class="font-display text-3xl" style="color:#4A7C59" x-text="cvResult?.summary?.matched || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="(cvResult?.summary?.match_rate || 0) + '%'"></p></div>
-                    <div class="metric-card" style="border-left:3px solid #A14242"><p class="section-label mb-2">Нет в спец.</p><p class="font-display text-3xl" style="color:#A14242" x-text="cvResult?.summary?.missing_in_spec || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">дозаказать</p></div>
-                    <div class="metric-card" style="border-left:3px solid #C4873B"><p class="section-label mb-2">Расхождения</p><p class="font-display text-3xl" style="color:#C4873B" x-text="cvResult?.summary?.qty_mismatches || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">количество</p></div>
+                    <div class="metric-card" style="border-left:3px solid #6B8F71"><p class="section-label mb-2">Совпадения</p><p class="font-display text-3xl" style="color:#6B8F71" x-text="cvResult?.summary?.matched || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="(cvResult?.summary?.match_rate || 0) + '%'"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #B85C5C"><p class="section-label mb-2">Нет в спец.</p><p class="font-display text-3xl" style="color:#B85C5C" x-text="cvResult?.summary?.missing_in_spec || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">дозаказать</p></div>
+                    <div class="metric-card" style="border-left:3px solid #C4956A"><p class="section-label mb-2">Расхождения</p><p class="font-display text-3xl" style="color:#C4956A" x-text="cvResult?.summary?.qty_mismatches || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">количество</p></div>
                 </div>
                 <div class="mb-6"><button @click="resetCrossValidate()" class="btn-secondary">Заново</button></div>
 
@@ -2188,10 +2264,10 @@
                         <thead><tr><th>Артикул</th><th class="text-right">Чертеж</th><th class="text-right">Спец.</th><th class="text-right">Разница</th><th>Статус</th></tr></thead>
                         <tbody>
                             <template x-for="(m, i) in cvResult?.matches || []" :key="'m'+i">
-                                <tr class="row-cv-match"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono" style="color:#4A7C59">0</td><td><span class="badge badge-cv-match">Совпадение</span></td></tr>
+                                <tr class="row-cv-match"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono" style="color:#6B8F71">0</td><td><span class="badge badge-cv-match">Совпадение</span></td></tr>
                             </template>
                             <template x-for="(m, i) in cvResult?.qty_mismatches || []" :key="'q'+i">
-                                <tr class="row-cv-mismatch"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono font-bold" style="color:#8A7030" x-text="m.diff > 0 ? '+' + m.diff : m.diff"></td><td><span class="badge badge-cv-mismatch">Кол-во</span></td></tr>
+                                <tr class="row-cv-mismatch"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono" x-text="m.spec_qty"></td><td class="text-right font-mono font-bold" style="color:#5A6B4F" x-text="m.diff > 0 ? '+' + m.diff : m.diff"></td><td><span class="badge badge-cv-mismatch">Кол-во</span></td></tr>
                             </template>
                             <template x-for="(m, i) in cvResult?.missing_in_spec || []" :key="'mi'+i">
                                 <tr class="row-cv-missing"><td class="font-mono font-semibold text-carbon-900" x-text="m.article"></td><td class="text-right font-mono" x-text="m.drawing_qty"></td><td class="text-right font-mono text-carbon-300">--</td><td class="text-right font-mono">--</td><td><span class="badge badge-cv-missing">Нет в спец.</span></td></tr>
@@ -2244,18 +2320,18 @@
                 <div class="grid grid-cols-5 gap-4 mb-8">
                     <div class="metric-card"><p class="section-label mb-2">Версия А</p><p class="font-display text-3xl text-carbon-900" x-text="cpResult?.pages_a || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">страниц</p></div>
                     <div class="metric-card"><p class="section-label mb-2">Версия Б</p><p class="font-display text-3xl text-carbon-900" x-text="cpResult?.pages_b || 0"></p><p class="font-mono text-[10px] text-carbon-400 mt-1">страниц</p></div>
-                    <div class="metric-card" style="border-left:3px solid #A14242"><p class="section-label mb-2">Удалено</p><p class="font-display text-3xl" style="color:#A14242" x-text="cpResult?.summary?.deleted_pages || 0"></p></div>
-                    <div class="metric-card" style="border-left:3px solid #C4873B"><p class="section-label mb-2">Изменено</p><p class="font-display text-3xl" style="color:#C4873B" x-text="cpResult?.summary?.modified_pages || 0"></p></div>
-                    <div class="metric-card" style="border-left:3px solid #4A7C59"><p class="section-label mb-2">Без изменений</p><p class="font-display text-3xl" style="color:#4A7C59" x-text="cpResult?.summary?.unchanged_pages || 0"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #B85C5C"><p class="section-label mb-2">Удалено</p><p class="font-display text-3xl" style="color:#B85C5C" x-text="cpResult?.summary?.deleted_pages || 0"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #C4956A"><p class="section-label mb-2">Изменено</p><p class="font-display text-3xl" style="color:#C4956A" x-text="cpResult?.summary?.modified_pages || 0"></p></div>
+                    <div class="metric-card" style="border-left:3px solid #6B8F71"><p class="section-label mb-2">Без изменений</p><p class="font-display text-3xl" style="color:#6B8F71" x-text="cpResult?.summary?.unchanged_pages || 0"></p></div>
                 </div>
 
                 <div class="section-panel mb-8">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="section-label">Общая схожесть</h3>
-                        <span class="font-mono text-lg font-bold" :style="(cpResult?.summary?.overall_similarity || 0) >= 0.8 ? 'color:#4A7C59' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? 'color:#C4873B' : 'color:#A14242'" x-text="Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%'"></span>
+                        <span class="font-mono text-lg font-bold" :style="(cpResult?.summary?.overall_similarity || 0) >= 0.8 ? 'color:#6B8F71' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%'"></span>
                     </div>
                     <div class="w-full bg-carbon-100 rounded-full h-2">
-                        <div class="h-2 rounded-full progress-bar-animated" :style="'width:' + Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%;background:' + ((cpResult?.summary?.overall_similarity || 0) >= 0.8 ? '#4A7C59' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? '#C4873B' : '#A14242')"></div>
+                        <div class="h-2 rounded-full progress-bar-animated" :style="'width:' + Math.round((cpResult?.summary?.overall_similarity || 0) * 100) + '%;background:' + ((cpResult?.summary?.overall_similarity || 0) >= 0.8 ? '#6B8F71' : (cpResult?.summary?.overall_similarity || 0) >= 0.5 ? '#C4956A' : '#B85C5C')"></div>
                     </div>
                 </div>
 
@@ -2271,7 +2347,7 @@
                 <div x-show="(cpResult?.added_pages || []).length > 0" class="section-panel overflow-hidden mb-6">
                     <h3 class="section-label mb-4">Добавленные страницы</h3>
                     <table class="data-table"><thead><tr><th>Стр. Б</th><th>Тип</th><th>Содержимое</th></tr></thead>
-                        <tbody><template x-for="(p, i) in cpResult?.added_pages || []" :key="'add'+i"><tr style="border-left:3px solid #4A7C59; background:rgba(74,124,89,0.04);"><td class="font-mono font-bold text-carbon-900" x-text="p.page"></td><td class="text-xs text-carbon-600" x-text="p.type"></td><td class="font-mono text-[11px] text-carbon-500 max-w-[400px] truncate" x-text="p.preview"></td></tr></template></tbody>
+                        <tbody><template x-for="(p, i) in cpResult?.added_pages || []" :key="'add'+i"><tr style="border-left:3px solid #6B8F71; background:rgba(107,143,113,0.04);"><td class="font-mono font-bold text-carbon-900" x-text="p.page"></td><td class="text-xs text-carbon-600" x-text="p.type"></td><td class="font-mono text-[11px] text-carbon-500 max-w-[400px] truncate" x-text="p.preview"></td></tr></template></tbody>
                     </table>
                 </div>
 
@@ -2284,10 +2360,10 @@
                                     <span class="font-mono text-xs text-carbon-400">А:<span class="font-bold text-carbon-800 ml-1" x-text="m.page_a"></span></span>
                                     <svg class="w-4 h-4 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                                     <span class="font-mono text-xs text-carbon-400">Б:<span class="font-bold text-carbon-800 ml-1" x-text="m.page_b"></span></span>
-                                    <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg" :style="m.similarity >= 0.9 ? 'background:rgba(74,124,89,0.08);color:#4A7C59' : m.similarity >= 0.7 ? 'background:rgba(196,135,59,0.08);color:#C4873B' : 'background:rgba(161,66,66,0.08);color:#A14242'" x-text="Math.round(m.similarity * 100) + '% схожесть'"></span>
+                                    <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg" :style="m.similarity >= 0.9 ? 'background:rgba(107,143,113,0.08);color:#6B8F71' : m.similarity >= 0.7 ? 'background:rgba(196,149,106,0.08);color:#C4956A' : 'background:rgba(184,92,92,0.08);color:#B85C5C'" x-text="Math.round(m.similarity * 100) + '% схожесть'"></span>
                                 </div>
                                 <div x-show="m.changes && m.changes.length > 0" class="bg-white/60 rounded-lg p-3 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto border border-carbon-100">
-                                    <template x-for="(ch, ci) in m.changes" :key="ci"><div :style="ch.startsWith('+') ? 'color:#4A7C59' : 'color:#A14242'" x-text="ch"></div></template>
+                                    <template x-for="(ch, ci) in m.changes" :key="ci"><div :style="ch.startsWith('+') ? 'color:#6B8F71' : 'color:#B85C5C'" x-text="ch"></div></template>
                                 </div>
                             </div>
                         </template>
@@ -2296,11 +2372,11 @@
 
                 <div class="section-panel" x-show="(cpResult?.kmd_changes?.removed_positions?.length || 0) + (cpResult?.kmd_changes?.added_positions?.length || 0) + (cpResult?.kmd_changes?.removed_articles?.length || 0) + (cpResult?.kmd_changes?.added_articles?.length || 0) + (cpResult?.kmd_changes?.quantity_changes?.length || 0) > 0">
                     <h3 class="section-label mb-5">Изменения КМД-данных</h3>
-                    <div x-show="(cpResult?.kmd_changes?.removed_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.removed_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(161,66,66,0.08);color:#A14242" x-text="p"></span></template></div></div>
-                    <div x-show="(cpResult?.kmd_changes?.added_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.added_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(74,124,89,0.08);color:#4A7C59" x-text="p"></span></template></div></div>
-                    <div x-show="(cpResult?.kmd_changes?.removed_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.removed_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(161,66,66,0.08);color:#A14242" x-text="a"></span></template></div></div>
-                    <div x-show="(cpResult?.kmd_changes?.added_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.added_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(74,124,89,0.08);color:#4A7C59" x-text="a"></span></template></div></div>
-                    <div x-show="(cpResult?.kmd_changes?.quantity_changes || []).length > 0"><p class="text-xs font-medium text-carbon-600 mb-2">Изменения количества:</p><table class="data-table"><thead><tr><th>Позиция</th><th class="text-right">Было</th><th class="text-right">Стало</th><th class="text-right">Разница</th></tr></thead><tbody><template x-for="(q, qi) in cpResult?.kmd_changes?.quantity_changes || []" :key="qi"><tr><td class="font-mono font-bold text-carbon-900" x-text="q.position"></td><td class="text-right font-mono" x-text="q.old"></td><td class="text-right font-mono" x-text="q.new"></td><td class="text-right font-mono font-bold" :style="(q.new - q.old) > 0 ? 'color:#4A7C59' : 'color:#A14242'" x-text="(q.new - q.old) > 0 ? '+' + (q.new - q.old) : (q.new - q.old)"></td></tr></template></tbody></table></div>
+                    <div x-show="(cpResult?.kmd_changes?.removed_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.removed_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(184,92,92,0.08);color:#B85C5C" x-text="p"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.added_positions || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные позиции:</p><div class="flex flex-wrap gap-2"><template x-for="p in cpResult?.kmd_changes?.added_positions || []" :key="p"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(107,143,113,0.08);color:#6B8F71" x-text="p"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.removed_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Удаленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.removed_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(184,92,92,0.08);color:#B85C5C" x-text="a"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.added_articles || []).length > 0" class="mb-4"><p class="text-xs font-medium text-carbon-600 mb-2">Добавленные артикулы:</p><div class="flex flex-wrap gap-2"><template x-for="a in cpResult?.kmd_changes?.added_articles || []" :key="a"><span class="px-2.5 py-1.5 rounded-lg font-mono text-xs" style="background:rgba(107,143,113,0.08);color:#6B8F71" x-text="a"></span></template></div></div>
+                    <div x-show="(cpResult?.kmd_changes?.quantity_changes || []).length > 0"><p class="text-xs font-medium text-carbon-600 mb-2">Изменения количества:</p><table class="data-table"><thead><tr><th>Позиция</th><th class="text-right">Было</th><th class="text-right">Стало</th><th class="text-right">Разница</th></tr></thead><tbody><template x-for="(q, qi) in cpResult?.kmd_changes?.quantity_changes || []" :key="qi"><tr><td class="font-mono font-bold text-carbon-900" x-text="q.position"></td><td class="text-right font-mono" x-text="q.old"></td><td class="text-right font-mono" x-text="q.new"></td><td class="text-right font-mono font-bold" :style="(q.new - q.old) > 0 ? 'color:#6B8F71' : 'color:#B85C5C'" x-text="(q.new - q.old) > 0 ? '+' + (q.new - q.old) : (q.new - q.old)"></td></tr></template></tbody></table></div>
                 </div>
             </div>
         </section>
@@ -2362,20 +2438,20 @@
             <div x-show="batchResult" class="fade-up">
                 <div class="mb-6"><button @click="batchResult = null; fileBatch = null" class="btn-secondary">Заново</button></div>
                 <div class="section-panel mb-8">
-                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общая оценка проекта</h3><span class="font-mono text-lg font-bold" :style="(batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? 'color:#4A7C59' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="(batchResult?.overall_summary?.avg_checklist_score || 0) + '%'"></span></div>
-                    <div class="w-full bg-carbon-100 rounded-full h-2"><div class="h-2 rounded-full progress-bar-animated" :style="'width:' + (batchResult?.overall_summary?.avg_checklist_score || 0) + '%;background:' + ((batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? '#4A7C59' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? '#C4873B' : '#A14242')"></div></div>
+                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общая оценка проекта</h3><span class="font-mono text-lg font-bold" :style="(batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? 'color:#6B8F71' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="(batchResult?.overall_summary?.avg_checklist_score || 0) + '%'"></span></div>
+                    <div class="w-full bg-carbon-100 rounded-full h-2"><div class="h-2 rounded-full progress-bar-animated" :style="'width:' + (batchResult?.overall_summary?.avg_checklist_score || 0) + '%;background:' + ((batchResult?.overall_summary?.avg_checklist_score || 0) >= 80 ? '#6B8F71' : (batchResult?.overall_summary?.avg_checklist_score || 0) >= 50 ? '#C4956A' : '#B85C5C')"></div></div>
                 </div>
                 <div class="grid grid-cols-5 gap-4 mb-8">
                     <div class="metric-card"><p class="section-label mb-2">Файлов</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_files || 0"></p></div>
                     <div class="metric-card"><p class="section-label mb-2">Страниц PDF</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_pdf_pages || 0"></p></div>
                     <div class="metric-card"><p class="section-label mb-2">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_positions || 0"></p></div>
                     <div class="metric-card"><p class="section-label mb-2">Артикулов</p><p class="font-display text-3xl text-carbon-900" x-text="batchResult?.overall_summary?.total_unique_articles || 0"></p></div>
-                    <div class="metric-card"><p class="section-label mb-2">Проблем</p><p class="font-display text-3xl" :style="(batchResult?.overall_summary?.critical_issues || 0) > 0 ? 'color:#A14242' : 'color:#4A7C59'" x-text="(batchResult?.overall_summary?.critical_issues || 0) + (batchResult?.overall_summary?.warnings || 0)"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Проблем</p><p class="font-display text-3xl" :style="(batchResult?.overall_summary?.critical_issues || 0) > 0 ? 'color:#B85C5C' : 'color:#6B8F71'" x-text="(batchResult?.overall_summary?.critical_issues || 0) + (batchResult?.overall_summary?.warnings || 0)"></p></div>
                 </div>
 
                 <div class="section-panel mb-6"><h3 class="section-label mb-4">Состав архива</h3><div class="flex flex-wrap gap-2"><template x-for="(files, type) in batchResult?.files_found || {}" :key="type"><template x-if="files.length > 0"><div class="flex items-center gap-2 px-3 py-2 bg-white/60 rounded-lg border border-carbon-100"><span class="font-mono text-[10px] font-bold text-carbon-700 uppercase" x-text="type"></span><span class="font-mono text-xs font-bold text-carbon-900" x-text="files.length"></span></div></template></template></div></div>
 
-                <div class="section-panel mb-6" x-show="(batchResult?.issues || []).length > 0"><h3 class="section-label mb-5">Замечания</h3><div class="space-y-3"><template x-for="(issue, i) in batchResult?.issues || []" :key="i"><div class="flex items-start gap-3"><template x-if="issue.severity === 'critical'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#A14242" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template><template x-if="issue.severity === 'warning'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></template><div><span class="text-sm font-medium" :style="issue.severity === 'critical' ? 'color:#A14242' : 'color:#C4873B'" x-text="issue.issue"></span><p class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="issue.file"></p></div></div></template></div></div>
+                <div class="section-panel mb-6" x-show="(batchResult?.issues || []).length > 0"><h3 class="section-label mb-5">Замечания</h3><div class="space-y-3"><template x-for="(issue, i) in batchResult?.issues || []" :key="i"><div class="flex items-start gap-3"><template x-if="issue.severity === 'critical'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#B85C5C" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template><template x-if="issue.severity === 'warning'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4956A" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></template><div><span class="text-sm font-medium" :style="issue.severity === 'critical' ? 'color:#B85C5C' : 'color:#C4956A'" x-text="issue.issue"></span><p class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="issue.file"></p></div></div></template></div></div>
 
                 <!-- Bulk export toolbar -->
                 <div class="section-panel mb-4" x-show="getBatchDownloadFiles().length > 0">
@@ -2388,7 +2464,7 @@
                     </div>
                 </div>
 
-                <div class="section-panel overflow-hidden mb-6" x-show="(batchResult?.pdf_results || []).length > 0"><h3 class="section-label mb-4">Результаты PDF</h3><table class="data-table"><thead><tr><th class="w-8"></th><th>Файл</th><th class="text-right">Страниц</th><th class="text-right">Оценка</th><th class="text-right">Проверок</th><th class="text-right">Позиций</th><th class="text-right">Артикулов</th></tr></thead><tbody><template x-for="(r, i) in batchResult?.pdf_results || []" :key="i"><tr><td><input type="checkbox" class="zip-checkbox" x-show="r.download" :checked="zipSelectedFiles.includes(extractFilename(r.download))" @change="toggleZipFile(extractFilename(r.download))"></td><td class="font-mono text-xs font-semibold text-carbon-900 max-w-[200px] truncate" x-text="r.filename"></td><td class="text-right font-mono" x-text="r.total_pages"></td><td class="text-right font-mono font-bold" :style="r.checklist_score >= 80 ? 'color:#4A7C59' : r.checklist_score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="r.checklist_score + '%'"></td><td class="text-right font-mono text-carbon-500" x-text="r.passed_checks + '/' + r.total_checks"></td><td class="text-right font-mono" x-text="r.positions_found"></td><td class="text-right font-mono" x-text="r.articles_found"></td></tr></template></tbody></table></div>
+                <div class="section-panel overflow-hidden mb-6" x-show="(batchResult?.pdf_results || []).length > 0"><h3 class="section-label mb-4">Результаты PDF</h3><table class="data-table"><thead><tr><th class="w-8"></th><th>Файл</th><th class="text-right">Страниц</th><th class="text-right">Оценка</th><th class="text-right">Проверок</th><th class="text-right">Позиций</th><th class="text-right">Артикулов</th></tr></thead><tbody><template x-for="(r, i) in batchResult?.pdf_results || []" :key="i"><tr><td><input type="checkbox" class="zip-checkbox" x-show="r.download" :checked="zipSelectedFiles.includes(extractFilename(r.download))" @change="toggleZipFile(extractFilename(r.download))"></td><td class="font-mono text-xs font-semibold text-carbon-900 max-w-[200px] truncate" x-text="r.filename"></td><td class="text-right font-mono" x-text="r.total_pages"></td><td class="text-right font-mono font-bold" :style="r.checklist_score >= 80 ? 'color:#6B8F71' : r.checklist_score >= 50 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="r.checklist_score + '%'"></td><td class="text-right font-mono text-carbon-500" x-text="r.passed_checks + '/' + r.total_checks"></td><td class="text-right font-mono" x-text="r.positions_found"></td><td class="text-right font-mono" x-text="r.articles_found"></td></tr></template></tbody></table></div>
             </div>
         </section>
 
@@ -2410,8 +2486,8 @@
             <div x-show="clResult" class="fade-up">
                 <div class="mb-6"><button @click="clResult = null; fileCl = null" class="btn-secondary">Заново</button></div>
                 <div class="section-panel mb-8">
-                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общий результат</h3><span class="font-mono text-xl font-bold" :style="clResult?.score >= 80 ? 'color:#4A7C59' : clResult?.score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="clResult?.score + '%'"></span></div>
-                    <div class="w-full bg-carbon-100 rounded-full h-2.5"><div class="h-2.5 rounded-full progress-bar-animated" :style="'width:' + (clResult?.score || 0) + '%;background:' + (clResult?.score >= 80 ? '#4A7C59' : clResult?.score >= 50 ? '#C4873B' : '#A14242')"></div></div>
+                    <div class="flex items-center justify-between mb-3"><h3 class="section-label">Общий результат</h3><span class="font-mono text-xl font-bold" :style="clResult?.score >= 80 ? 'color:#6B8F71' : clResult?.score >= 50 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="clResult?.score + '%'"></span></div>
+                    <div class="w-full bg-carbon-100 rounded-full h-2.5"><div class="h-2.5 rounded-full progress-bar-animated" :style="'width:' + (clResult?.score || 0) + '%;background:' + (clResult?.score >= 80 ? '#6B8F71' : clResult?.score >= 50 ? '#C4956A' : '#B85C5C')"></div></div>
                     <p class="font-mono text-[10px] text-carbon-400 mt-3">Пройдено <span class="text-carbon-700 font-bold" x-text="clResult?.passed"></span> из <span class="text-carbon-700 font-bold" x-text="clResult?.total"></span> проверок</p>
                 </div>
                 <div class="grid grid-cols-3 gap-4 mb-8">
@@ -2422,7 +2498,7 @@
                 <div class="space-y-4">
                     <template x-for="(cat, ci) in clResult?.categories || []" :key="ci">
                         <div class="section-panel">
-                            <div class="flex items-center justify-between mb-5"><h3 class="section-label" x-text="cat.name"></h3><span class="font-mono text-xs font-bold" :style="cat.checks.filter(c => c.passed).length === cat.checks.length ? 'color:#4A7C59' : 'color:#C4873B'" x-text="cat.checks.filter(c => c.passed).length + '/' + cat.checks.length"></span></div>
+                            <div class="flex items-center justify-between mb-5"><h3 class="section-label" x-text="cat.name"></h3><span class="font-mono text-xs font-bold" :style="cat.checks.filter(c => c.passed).length === cat.checks.length ? 'color:#6B8F71' : 'color:#C4956A'" x-text="cat.checks.filter(c => c.passed).length + '/' + cat.checks.length"></span></div>
                             <div class="space-y-3">
                                 <template x-for="(ch, chi) in cat.checks" :key="chi">
                                     <div class="flex items-start gap-3">
@@ -2589,7 +2665,7 @@
                 </div>
 
                 <!-- Canvas container -->
-                <div class="section-panel p-0 overflow-hidden mb-4" style="border: 1px solid rgba(26,26,20,0.08); box-shadow: 0 8px 30px rgba(26,26,20,0.06);">
+                <div class="section-panel p-0 overflow-hidden mb-4" style="border: 1px solid rgba(27,38,49,0.08); box-shadow: 0 8px 30px rgba(27,38,49,0.06);">
                     <div id="three-canvas-container" style="width:100%; height:600px; background:#F0EDE6; position:relative;"></div>
                 </div>
 
@@ -2725,20 +2801,20 @@
 
                 <!-- Warnings -->
                 <template x-for="(warn, wi) in profileResult?.warnings || []" :key="wi">
-                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
-                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,149,106,0.08);border:1px solid rgba(196,149,106,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4956A" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#5A6B4F" x-text="warn"></span>
                     </div>
                 </template>
 
                 <!-- Recommendation cards -->
                 <div class="space-y-4 mt-4">
                     <template x-for="(rec, ri) in profileResult?.recommendations || []" :key="ri">
-                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #B8963B' : ''">
+                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #7B8B6F' : ''">
                             <div class="flex items-start justify-between mb-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-sm font-bold"
-                                         :style="ri === 0 ? 'background:rgba(184,150,59,0.15);color:#B8963B' : ri === 1 ? 'background:rgba(74,124,89,0.1);color:#4A7C59' : 'background:rgba(26,26,20,0.05);color:#9A9A8C'"
+                                         :style="ri === 0 ? 'background:rgba(123,139,111,0.15);color:#7B8B6F' : ri === 1 ? 'background:rgba(107,143,113,0.1);color:#6B8F71' : 'background:rgba(27,38,49,0.05);color:#9DA3A7'"
                                          x-text="rec.rank">
                                     </div>
                                     <div>
@@ -2747,14 +2823,14 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 80 ? 'color:#4A7C59' : rec.score >= 60 ? 'color:#C4873B' : 'color:#A14242'" x-text="rec.score"></span>
+                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 80 ? 'color:#6B8F71' : rec.score >= 60 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="rec.score"></span>
                                     <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Score</p>
                                 </div>
                             </div>
 
                             <!-- Score bar -->
                             <div class="w-full bg-carbon-100 rounded-full h-1.5 mb-4">
-                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 80 ? '#4A7C59' : rec.score >= 60 ? '#C4873B' : '#A14242')"></div>
+                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 80 ? '#6B8F71' : rec.score >= 60 ? '#C4956A' : '#B85C5C')"></div>
                             </div>
 
                             <!-- Specs grid -->
@@ -2950,14 +3026,14 @@
                         <p class="font-display text-3xl text-carbon-900" x-text="cuttingResult?.total_bars_needed || 0"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="'по ' + (cuttingResult?.stock_length_mm || 0) + ' мм'"></p>
                     </div>
-                    <div class="metric-card" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'border-left:3px solid #4A7C59' : (cuttingResult?.waste_percent || 0) < 20 ? 'border-left:3px solid #C4873B' : 'border-left:3px solid #A14242'">
+                    <div class="metric-card" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'border-left:3px solid #6B8F71' : (cuttingResult?.waste_percent || 0) < 20 ? 'border-left:3px solid #C4956A' : 'border-left:3px solid #B85C5C'">
                         <p class="section-label mb-2">Отходы</p>
-                        <p class="font-display text-3xl" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'color:#4A7C59' : (cuttingResult?.waste_percent || 0) < 20 ? 'color:#C4873B' : 'color:#A14242'" x-text="(cuttingResult?.waste_percent || 0) + '%'"></p>
+                        <p class="font-display text-3xl" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'color:#6B8F71' : (cuttingResult?.waste_percent || 0) < 20 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="(cuttingResult?.waste_percent || 0) + '%'"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="(cuttingResult?.total_waste_mm || 0) + ' мм'"></p>
                     </div>
-                    <div class="metric-card" style="border-left:3px solid #4A7C59">
+                    <div class="metric-card" style="border-left:3px solid #6B8F71">
                         <p class="section-label mb-2">Экономия</p>
-                        <p class="font-display text-3xl" style="color:#4A7C59" x-text="(cuttingResult?.savings_vs_naive || 0) + '%'"></p>
+                        <p class="font-display text-3xl" style="color:#6B8F71" x-text="(cuttingResult?.savings_vs_naive || 0) + '%'"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">vs без оптимизации</p>
                     </div>
                     <div class="metric-card">
@@ -2975,16 +3051,16 @@
                             <div>
                                 <div class="flex items-center gap-3 mb-1.5">
                                     <span class="font-mono text-[10px] font-bold text-carbon-500 w-6 text-right" x-text="'#' + bar.bar_number"></span>
-                                    <div class="flex-1 h-9 rounded-lg overflow-hidden flex" style="background:#DDDDD4">
+                                    <div class="flex-1 h-9 rounded-lg overflow-hidden flex" style="background:#E2E4E6">
                                         <template x-for="(cut, ci) in bar.cuts" :key="ci">
                                             <div class="h-full flex items-center justify-center relative group"
-                                                 :style="'width:' + (cut.length_mm / (cuttingResult?.stock_length_mm || 6500) * 100) + '%;background:#B8963B;border-right:1px solid rgba(255,255,255,0.3);'"
+                                                 :style="'width:' + (cut.length_mm / (cuttingResult?.stock_length_mm || 6500) * 100) + '%;background:#7B8B6F;border-right:1px solid rgba(255,255,255,0.3);'"
                                                  :title="cut.article + ': ' + cut.length_mm + ' мм'">
                                                 <span class="font-mono text-[8px] font-bold text-white truncate px-0.5" x-text="cut.length_mm" x-show="cut.length_mm / (cuttingResult?.stock_length_mm || 6500) > 0.06"></span>
                                             </div>
                                         </template>
                                     </div>
-                                    <span class="font-mono text-[10px] w-12 text-right" :style="bar.utilization_percent >= 90 ? 'color:#4A7C59;font-weight:700' : bar.utilization_percent >= 70 ? 'color:#C4873B;font-weight:600' : 'color:#A14242;font-weight:600'" x-text="bar.utilization_percent + '%'"></span>
+                                    <span class="font-mono text-[10px] w-12 text-right" :style="bar.utilization_percent >= 90 ? 'color:#6B8F71;font-weight:700' : bar.utilization_percent >= 70 ? 'color:#C4956A;font-weight:600' : 'color:#B85C5C;font-weight:600'" x-text="bar.utilization_percent + '%'"></span>
                                     <span class="font-mono text-[10px] text-carbon-400 w-16 text-right" x-text="bar.waste_mm + ' мм'"></span>
                                 </div>
                             </div>
@@ -2993,11 +3069,11 @@
 
                     <!-- Legend -->
                     <div class="flex items-center gap-5 mt-5 pt-4 border-t border-carbon-100">
-                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#B8963B"></div><span class="font-mono text-[9px] text-carbon-500">Заготовка</span></div>
-                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#DDDDD4"></div><span class="font-mono text-[9px] text-carbon-500">Отход</span></div>
-                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#4A7C59">90%+</span><span class="font-mono text-[9px] text-carbon-500">Отлично</span></div>
-                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#C4873B">70-90%</span><span class="font-mono text-[9px] text-carbon-500">Нормально</span></div>
-                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#A14242">&lt;70%</span><span class="font-mono text-[9px] text-carbon-500">Много отходов</span></div>
+                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#7B8B6F"></div><span class="font-mono text-[9px] text-carbon-500">Заготовка</span></div>
+                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#E2E4E6"></div><span class="font-mono text-[9px] text-carbon-500">Отход</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#6B8F71">90%+</span><span class="font-mono text-[9px] text-carbon-500">Отлично</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#C4956A">70-90%</span><span class="font-mono text-[9px] text-carbon-500">Нормально</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#B85C5C">&lt;70%</span><span class="font-mono text-[9px] text-carbon-500">Много отходов</span></div>
                     </div>
                 </div>
 
@@ -3037,7 +3113,7 @@
                                     <td class="text-right font-mono" x-text="bar.used_mm + ' мм'"></td>
                                     <td class="text-right font-mono" x-text="bar.waste_mm + ' мм'"></td>
                                     <td class="text-right">
-                                        <span class="font-mono text-xs font-bold" :style="bar.utilization_percent >= 90 ? 'color:#4A7C59' : bar.utilization_percent >= 70 ? 'color:#C4873B' : 'color:#A14242'" x-text="bar.utilization_percent + '%'"></span>
+                                        <span class="font-mono text-xs font-bold" :style="bar.utilization_percent >= 90 ? 'color:#6B8F71' : bar.utilization_percent >= 70 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="bar.utilization_percent + '%'"></span>
                                     </td>
                                 </tr>
                             </template>
@@ -3129,7 +3205,7 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="metric-card accent-left">
                         <p class="section-label mb-2">Uw</p>
-                        <p class="font-display text-3xl" :style="thermalResult?.uw <= 1.0 ? 'color:#4A7C59' : thermalResult?.uw <= 1.8 ? 'color:#C4873B' : 'color:#A14242'" x-text="thermalResult?.uw"></p>
+                        <p class="font-display text-3xl" :style="thermalResult?.uw <= 1.0 ? 'color:#6B8F71' : thermalResult?.uw <= 1.8 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="thermalResult?.uw"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">Вт/(м²·К)</p>
                     </div>
                     <div class="metric-card">
@@ -3142,9 +3218,9 @@
                         <p class="font-display text-3xl text-carbon-900" x-text="thermalResult?.dew_point + '°C'"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">при RH 50%</p>
                     </div>
-                    <div class="metric-card" :style="thermalResult?.meets_requirement ? 'border-left:3px solid #4A7C59' : 'border-left:3px solid #A14242'">
+                    <div class="metric-card" :style="thermalResult?.meets_requirement ? 'border-left:3px solid #6B8F71' : 'border-left:3px solid #B85C5C'">
                         <p class="section-label mb-2">Соответствие</p>
-                        <p class="font-display text-xl" :style="thermalResult?.meets_requirement ? 'color:#4A7C59' : 'color:#A14242'" x-text="thermalResult?.meets_requirement ? 'Соответствует' : 'Не соответствует'"></p>
+                        <p class="font-display text-xl" :style="thermalResult?.meets_requirement ? 'color:#6B8F71' : 'color:#B85C5C'" x-text="thermalResult?.meets_requirement ? 'Соответствует' : 'Не соответствует'"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="'Норма: ' + thermalResult?.norm_limit + ' Вт/(м²·К)'"></p>
                     </div>
                 </div>
@@ -3353,7 +3429,7 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="metric-card accent-left">
                         <p class="section-label mb-2">Общий вес</p>
-                        <p class="font-display text-3xl" :style="sashResult?.total_weight <= 100 ? 'color:#4A7C59' : sashResult?.total_weight <= 130 ? 'color:#C4873B' : 'color:#A14242'" x-text="sashResult?.total_weight"></p>
+                        <p class="font-display text-3xl" :style="sashResult?.total_weight <= 100 ? 'color:#6B8F71' : sashResult?.total_weight <= 130 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="sashResult?.total_weight"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">кг</p>
                     </div>
                     <div class="metric-card">
@@ -3375,9 +3451,9 @@
 
                 <!-- Warnings -->
                 <template x-for="(warn, wi) in sashResult?.warnings || []" :key="wi">
-                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
-                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,149,106,0.08);border:1px solid rgba(196,149,106,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4956A" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#5A6B4F" x-text="warn"></span>
                     </div>
                 </template>
 
@@ -3386,10 +3462,10 @@
                     <h3 class="section-label mb-4">Лимиты профильных систем</h3>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <template x-for="(limit, system) in sashResult?.max_allowed || {}" :key="system">
-                            <div class="flex justify-between items-center py-2 px-3 rounded-lg" :style="sashResult?.total_weight <= limit ? 'background:rgba(74,124,89,0.06)' : 'background:rgba(161,66,66,0.06)'">
+                            <div class="flex justify-between items-center py-2 px-3 rounded-lg" :style="sashResult?.total_weight <= limit ? 'background:rgba(107,143,113,0.06)' : 'background:rgba(184,92,92,0.06)'">
                                 <span class="text-xs text-carbon-700" x-text="system"></span>
                                 <div class="flex items-center gap-2">
-                                    <span class="font-mono text-xs font-semibold" :style="sashResult?.total_weight <= limit ? 'color:#4A7C59' : 'color:#A14242'" x-text="limit + ' кг'"></span>
+                                    <span class="font-mono text-xs font-semibold" :style="sashResult?.total_weight <= limit ? 'color:#6B8F71' : 'color:#B85C5C'" x-text="limit + ' кг'"></span>
                                     <svg x-show="sashResult?.total_weight <= limit" class="w-3.5 h-3.5 text-status-ok" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                     <svg x-show="sashResult?.total_weight > limit" class="w-3.5 h-3.5 text-status-fail" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </div>
@@ -3472,20 +3548,20 @@
 
                 <!-- Warnings -->
                 <template x-for="(warn, wi) in glassResult?.warnings || []" :key="wi">
-                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
-                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,149,106,0.08);border:1px solid rgba(196,149,106,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4956A" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#5A6B4F" x-text="warn"></span>
                     </div>
                 </template>
 
                 <!-- Glass recommendations -->
                 <div class="space-y-4 mt-4">
                     <template x-for="(rec, ri) in glassResult?.recommendations || []" :key="ri">
-                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #B8963B' : ''">
+                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #7B8B6F' : ''">
                             <div class="flex items-start justify-between mb-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-sm font-bold"
-                                         :style="ri === 0 ? 'background:rgba(184,150,59,0.15);color:#B8963B' : ri === 1 ? 'background:rgba(74,124,89,0.1);color:#4A7C59' : 'background:rgba(26,26,20,0.05);color:#9A9A8C'"
+                                         :style="ri === 0 ? 'background:rgba(123,139,111,0.15);color:#7B8B6F' : ri === 1 ? 'background:rgba(107,143,113,0.1);color:#6B8F71' : 'background:rgba(27,38,49,0.05);color:#9DA3A7'"
                                          x-text="ri + 1">
                                     </div>
                                     <div>
@@ -3494,13 +3570,13 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 70 ? 'color:#4A7C59' : rec.score >= 40 ? 'color:#C4873B' : 'color:#A14242'" x-text="rec.score"></span>
+                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 70 ? 'color:#6B8F71' : rec.score >= 40 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="rec.score"></span>
                                     <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Score</p>
                                 </div>
                             </div>
 
                             <div class="w-full bg-carbon-100 rounded-full h-1.5 mb-4">
-                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 70 ? '#4A7C59' : rec.score >= 40 ? '#C4873B' : '#A14242')"></div>
+                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 70 ? '#6B8F71' : rec.score >= 40 ? '#C4956A' : '#B85C5C')"></div>
                             </div>
 
                             <div class="grid grid-cols-3 gap-3 mb-4">
@@ -3624,18 +3700,18 @@
                         <p class="font-display text-3xl text-carbon-900" x-text="fastenersResult?.force_per_anchor_n"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">Н</p>
                     </div>
-                    <div class="metric-card" :style="fastenersResult?.safety_margin >= 2.0 ? 'border-left:3px solid #4A7C59' : fastenersResult?.safety_margin >= 1.0 ? 'border-left:3px solid #C4873B' : 'border-left:3px solid #A14242'">
+                    <div class="metric-card" :style="fastenersResult?.safety_margin >= 2.0 ? 'border-left:3px solid #6B8F71' : fastenersResult?.safety_margin >= 1.0 ? 'border-left:3px solid #C4956A' : 'border-left:3px solid #B85C5C'">
                         <p class="section-label mb-2">Запас прочности</p>
-                        <p class="font-display text-3xl" :style="fastenersResult?.safety_margin >= 2.0 ? 'color:#4A7C59' : fastenersResult?.safety_margin >= 1.0 ? 'color:#C4873B' : 'color:#A14242'" x-text="fastenersResult?.safety_margin + 'x'"></p>
+                        <p class="font-display text-3xl" :style="fastenersResult?.safety_margin >= 2.0 ? 'color:#6B8F71' : fastenersResult?.safety_margin >= 1.0 ? 'color:#C4956A' : 'color:#B85C5C'" x-text="fastenersResult?.safety_margin + 'x'"></p>
                         <p class="font-mono text-[10px] text-carbon-400 mt-1">коэффициент</p>
                     </div>
                 </div>
 
                 <!-- Warnings -->
                 <template x-for="(warn, wi) in fastenersResult?.wall_type_warnings || []" :key="wi">
-                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" :style="warn.includes('ВНИМАНИЕ') ? 'background:rgba(161,66,66,0.08);border:1px solid rgba(161,66,66,0.2)' : 'background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2)'">
-                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" :style="warn.includes('ВНИМАНИЕ') ? 'color:#A14242' : 'color:#C4873B'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        <span class="text-xs font-body" :style="warn.includes('ВНИМАНИЕ') ? 'color:#A14242' : 'color:#8A7030'" x-text="warn"></span>
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" :style="warn.includes('ВНИМАНИЕ') ? 'background:rgba(184,92,92,0.08);border:1px solid rgba(184,92,92,0.2)' : 'background:rgba(196,149,106,0.08);border:1px solid rgba(196,149,106,0.2)'">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" :style="warn.includes('ВНИМАНИЕ') ? 'color:#B85C5C' : 'color:#C4956A'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" :style="warn.includes('ВНИМАНИЕ') ? 'color:#B85C5C' : 'color:#5A6B4F'" x-text="warn"></span>
                     </div>
                 </template>
 
@@ -4570,11 +4646,11 @@
                             </div>
                         </div>
 
-                        <div class="section-panel" style="border-color:rgba(161,66,66,0.2);background:rgba(161,66,66,0.04);">
-                            <h3 class="section-label mb-3" style="color:#A14242">Предупреждения</h3>
+                        <div class="section-panel" style="border-color:rgba(184,92,92,0.2);background:rgba(184,92,92,0.04);">
+                            <h3 class="section-label mb-3" style="color:#B85C5C">Предупреждения</h3>
                             <ul class="space-y-1.5">
                                 <template x-for="(w, wi) in (selectedNode?.warnings || [])" :key="wi">
-                                    <li class="flex items-start gap-2 text-xs text-carbon-700"><span style="color:#A14242" class="mt-0.5">&#9888;</span><span x-text="w"></span></li>
+                                    <li class="flex items-start gap-2 text-xs text-carbon-700"><span style="color:#B85C5C" class="mt-0.5">&#9888;</span><span x-text="w"></span></li>
                                 </template>
                             </ul>
                         </div>
@@ -4621,10 +4697,10 @@
         </section>
 
         <!-- ===== ERROR DISPLAY ===== -->
-        <div x-show="error" x-transition class="mt-8 section-panel fade-up" style="border-color:rgba(161,66,66,0.2);background:rgba(161,66,66,0.04);">
+        <div x-show="error" x-transition class="mt-8 section-panel fade-up" style="border-color:rgba(184,92,92,0.2);background:rgba(184,92,92,0.04);">
             <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:#A14242" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                <div><p class="text-sm font-semibold" style="color:#A14242">Ошибка</p><p class="text-xs text-carbon-600 mt-1" x-text="error"></p></div>
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:#B85C5C" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <div><p class="text-sm font-semibold" style="color:#B85C5C">Ошибка</p><p class="text-xs text-carbon-600 mt-1" x-text="error"></p></div>
             </div>
             <button @click="error = null" class="mt-3 ml-8 text-xs font-medium text-carbon-500 hover:text-brass transition-colors">Закрыть</button>
         </div>
@@ -6095,7 +6171,7 @@ function app() {
                         triShape.lineTo(triSize / 2, triSize * 0.8);
                         triShape.closePath();
                         const triGeo = new THREE.ShapeGeometry(triShape);
-                        const triMat = new THREE.MeshBasicMaterial({ color: 0xB8963B, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+                        const triMat = new THREE.MeshBasicMaterial({ color: 0x7B8B6F, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
                         const triMesh = new THREE.Mesh(triGeo, triMat);
                         triMesh.position.set(offsetX + sec.x + sec.width / 2 - triSize / 2, fh - pw - triSize * 1.2, fd / 2 + 1);
                         triMesh.userData = { construction: true, tag: 'indicator-' + hi };
@@ -6115,7 +6191,7 @@ function app() {
                 ctx.fillStyle = 'rgba(255,255,255,0.85)';
                 ctx.roundRect(0, 0, 256, 64, 8);
                 ctx.fill();
-                ctx.fillStyle = '#2A2A22';
+                ctx.fillStyle = '#2D3436';
                 ctx.font = 'bold 28px monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -6167,7 +6243,7 @@ function app() {
                 const wCanvas = document.createElement('canvas');
                 wCanvas.width = 256; wCanvas.height = 48;
                 const wCtx = wCanvas.getContext('2d');
-                wCtx.fillStyle = '#565648';
+                wCtx.fillStyle = '#4A5459';
                 wCtx.font = 'bold 30px monospace';
                 wCtx.textAlign = 'center';
                 wCtx.textBaseline = 'middle';
@@ -6205,7 +6281,7 @@ function app() {
                 const hCanvas = document.createElement('canvas');
                 hCanvas.width = 256; hCanvas.height = 48;
                 const hCtx = hCanvas.getContext('2d');
-                hCtx.fillStyle = '#565648';
+                hCtx.fillStyle = '#4A5459';
                 hCtx.font = 'bold 30px monospace';
                 hCtx.textAlign = 'center';
                 hCtx.textBaseline = 'middle';
@@ -6344,14 +6420,14 @@ document.addEventListener('DOMContentLoaded', () => {
 <style>
 /* PWA Install Banner */
 :root {
-    --pwa-canvas: #F5F2EC;
-    --pwa-carbon: #1A1A14;
-    --pwa-carbon-800: #2A2A22;
-    --pwa-brass: #B8963B;
-    --pwa-brass-light: #D4B66A;
-    --pwa-brass-pale: #F0E8D0;
-    --pwa-font-display: 'Playfair Display', serif;
-    --pwa-font-body: 'Instrument Sans', sans-serif;
+    --pwa-canvas: #FAF9F7;
+    --pwa-carbon: #1B2631;
+    --pwa-carbon-800: #2D3436;
+    --pwa-brass: #7B8B6F;
+    --pwa-brass-light: #A8B89F;
+    --pwa-brass-pale: #EEF2EB;
+    --pwa-font-display: 'Cormorant Garamond', serif;
+    --pwa-font-body: 'DM Sans', sans-serif;
     --pwa-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --pwa-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
 }
@@ -6456,7 +6532,7 @@ document.addEventListener('DOMContentLoaded', () => {
 .sw-update-toast__inner {
     position: relative; background: var(--pwa-carbon); color: var(--pwa-canvas);
     border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; gap: 14px;
-    box-shadow: 0 8px 32px rgba(26,26,20,0.25), 0 2px 8px rgba(26,26,20,0.15);
+    box-shadow: 0 8px 32px rgba(27,38,49,0.25), 0 2px 8px rgba(27,38,49,0.15);
     overflow: hidden; max-width: 360px;
 }
 .sw-update-toast__inner::before {
@@ -6465,7 +6541,7 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .sw-update-toast__icon {
     flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px;
-    background: rgba(184,150,59,0.12); display: flex; align-items: center; justify-content: center;
+    background: rgba(123,139,111,0.12); display: flex; align-items: center; justify-content: center;
 }
 .sw-update-toast__icon svg { width: 20px; height: 20px; color: var(--pwa-brass-light); }
 .sw-update-toast__body { flex: 1; min-width: 0; }
@@ -6477,9 +6553,9 @@ document.addEventListener('DOMContentLoaded', () => {
     border: none; border-radius: 5px; cursor: pointer;
     background: linear-gradient(135deg, var(--pwa-brass) 0%, var(--pwa-brass-light) 100%);
     color: var(--pwa-carbon); transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 2px 8px rgba(184,150,59,0.25); white-space: nowrap; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(123,139,111,0.25); white-space: nowrap; flex-shrink: 0;
 }
-.sw-update-toast__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(184,150,59,0.35); }
+.sw-update-toast__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(123,139,111,0.35); }
 @media (max-width: 480px) {
     .sw-update-toast { bottom: 16px; right: 16px; left: 16px; }
     .sw-update-toast__inner { max-width: none; }

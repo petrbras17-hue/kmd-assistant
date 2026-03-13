@@ -11,45 +11,45 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --canvas: #F5F2EC;
-            --canvas-dark: #EDE9E0;
-            --canvas-deep: #E5E0D6;
-            --carbon-900: #1A1A14;
-            --carbon-800: #2A2A22;
-            --carbon-700: #3D3D32;
-            --carbon-600: #565648;
-            --carbon-500: #717164;
-            --carbon-400: #9A9A8C;
-            --carbon-300: #C4C4B8;
-            --carbon-200: #DDDDD4;
-            --brass: #B8963B;
-            --brass-light: #D4B66A;
-            --brass-pale: #F0E8D0;
-            --brass-dark: #8A7030;
+            --canvas: #FAF9F7;
+            --canvas-dark: #F3F1EE;
+            --canvas-deep: #EBE8E4;
+            --carbon-900: #1B2631;
+            --carbon-800: #2D3436;
+            --carbon-700: #343D42;
+            --carbon-600: #4A5459;
+            --carbon-500: #636E72;
+            --carbon-400: #9DA3A7;
+            --carbon-300: #C8CCCE;
+            --carbon-200: #E2E4E6;
+            --sage: #7B8B6F;
+            --sage-light: #A8B89F;
+            --sage-pale: #EEF2EB;
+            --sage-dark: #5A6B4F;
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --canvas: #141410;
-                --canvas-dark: #1C1C16;
-                --canvas-deep: #24241C;
-                --carbon-900: #F0EDE6;
-                --carbon-800: #E0DDD4;
-                --carbon-700: #C4C4B8;
-                --carbon-600: #9A9A8C;
-                --carbon-500: #717164;
-                --carbon-400: #565648;
-                --carbon-300: #3D3D32;
-                --carbon-200: #2A2A22;
-                --brass: #D4B66A;
-                --brass-light: #E8D08A;
-                --brass-pale: #2A2418;
-                --brass-dark: #B8963B;
+                --canvas: #141A20;
+                --canvas-dark: #1B2631;
+                --canvas-deep: #213240;
+                --carbon-900: #F0F1F2;
+                --carbon-800: #E2E4E6;
+                --carbon-700: #C8CCCE;
+                --carbon-600: #9DA3A7;
+                --carbon-500: #636E72;
+                --carbon-400: #4A5459;
+                --carbon-300: #343D42;
+                --carbon-200: #2D3436;
+                --sage: #A8B89F;
+                --sage-light: #C4D4BA;
+                --sage-pale: #1B2618;
+                --sage-dark: #7B8B6F;
             }
         }
 
         body {
-            font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--canvas);
             color: var(--carbon-800);
             min-height: 100vh;
@@ -108,7 +108,7 @@
         .corner-accent::after {
             content: '';
             position: absolute;
-            background: var(--brass);
+            background: var(--sage);
             opacity: 0.3;
         }
 
@@ -139,7 +139,7 @@
         .geo-diamond {
             width: 60px;
             height: 60px;
-            border: 1.5px solid var(--brass);
+            border: 1.5px solid var(--sage);
             transform: rotate(45deg);
             top: 15%;
             right: 12%;
@@ -167,7 +167,7 @@
         .geo-cross::after {
             content: '';
             position: absolute;
-            background: var(--brass);
+            background: var(--sage);
         }
         .geo-cross::before {
             top: 50%;
@@ -199,7 +199,7 @@
         .geo-rect {
             width: 30px;
             height: 70px;
-            border: 1.5px solid var(--brass-dark);
+            border: 1.5px solid var(--sage-dark);
             bottom: 30%;
             right: 8%;
             animation: float-a 14s ease-in-out infinite reverse;
@@ -244,7 +244,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            border: 2px solid var(--brass);
+            border: 2px solid var(--sage);
             border-radius: 12px;
             transform: rotate(45deg);
             opacity: 0.6;
@@ -258,7 +258,7 @@
             left: 50%;
             width: 50px;
             height: 50px;
-            border: 2px solid var(--brass);
+            border: 2px solid var(--sage);
             border-radius: 50%;
             transform: translate(-50%, -50%);
             opacity: 0.4;
@@ -312,7 +312,7 @@
             left: 50%;
             width: 6px;
             height: 6px;
-            background: var(--brass);
+            background: var(--sage);
             border-radius: 50%;
             transform: translateX(-50%);
         }
@@ -324,7 +324,7 @@
             left: 50%;
             width: 2.5px;
             height: 52px;
-            background: var(--brass);
+            background: var(--sage);
             transform: translateX(-50%) rotate(-45deg);
             transform-origin: center;
             border-radius: 2px;
@@ -344,7 +344,7 @@
             left: -0.5px;
             width: 1px;
             height: 120px;
-            background: linear-gradient(to bottom, transparent, var(--brass), transparent);
+            background: linear-gradient(to bottom, transparent, var(--sage), transparent);
             opacity: 0.15;
         }
         .icon-cross::after {
@@ -354,13 +354,13 @@
             top: -0.5px;
             height: 1px;
             width: 120px;
-            background: linear-gradient(to right, transparent, var(--brass), transparent);
+            background: linear-gradient(to right, transparent, var(--sage), transparent);
             opacity: 0.15;
         }
 
         /* ── Typography ── */
         .title {
-            font-family: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+            font-family: 'Cormorant Garamond', 'Georgia', 'Times New Roman', serif;
             font-size: 2rem;
             font-weight: 600;
             color: var(--carbon-900);
@@ -370,11 +370,11 @@
         }
 
         .subtitle {
-            font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+            font-family: 'IBM Plex Mono', 'SF Mono', 'Consolas', monospace;
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: var(--brass);
+            color: var(--sage);
             margin-bottom: 2rem;
             font-weight: 500;
         }
@@ -398,7 +398,7 @@
         .divider {
             width: 60px;
             height: 1px;
-            background: linear-gradient(to right, transparent, var(--brass), transparent);
+            background: linear-gradient(to right, transparent, var(--sage), transparent);
             margin: 0 auto 2rem;
         }
 
@@ -410,9 +410,9 @@
             padding: 0.85rem 2rem;
             background: transparent;
             color: var(--carbon-900);
-            border: 1.5px solid var(--brass);
+            border: 1.5px solid var(--sage);
             border-radius: 6px;
-            font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             font-size: 0.9rem;
             font-weight: 600;
             letter-spacing: 0.04em;
@@ -427,14 +427,14 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: var(--brass);
+            background: var(--sage);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .btn-retry:hover {
             color: var(--canvas);
-            border-color: var(--brass);
+            border-color: var(--sage);
             transform: translateY(-1px);
             box-shadow: 0 4px 20px rgba(184, 150, 59, 0.25);
         }
@@ -502,7 +502,7 @@
             justify-content: center;
             gap: 0.5rem;
             margin-top: 2rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.7rem;
             color: var(--carbon-400);
             letter-spacing: 0.06em;
@@ -529,7 +529,7 @@
             right: 0;
             text-align: center;
             padding: 1.25rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 0.65rem;
             text-transform: uppercase;
             letter-spacing: 0.2em;
