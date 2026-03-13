@@ -122,6 +122,7 @@ def _resolve_role(user: Any) -> Role:
     """Extract the Role from a user object, with safe fallback."""
     raw = getattr(user, "role", None)
     if raw is None:
+        logger.warning("User %s has no role set — defaulting to viewer", getattr(user, "id", "?"))
         return Role.VIEWER  # safest default
     if isinstance(raw, Role):
         return raw
@@ -176,6 +177,8 @@ async def _get_workspace_role(
         try:
             return Role(row)
         except ValueError:
+            logger.warning("Invalid workspace role %r for user %s in workspace %s",
+                           row, user.id, workspace_id)
             return None
     return None
 

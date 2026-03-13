@@ -227,8 +227,10 @@ async def get_optional_user(
         return None
     try:
         return await get_current_user(token=token, db=db)
-    except HTTPException:
-        return None
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            return None
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -460,10 +462,17 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         token_data = await google_client.authorize_access_token(request)
-    except Exception as exc:
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
+        logger.warning("Google OAuth token exchange failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ошибка авторизации через Google",
+        )
+    except Exception as exc:
+        logger.error("Unexpected error during Google OAuth: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Ошибка связи с сервером авторизации Google",
         )
 
     userinfo = token_data.get("userinfo")
@@ -482,6 +491,12 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     name = userinfo.get("name") or email.split("@")[0]
     picture = userinfo.get("picture")
     google_id = userinfo.get("sub", "")
+
+    if not email or not google_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google не предоставил email или идентификатор пользователя",
+        )
 
     user = await _get_or_create_oauth_user(
         db,
@@ -531,10 +546,17 @@ async def yandex_callback(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         token_data = await yandex_client.authorize_access_token(request)
-    except Exception as exc:
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
+        logger.warning("Yandex OAuth token exchange failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ошибка авторизации через Яндекс",
+        )
+    except Exception as exc:
+        logger.error("Unexpected error during Yandex OAuth: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Ошибка связи с сервером авторизации Яндекс",
         )
 
     # Яндекс не возвращает userinfo в токене — нужно запросить отдельно
@@ -555,6 +577,13 @@ async def yandex_callback(request: Request, db: AsyncSession = Depends(get_db)):
     email = userinfo.get("default_email", "")
     name = userinfo.get("login") or userinfo.get("display_name") or email.split("@")[0]
     yandex_id = str(userinfo.get("id", ""))
+
+    if not email or not yandex_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Яндекс не предоставил email или идентификатор пользователя",
+        )
+
     avatar_id = userinfo.get("default_avatar_id")
     avatar_url = (
         f"https://avatars.yandex.net/get-yapic/{avatar_id}/islands-200"

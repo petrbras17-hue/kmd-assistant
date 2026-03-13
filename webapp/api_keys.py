@@ -228,7 +228,10 @@ async def get_current_workspace_id(
         try:
             ws_id = int(ws_header)
         except ValueError:
-            pass
+            raise HTTPException(
+                status_code=400,
+                detail="X-Workspace-Id должен быть целым числом",
+            )
     if ws_id is None:
         ws_id = current_user.workspace_id
     # Валидация: пользователь должен быть участником workspace
