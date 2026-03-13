@@ -11,12 +11,20 @@ import shutil
 import zipfile
 import tempfile
 import re as _re
+import base64
 from pathlib import Path
 from datetime import datetime
 
+import httpx
+from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+# Load .env for OpenRouter API key
+load_dotenv(Path(__file__).parent.parent / ".env")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Добавляем tools в путь
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
@@ -59,6 +67,11 @@ counters = {
     "calc_sash_weight": 0,
     "calc_glass": 0,
     "calc_fasteners": 0,
+    "ai_review": 0,
+    "ai_note": 0,
+    "ai_gost": 0,
+    "ai_hardware": 0,
+    "ai_compare": 0,
 }
 
 
@@ -3626,6 +3639,307 @@ async def api_calc_fasteners(data: dict):
             "frame_area_m2": round(frame_area_m2, 2),
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== AI HELPER ==============
+
+async def _call_llm(messages: list[dict], model: str = "google/gemini-2.0-flash-001", max_tokens: int = 4000) -> str:
+    """Call OpenRouter API and return the response text."""
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
+
+def _pdf_pages_to_base64(pdf_path: str, max_pages: int = 3) -> list[str]:
+    """Render first N pages of a PDF to base64-encoded PNG images."""
+    import fitz
+    doc = fitz.open(pdf_path)
+    images = []
+    for i in range(min(max_pages, len(doc))):
+        page = doc[i]
+        pixmap = page.get_pixmap(dpi=150)
+        img_b64 = base64.b64encode(pixmap.tobytes("png")).decode()
+        images.append(img_b64)
+    doc.close()
+    return images
+
+
+# ============== F1: AI DRAWING REVIEW ==============
+
+@app.post("/api/ai-review")
+async def api_ai_review(file: UploadFile = File(...)):
+    """AI review of a KMD drawing PDF."""
+    try:
+        path = save_upload(file)
+        text = extract_text_from_pdf(str(path))
+        images_b64 = _pdf_pages_to_base64(str(path), max_pages=3)
+
+        content_parts = [
+            {
+                "type": "text",
+                "text": (
+                    "Ты эксперт по КМД алюминиевых конструкций. Проанализируй этот чертёж и найди:\n"
+                    "1. Пропущенные размеры\n"
+                    "2. Ошибки маркировки позиций\n"
+                    "3. Несоответствия артикулов\n"
+                    "4. Отсутствующие узлы или сечения\n"
+                    "5. Проблемы с оформлением по ГОСТ 21.502\n\n"
+                    "Дай структурированный ответ с категориями: критические ошибки, предупреждения, рекомендации.\n\n"
+                    f"Извлечённый текст из PDF:\n{text[:3000]}"
+                ),
+            }
+        ]
+        for img_b64 in images_b64:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{img_b64}"},
+            })
+
+        messages = [{"role": "user", "content": content_parts}]
+        model = "google/gemini-2.0-flash-001"
+        review_text = await _call_llm(messages, model=model, max_tokens=4000)
+
+        log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
+        return {"status": "ok", "review_text": review_text, "model_used": model}
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F2: AI EXPLANATORY NOTE GENERATOR ==============
+
+@app.post("/api/ai-generate-note")
+async def api_ai_generate_note(file: UploadFile = File(...)):
+    """AI-generated explanatory note (пояснительная записка) from a KMD PDF."""
+    try:
+        path = save_upload(file)
+        text = extract_text_from_pdf(str(path))
+        images_b64 = _pdf_pages_to_base64(str(path), max_pages=3)
+
+        content_parts = [
+            {
+                "type": "text",
+                "text": (
+                    "Ты эксперт по КМД алюминиевых конструкций. На основе данных чертежа "
+                    "сгенерируй полную пояснительную записку (ПЗ) по ГОСТ. Включи:\n"
+                    "1. Наименование объекта, заказчик (извлеки из чертежа)\n"
+                    "2. Состав документации\n"
+                    "3. Указания по монтажу\n"
+                    "4. Материалы и профильная система\n"
+                    "5. Требования к качеству\n"
+                    "6. Требования безопасности\n\n"
+                    "Используй формальный стиль, соответствующий ГОСТ 21.502.\n\n"
+                    f"Извлечённый текст из PDF:\n{text[:4000]}"
+                ),
+            }
+        ]
+        for img_b64 in images_b64:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{img_b64}"},
+            })
+
+        messages = [{"role": "user", "content": content_parts}]
+        model = "google/gemini-2.0-flash-001"
+        note_text = await _call_llm(messages, model=model, max_tokens=6000)
+
+        log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
+        return {"status": "ok", "note_text": note_text, "model_used": model}
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F3: AI GOST ASSISTANT ==============
+
+@app.post("/api/ai-gost")
+async def api_ai_gost(payload: dict):
+    """AI GOST assistant — answers questions about norms and standards for aluminum constructions."""
+    question = payload.get("question", "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Вопрос не может быть пустым")
+
+    try:
+        system_prompt = (
+            "Ты — эксперт-консультант по нормативной документации для алюминиевых конструкций (КМД). "
+            "Отвечай точно, со ссылками на конкретные пункты следующих нормативов:\n"
+            "- ГОСТ 21.502-2016 (правила выполнения рабочей документации)\n"
+            "- ГОСТ 21519-2022 (окна и двери из алюминиевых сплавов)\n"
+            "- ГОСТ 23166-2021 (блоки оконные, общие ТУ)\n"
+            "- СП 426.1325800.2018 (конструкции из алюминия)\n"
+            "- СП 50.13330 (тепловая защита)\n"
+            "- СП 20.13330 (нагрузки и воздействия)\n"
+            "- ГОСТ 30674 (блоки оконные из ПВХ)\n"
+            "- ГОСТ 24700 (блоки оконные деревянные)\n"
+            "- ГОСТ 22233-2018 (профили из алюминия)\n\n"
+            "Всегда указывай номер пункта/раздела. Если вопрос выходит за рамки этих нормативов, "
+            "укажи релевантный ГОСТ/СП и объясни, где искать ответ."
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question},
+        ]
+        model = "google/gemini-2.0-flash-001"
+        answer = await _call_llm(messages, model=model, max_tokens=4000)
+
+        # Extract referenced norms from the answer
+        norm_patterns = [
+            r'ГОСТ\s+[\d\.\-]+(?:\-\d{4})?',
+            r'СП\s+[\d\.\-]+(?:\.\d+)?',
+        ]
+        norms = set()
+        for pat in norm_patterns:
+            for m in _re.finditer(pat, answer):
+                norms.add(m.group())
+
+        log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
+        return {
+            "status": "ok",
+            "answer": answer,
+            "norms_referenced": sorted(norms),
+            "model_used": model,
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F4: AI HARDWARE SELECTOR ==============
+
+@app.post("/api/ai-hardware")
+async def api_ai_hardware(payload: dict):
+    """AI hardware recommendation for aluminum constructions."""
+    try:
+        construction_type = payload.get("construction_type", "окно")
+        profile_system = payload.get("profile_system", "Reynaers")
+        sash_weight = payload.get("sash_weight_kg", 80)
+        sash_width = payload.get("sash_width_mm", 800)
+        sash_height = payload.get("sash_height_mm", 1400)
+        opening_type = payload.get("opening_type", "поворотно-откидное")
+        security_class = payload.get("security_class", "RC1")
+
+        prompt = (
+            f"Ты эксперт по фурнитуре для алюминиевых окон и дверей.\n\n"
+            f"Подбери комплект фурнитуры для:\n"
+            f"- Тип конструкции: {construction_type}\n"
+            f"- Профильная система: {profile_system}\n"
+            f"- Вес створки: {sash_weight} кг\n"
+            f"- Размер створки: {sash_width}x{sash_height} мм\n"
+            f"- Тип открывания: {opening_type}\n"
+            f"- Класс безопасности: {security_class}\n\n"
+            "Для каждого компонента укажи:\n"
+            "1. Название компонента\n"
+            "2. Конкретный артикул (Roto, Siegenia, Maco, GU, Winkhaus, Giesse, AGB)\n"
+            "3. Производитель\n"
+            "4. Причину выбора\n\n"
+            "Ответ дай в формате JSON-массива: "
+            '[{"component": "...", "article": "...", "manufacturer": "...", "reason": "..."}]\n'
+            "После JSON-массива добавь общие рекомендации по монтажу фурнитуры."
+        )
+
+        messages = [{"role": "user", "content": prompt}]
+        model = "google/gemini-2.0-flash-001"
+        raw = await _call_llm(messages, model=model, max_tokens=4000)
+
+        # Try to extract JSON array from the response
+        recommendations = []
+        json_match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+        if json_match:
+            try:
+                recommendations = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                pass
+
+        log_activity("ai_hardware", "params", f"AI фурнитура: {construction_type} {profile_system}")
+        return {
+            "status": "ok",
+            "recommendations": recommendations,
+            "raw_text": raw,
+            "model_used": model,
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F5: AI VISUAL DRAWING COMPARISON ==============
+
+@app.post("/api/ai-compare-visual")
+async def api_ai_compare_visual(
+    file_a: UploadFile = File(...),
+    file_b: UploadFile = File(...),
+):
+    """AI visual comparison of two KMD drawing PDFs."""
+    try:
+        path_a = save_upload(file_a)
+        path_b = save_upload(file_b)
+
+        images_a = _pdf_pages_to_base64(str(path_a), max_pages=3)
+        images_b = _pdf_pages_to_base64(str(path_b), max_pages=3)
+
+        text_a = extract_text_from_pdf(str(path_a))
+        text_b = extract_text_from_pdf(str(path_b))
+
+        content_parts = [
+            {
+                "type": "text",
+                "text": (
+                    "Сравни два чертежа КМД. Найди ВСЕ визуальные отличия:\n"
+                    "- Изменённые размеры\n"
+                    "- Добавленные/удалённые элементы\n"
+                    "- Изменённые позиции\n"
+                    "- Различия в узлах и сечениях\n"
+                    "- Изменения в спецификации\n\n"
+                    "Первый набор изображений — чертёж A, второй — чертёж B.\n\n"
+                    f"Текст чертежа A:\n{text_a[:2000]}\n\n"
+                    f"Текст чертежа B:\n{text_b[:2000]}"
+                ),
+            }
+        ]
+        for img in images_a:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{img}"},
+            })
+        for img in images_b:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{img}"},
+            })
+
+        messages = [{"role": "user", "content": content_parts}]
+        model = "google/gemini-2.0-flash-001"
+        comparison_text = await _call_llm(messages, model=model, max_tokens=4000)
+
+        log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
+        return {"status": "ok", "comparison_text": comparison_text, "model_used": model}
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

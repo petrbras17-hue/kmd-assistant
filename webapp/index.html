@@ -412,6 +412,11 @@
                     {id: 'sashweight', label: 'Вес створки'},
                     {id: 'glass', label: 'Стеклопакет'},
                     {id: 'fasteners', label: 'Крепёж'},
+                    {id: 'aireview', label: 'AI Ревью'},
+                    {id: 'ainote', label: 'AI Записка'},
+                    {id: 'aigost', label: 'AI ГОСТ'},
+                    {id: 'aihardware', label: 'AI Фурнитура'},
+                    {id: 'aicompare', label: 'AI Сравнение'},
                     {id: 'dashboard', label: 'Дашборд'},
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
@@ -2302,6 +2307,272 @@
         </section>
 
 
+        <!-- ===== AI TAB 1: AI REVIEW ===== -->
+        <section x-show="activeTab === 'aireview'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">19 / AI Review</p>
+                <h2 class="section-title">AI Ревью чертежа</h2>
+                <p class="section-subtitle">Загрузите PDF чертёж КМД. ИИ проанализирует его и найдёт ошибки, пропущенные размеры и несоответствия ГОСТ.</p>
+            </div>
+
+            <div x-show="!aiReviewResult && !loading" class="fade-up">
+                <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
+                     :class="dragAiReview ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
+                     @dragover.prevent="dragAiReview = true" @dragleave="dragAiReview = false"
+                     @drop.prevent="dragAiReview = false; fileAiReview = $event.dataTransfer.files[0]"
+                     @click="$refs.inputAiReview.click()">
+                    <input type="file" accept=".pdf" x-ref="inputAiReview" class="hidden" @change="fileAiReview = $event.target.files[0]">
+                    <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">PDF чертёж КМД</p>
+                    <p class="text-sm text-carbon-500" x-text="fileAiReview ? fileAiReview.name : 'Перетащите файл или нажмите для выбора'"></p>
+                </div>
+                <div class="mt-6 text-center">
+                    <button @click="runAiReview()" :disabled="!fileAiReview" class="btn-primary" :class="!fileAiReview ? 'opacity-50 cursor-not-allowed' : ''">Запустить AI ревью</button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'aireview'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI анализирует чертёж...</p></div>
+
+            <div x-show="aiReviewResult" class="fade-up">
+                <div class="section-panel p-6 mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="section-label">Результат AI ревью</p>
+                        <div class="flex gap-2">
+                            <button @click="navigator.clipboard.writeText(aiReviewResult?.review_text || '')" class="btn-secondary text-xs">Копировать</button>
+                            <button @click="aiReviewResult = null; fileAiReview = null" class="btn-secondary text-xs">Новый анализ</button>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-3" x-text="'Модель: ' + (aiReviewResult?.model_used || '')"></p>
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed" style="white-space: pre-wrap;" x-text="aiReviewResult?.review_text"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== AI TAB 2: AI NOTE ===== -->
+        <section x-show="activeTab === 'ainote'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">20 / AI Note</p>
+                <h2 class="section-title">AI Пояснительная записка</h2>
+                <p class="section-subtitle">Загрузите PDF чертёж. ИИ сгенерирует пояснительную записку по ГОСТ с описанием конструкций, материалов и требований.</p>
+            </div>
+
+            <div x-show="!aiNoteResult && !loading" class="fade-up">
+                <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
+                     :class="dragAiNote ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
+                     @dragover.prevent="dragAiNote = true" @dragleave="dragAiNote = false"
+                     @drop.prevent="dragAiNote = false; fileAiNote = $event.dataTransfer.files[0]"
+                     @click="$refs.inputAiNote.click()">
+                    <input type="file" accept=".pdf" x-ref="inputAiNote" class="hidden" @change="fileAiNote = $event.target.files[0]">
+                    <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">PDF чертёж КМД</p>
+                    <p class="text-sm text-carbon-500" x-text="fileAiNote ? fileAiNote.name : 'Перетащите файл или нажмите для выбора'"></p>
+                </div>
+                <div class="mt-6 text-center">
+                    <button @click="runAiNote()" :disabled="!fileAiNote" class="btn-primary" :class="!fileAiNote ? 'opacity-50 cursor-not-allowed' : ''">Сгенерировать записку</button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'ainote'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI генерирует пояснительную записку...</p></div>
+
+            <div x-show="aiNoteResult" class="fade-up">
+                <div class="section-panel p-6 mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="section-label">Пояснительная записка</p>
+                        <div class="flex gap-2">
+                            <button @click="navigator.clipboard.writeText(aiNoteResult?.note_text || '')" class="btn-secondary text-xs">Копировать</button>
+                            <button @click="aiNoteResult = null; fileAiNote = null" class="btn-secondary text-xs">Новая генерация</button>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-3" x-text="'Модель: ' + (aiNoteResult?.model_used || '')"></p>
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed" style="white-space: pre-wrap;" x-text="aiNoteResult?.note_text"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== AI TAB 3: AI GOST ===== -->
+        <section x-show="activeTab === 'aigost'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">21 / AI GOST</p>
+                <h2 class="section-title">AI ГОСТ Ассистент</h2>
+                <p class="section-subtitle">Задайте вопрос по нормативам для алюминиевых конструкций. ИИ ответит со ссылками на конкретные пункты ГОСТ и СП.</p>
+            </div>
+
+            <div class="fade-up">
+                <div class="section-panel p-6 mb-6">
+                    <label class="section-label mb-3 block">Ваш вопрос</label>
+                    <textarea x-model="gostQuestion" rows="3" class="w-full border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 bg-white focus:outline-none focus:border-brass transition-colors resize-none" placeholder="Например: Какие требования к теплоизоляции окон по ГОСТ 23166?"></textarea>
+                    <div class="mt-4 text-right">
+                        <button @click="runAiGost()" :disabled="!gostQuestion?.trim() || loading" class="btn-primary" :class="(!gostQuestion?.trim() || loading) ? 'opacity-50 cursor-not-allowed' : ''">Спросить AI</button>
+                    </div>
+                </div>
+
+                <div x-show="loading && activeTab === 'aigost'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI ищет ответ в нормативах...</p></div>
+
+                <div x-show="gostResult" class="section-panel p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="section-label">Ответ AI</p>
+                        <button @click="navigator.clipboard.writeText(gostResult?.answer || '')" class="btn-secondary text-xs">Копировать</button>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-3" x-text="'Модель: ' + (gostResult?.model_used || '')"></p>
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed mb-4" style="white-space: pre-wrap;" x-text="gostResult?.answer"></div>
+                    <div x-show="gostResult?.norms_referenced?.length > 0" class="mt-4">
+                        <p class="section-label mb-2">Упомянутые нормативы</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="norm in (gostResult?.norms_referenced || [])" :key="norm">
+                                <span class="inline-block bg-brass-pale text-carbon-700 font-mono text-xs px-3 py-1 rounded-full" x-text="norm"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== AI TAB 4: AI HARDWARE ===== -->
+        <section x-show="activeTab === 'aihardware'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">22 / AI Hardware</p>
+                <h2 class="section-title">AI Подбор фурнитуры</h2>
+                <p class="section-subtitle">Укажите параметры конструкции. ИИ подберёт оптимальный комплект фурнитуры с артикулами.</p>
+            </div>
+
+            <div class="fade-up">
+                <div class="section-panel p-6 mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="section-label mb-1 block">Тип конструкции</label>
+                            <select x-model="hwParams.construction_type" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                                <option value="окно">Окно</option>
+                                <option value="дверь">Дверь</option>
+                                <option value="раздвижная дверь">Раздвижная дверь</option>
+                                <option value="фасад">Фасадная система</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Профильная система</label>
+                            <select x-model="hwParams.profile_system" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                                <option value="Reynaers">Reynaers</option>
+                                <option value="Schuco">Schuco</option>
+                                <option value="Alutech">Alutech</option>
+                                <option value="TATPROF">TATPROF</option>
+                                <option value="Vidnal">Vidnal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Вес створки, кг</label>
+                            <input type="number" x-model.number="hwParams.sash_weight_kg" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Тип открывания</label>
+                            <select x-model="hwParams.opening_type" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                                <option value="поворотно-откидное">Поворотно-откидное</option>
+                                <option value="поворотное">Поворотное</option>
+                                <option value="откидное">Откидное</option>
+                                <option value="раздвижное">Раздвижное</option>
+                                <option value="параллельно-сдвижное">Параллельно-сдвижное</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Ширина створки, мм</label>
+                            <input type="number" x-model.number="hwParams.sash_width_mm" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Высота створки, мм</label>
+                            <input type="number" x-model.number="hwParams.sash_height_mm" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">Класс безопасности</label>
+                            <select x-model="hwParams.security_class" class="w-full border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm bg-white focus:outline-none focus:border-brass">
+                                <option value="RC1">RC1</option>
+                                <option value="RC2">RC2</option>
+                                <option value="RC3">RC3</option>
+                                <option value="без требований">Без требований</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <button @click="runAiHardware()" :disabled="loading" class="btn-primary" :class="loading ? 'opacity-50 cursor-not-allowed' : ''">Подобрать фурнитуру</button>
+                    </div>
+                </div>
+
+                <div x-show="loading && activeTab === 'aihardware'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI подбирает фурнитуру...</p></div>
+
+                <div x-show="aiHardwareResult" class="fade-up">
+                    <div class="section-panel p-6 mb-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <p class="section-label">Рекомендации по фурнитуре</p>
+                            <button @click="aiHardwareResult = null" class="btn-secondary text-xs">Новый подбор</button>
+                        </div>
+                        <p class="font-mono text-[10px] text-carbon-400 mb-4" x-text="'Модель: ' + (aiHardwareResult?.model_used || '')"></p>
+
+                        <div x-show="aiHardwareResult?.recommendations?.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <template x-for="(rec, idx) in (aiHardwareResult?.recommendations || [])" :key="idx">
+                                <div class="bg-canvas-dark rounded-lg p-4 border border-carbon-100">
+                                    <p class="font-mono text-xs text-brass font-semibold mb-1" x-text="rec.component"></p>
+                                    <p class="font-mono text-sm text-carbon-800 font-bold mb-1" x-text="rec.article"></p>
+                                    <p class="text-xs text-carbon-500 mb-2" x-text="rec.manufacturer"></p>
+                                    <p class="text-xs text-carbon-600 italic" x-text="rec.reason"></p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div x-show="aiHardwareResult?.raw_text" class="mt-4">
+                            <p class="section-label mb-2">Полный ответ AI</p>
+                            <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed" style="white-space: pre-wrap;" x-text="aiHardwareResult?.raw_text"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== AI TAB 5: AI COMPARE VISUAL ===== -->
+        <section x-show="activeTab === 'aicompare'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">23 / AI Compare</p>
+                <h2 class="section-title">AI Сравнение чертежей</h2>
+                <p class="section-subtitle">Загрузите два PDF чертежа. ИИ визуально сравнит их и найдёт все отличия.</p>
+            </div>
+
+            <div x-show="!aiCompareResult && !loading" class="fade-up">
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
+                         :class="dragAiCmpA ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
+                         @dragover.prevent="dragAiCmpA = true" @dragleave="dragAiCmpA = false"
+                         @drop.prevent="dragAiCmpA = false; fileAiCmpA = $event.dataTransfer.files[0]"
+                         @click="$refs.inputAiCmpA.click()">
+                        <input type="file" accept=".pdf" x-ref="inputAiCmpA" class="hidden" @change="fileAiCmpA = $event.target.files[0]">
+                        <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">Чертёж A (исходный)</p>
+                        <p class="text-sm text-carbon-500" x-text="fileAiCmpA ? fileAiCmpA.name : 'Перетащите PDF'"></p>
+                    </div>
+                    <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
+                         :class="dragAiCmpB ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
+                         @dragover.prevent="dragAiCmpB = true" @dragleave="dragAiCmpB = false"
+                         @drop.prevent="dragAiCmpB = false; fileAiCmpB = $event.dataTransfer.files[0]"
+                         @click="$refs.inputAiCmpB.click()">
+                        <input type="file" accept=".pdf" x-ref="inputAiCmpB" class="hidden" @change="fileAiCmpB = $event.target.files[0]">
+                        <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">Чертёж B (изменённый)</p>
+                        <p class="text-sm text-carbon-500" x-text="fileAiCmpB ? fileAiCmpB.name : 'Перетащите PDF'"></p>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <button @click="runAiCompare()" :disabled="!fileAiCmpA || !fileAiCmpB" class="btn-primary" :class="(!fileAiCmpA || !fileAiCmpB) ? 'opacity-50 cursor-not-allowed' : ''">Сравнить чертежи (AI)</button>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'aicompare'" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI сравнивает чертежи...</p></div>
+
+            <div x-show="aiCompareResult" class="fade-up">
+                <div class="section-panel p-6 mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="section-label">Результат сравнения</p>
+                        <div class="flex gap-2">
+                            <button @click="navigator.clipboard.writeText(aiCompareResult?.comparison_text || '')" class="btn-secondary text-xs">Копировать</button>
+                            <button @click="aiCompareResult = null; fileAiCmpA = null; fileAiCmpB = null" class="btn-secondary text-xs">Новое сравнение</button>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-3" x-text="'Модель: ' + (aiCompareResult?.model_used || '')"></p>
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed" style="white-space: pre-wrap;" x-text="aiCompareResult?.comparison_text"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===== TAB 9: DASHBOARD ===== -->
         <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
             <div class="mb-10 fade-up"><p class="section-label mb-3">18 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
@@ -2465,6 +2736,26 @@ function app() {
         // Fasteners calculator state
         fastenersParams: { frame_width_mm: 1500, frame_height_mm: 2100, weight_kg: 85, wind_pressure_pa: 600, wall_type: 'бетон', anchor_type: 'рамный' },
         fastenersResult: null,
+
+        // AI Review state
+        fileAiReview: null, dragAiReview: false,
+        aiReviewResult: null,
+
+        // AI Note state
+        fileAiNote: null, dragAiNote: false,
+        aiNoteResult: null,
+
+        // AI GOST state
+        gostQuestion: '',
+        gostResult: null,
+
+        // AI Hardware state
+        hwParams: { construction_type: 'окно', profile_system: 'Reynaers', sash_weight_kg: 80, sash_width_mm: 800, sash_height_mm: 1400, opening_type: 'поворотно-откидное', security_class: 'RC1' },
+        aiHardwareResult: null,
+
+        // AI Compare state
+        fileAiCmpA: null, fileAiCmpB: null, dragAiCmpA: false, dragAiCmpB: false,
+        aiCompareResult: null,
 
         addCutRow() { this.cuttingParams.cuts.push({article: '', length: '', qty: 1}); },
         removeCutRow(i) { this.cuttingParams.cuts.splice(i, 1); },
@@ -2693,6 +2984,70 @@ function app() {
                 const res = await fetch('/api/calc-fasteners', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.fastenersParams) });
                 if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
                 this.fastenersResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        // ===== AI Methods =====
+
+        async runAiReview() {
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileAiReview);
+            try {
+                const res = await fetch('/api/ai-review', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.aiReviewResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runAiNote() {
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileAiNote);
+            try {
+                const res = await fetch('/api/ai-generate-note', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.aiNoteResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runAiGost() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/ai-gost', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: this.gostQuestion }),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.gostResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runAiHardware() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/ai-hardware', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.hwParams),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.aiHardwareResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runAiCompare() {
+            this.loading = true; this.error = null;
+            const fd = new FormData();
+            fd.append('file_a', this.fileAiCmpA); fd.append('file_b', this.fileAiCmpB);
+            try {
+                const res = await fetch('/api/ai-compare-visual', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.aiCompareResult = await res.json();
             } catch (e) { this.error = e.message; }
             this.loading = false;
         },
