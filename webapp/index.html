@@ -1486,6 +1486,14 @@
             </template>
         </nav>
 
+        <!-- Bulk download -->
+        <div class="px-4 pb-3">
+            <button @click="downloadBatchZip()" :disabled="bulkDownloading" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-mono text-[10px] tracking-[0.1em] uppercase transition-all" style="background:rgba(184,150,59,0.1);color:#D4B66A;border:1px solid rgba(184,150,59,0.15)" :style="bulkDownloading ? 'opacity:0.5;cursor:wait' : ''" @mouseenter="$el.style.background='rgba(184,150,59,0.2)'" @mouseleave="$el.style.background='rgba(184,150,59,0.1)'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span x-text="bulkDownloading ? 'Загрузка...' : 'Скачать все (ZIP)'"></span>
+            </button>
+        </div>
+
         <!-- Sidebar footer -->
         <div style="border-top:1px solid rgba(255,255,255,0.04)" class="px-6 py-4">
             <div class="flex items-center justify-between">
@@ -5065,6 +5073,7 @@ function app() {
 
         fileBatch: null, dragBatch: false,
         batchResult: null,
+        bulkDownloading: false,
 
         fileSpec: null, dragSpec: false,
         specResult: null,
@@ -5376,6 +5385,29 @@ function app() {
                 this.batchResult = await res.json();
             } catch (e) { this.error = e.message; }
             this.loading = false;
+        },
+
+        async downloadBatchZip() {
+            this.bulkDownloading = true;
+            try {
+                const filenames = [];
+                const sources = [this.compareResult, this.specResult, this.reqResult, this.actResult, this.cncResult, this.photoResult];
+                for (const r of sources) {
+                    if (r?.download) {
+                        const fn = r.download.split('/').pop();
+                        if (fn) filenames.push(fn);
+                    }
+                }
+                if (filenames.length === 0) { this.error = 'Нет файлов для скачивания. Сначала выполните операции.'; return; }
+                const res = await fetch('/api/export-zip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames }) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'kmd_results.zip'; a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) { this.error = e.message; }
+            this.bulkDownloading = false;
         },
 
         async runGenerateSpec() {
