@@ -18,14 +18,25 @@ def api_key():
     return "test-api-key-12345"
 
 
-@pytest.fixture(autouse=True)
-async def _create_tables():
-    """Create DB tables before each test (mirrors the app startup event)."""
-    async with db_engine.begin() as conn:
-        await conn.run_sync(DBBase.metadata.create_all)
+@pytest.fixture(autouse=True, scope="session")
+def _create_tables_sync():
+    """Create DB tables once for the entire test session."""
+    import asyncio
+
+    async def _setup():
+        async with db_engine.begin() as conn:
+            await conn.run_sync(DBBase.metadata.create_all)
+
+    async def _teardown():
+        async with db_engine.begin() as conn:
+            await conn.run_sync(DBBase.metadata.drop_all)
+
+    asyncio.get_event_loop().run_until_complete(_setup())
     yield
-    async with db_engine.begin() as conn:
-        await conn.run_sync(DBBase.metadata.drop_all)
+    try:
+        asyncio.get_event_loop().run_until_complete(_teardown())
+    except Exception:
+        pass
 
 
 @pytest.fixture

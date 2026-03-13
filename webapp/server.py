@@ -87,14 +87,10 @@ async def verify_api_key(api_key: str = Security(_api_key_header)):
 # Paths exempt from API key auth
 _AUTH_EXEMPT_PATHS: set[str] = {
     "/", "/docs", "/redoc", "/openapi.json", "/api/health", "/api/auth/validate",
-    "/api/auth/login", "/api/auth/register", "/api/auth/refresh",
-    "/api/auth/google", "/api/auth/google/callback",
-    "/api/auth/yandex", "/api/auth/yandex/callback",
 }
 _AUTH_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/icons/", "/manifest.json", "/sw.js", "/offline.html",
     "/api/download/", "/api/download-act/", "/api/download-nc/",
-    "/auth_ui.js",
 )
 
 # Добавляем tools в путь
@@ -289,10 +285,7 @@ async def api_health():
     }
 
 
-@app.get("/api/auth/validate",
-    "/api/auth/login", "/api/auth/register", "/api/auth/refresh",
-    "/api/auth/google", "/api/auth/google/callback",
-    "/api/auth/yandex", "/api/auth/yandex/callback", tags=["Auth"], summary="Validate API key")
+@app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
 async def api_auth_validate(api_key: str = Security(_api_key_header)):
     """Check if the provided X-API-Key header is valid."""
     if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
@@ -475,15 +468,6 @@ async def pwa_manifest():
         media_type="application/manifest+json",
         headers={"Cache-Control": "no-cache"},
     )
-
-
-@app.get("/auth_ui.js")
-async def auth_ui_script():
-    """Отдаёт JS-модуль аутентификации."""
-    js_path = Path(__file__).parent / "auth_ui.js"
-    if not js_path.exists():
-        raise HTTPException(status_code=404, detail="auth_ui.js not found")
-    return FileResponse(js_path, media_type="application/javascript")
 
 
 @app.get("/sw.js")
