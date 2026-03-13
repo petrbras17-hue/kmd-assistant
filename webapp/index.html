@@ -479,6 +479,10 @@
             background: rgba(240,232,208,0.3);
         }
 
+        /* Bulk ZIP checkboxes */
+        .zip-checkbox { width: 16px; height: 16px; accent-color: #C4A24C; cursor: pointer; border-radius: 3px; }
+        .zip-checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+
         /* Cards */
         .metric-card {
             background: rgba(255,255,255,0.6);
@@ -2355,7 +2359,18 @@
 
                 <div class="section-panel mb-6" x-show="(batchResult?.issues || []).length > 0"><h3 class="section-label mb-5">Замечания</h3><div class="space-y-3"><template x-for="(issue, i) in batchResult?.issues || []" :key="i"><div class="flex items-start gap-3"><template x-if="issue.severity === 'critical'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#A14242" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></template><template x-if="issue.severity === 'warning'"><svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></template><div><span class="text-sm font-medium" :style="issue.severity === 'critical' ? 'color:#A14242' : 'color:#C4873B'" x-text="issue.issue"></span><p class="font-mono text-[10px] text-carbon-400 mt-0.5" x-text="issue.file"></p></div></div></template></div></div>
 
-                <div class="section-panel overflow-hidden mb-6" x-show="(batchResult?.pdf_results || []).length > 0"><h3 class="section-label mb-4">Результаты PDF</h3><table class="data-table"><thead><tr><th>Файл</th><th class="text-right">Страниц</th><th class="text-right">Оценка</th><th class="text-right">Проверок</th><th class="text-right">Позиций</th><th class="text-right">Артикулов</th></tr></thead><tbody><template x-for="(r, i) in batchResult?.pdf_results || []" :key="i"><tr><td class="font-mono text-xs font-semibold text-carbon-900 max-w-[200px] truncate" x-text="r.filename"></td><td class="text-right font-mono" x-text="r.total_pages"></td><td class="text-right font-mono font-bold" :style="r.checklist_score >= 80 ? 'color:#4A7C59' : r.checklist_score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="r.checklist_score + '%'"></td><td class="text-right font-mono text-carbon-500" x-text="r.passed_checks + '/' + r.total_checks"></td><td class="text-right font-mono" x-text="r.positions_found"></td><td class="text-right font-mono" x-text="r.articles_found"></td></tr></template></tbody></table></div>
+                <!-- Bulk export toolbar -->
+                <div class="section-panel mb-4" x-show="getBatchDownloadFiles().length > 0">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <label class="zip-checkbox-label"><input type="checkbox" class="zip-checkbox" @change="toggleZipSelectAll(getBatchDownloadFiles())" :checked="zipSelectedFiles.length === getBatchDownloadFiles().length && zipSelectedFiles.length > 0"><span class="font-mono text-xs text-carbon-600">Выбрать все</span></label>
+                        <div class="flex items-center gap-3">
+                            <span class="font-mono text-[10px] text-carbon-400" x-show="zipSelectedFiles.length > 0" x-text="zipSelectedFiles.length + ' из ' + getBatchDownloadFiles().length"></span>
+                            <button @click="downloadSelectedZip()" :disabled="zipSelectedFiles.length === 0 || zipExporting" class="btn-primary flex items-center gap-2 text-sm" :class="{ 'opacity-50 cursor-not-allowed': zipSelectedFiles.length === 0 || zipExporting }"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg><span x-text="zipExporting ? 'Упаковка...' : 'Скачать ZIP'"></span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-panel overflow-hidden mb-6" x-show="(batchResult?.pdf_results || []).length > 0"><h3 class="section-label mb-4">Результаты PDF</h3><table class="data-table"><thead><tr><th class="w-8"></th><th>Файл</th><th class="text-right">Страниц</th><th class="text-right">Оценка</th><th class="text-right">Проверок</th><th class="text-right">Позиций</th><th class="text-right">Артикулов</th></tr></thead><tbody><template x-for="(r, i) in batchResult?.pdf_results || []" :key="i"><tr><td><input type="checkbox" class="zip-checkbox" x-show="r.download" :checked="zipSelectedFiles.includes(extractFilename(r.download))" @change="toggleZipFile(extractFilename(r.download))"></td><td class="font-mono text-xs font-semibold text-carbon-900 max-w-[200px] truncate" x-text="r.filename"></td><td class="text-right font-mono" x-text="r.total_pages"></td><td class="text-right font-mono font-bold" :style="r.checklist_score >= 80 ? 'color:#4A7C59' : r.checklist_score >= 50 ? 'color:#C4873B' : 'color:#A14242'" x-text="r.checklist_score + '%'"></td><td class="text-right font-mono text-carbon-500" x-text="r.passed_checks + '/' + r.total_checks"></td><td class="text-right font-mono" x-text="r.positions_found"></td><td class="text-right font-mono" x-text="r.articles_found"></td></tr></template></tbody></table></div>
             </div>
         </section>
 
@@ -5074,6 +5089,8 @@ function app() {
         fileBatch: null, dragBatch: false,
         batchResult: null,
         bulkDownloading: false,
+        zipSelectedFiles: [],
+        zipExporting: false,
 
         fileSpec: null, dragSpec: false,
         specResult: null,
@@ -5408,6 +5425,42 @@ function app() {
                 URL.revokeObjectURL(url);
             } catch (e) { this.error = e.message; }
             this.bulkDownloading = false;
+        },
+
+        toggleZipFile(fn) {
+            const idx = this.zipSelectedFiles.indexOf(fn);
+            if (idx === -1) this.zipSelectedFiles.push(fn);
+            else this.zipSelectedFiles.splice(idx, 1);
+        },
+
+        toggleZipSelectAll(fns) {
+            this.zipSelectedFiles = this.zipSelectedFiles.length === fns.length ? [] : [...fns];
+        },
+
+        async downloadSelectedZip() {
+            if (this.zipSelectedFiles.length === 0) return;
+            this.zipExporting = true;
+            try {
+                const res = await fetch('/api/export-zip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: this.zipSelectedFiles }) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Ошибка экспорта'); }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'KMD_results.zip'; a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) { this.error = e.message; }
+            this.zipExporting = false;
+        },
+
+        extractFilename(url) { return url ? url.split('/').pop() : null; },
+
+        getBatchDownloadFiles() {
+            if (!this.batchResult) return [];
+            const files = [];
+            for (const r of (this.batchResult.pdf_results || [])) { if (r.download) files.push(this.extractFilename(r.download)); }
+            for (const r of (this.batchResult.dxf_results || [])) { if (r.download) files.push(this.extractFilename(r.download)); }
+            for (const r of (this.batchResult.xlsx_results || [])) { if (r.download) files.push(this.extractFilename(r.download)); }
+            return files.filter(Boolean);
         },
 
         async runGenerateSpec() {
