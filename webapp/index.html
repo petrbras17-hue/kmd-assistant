@@ -717,7 +717,43 @@
         /* Tab transition (Alpine x-transition fallback) */
         .tab-content { transition: opacity 0.3s ease, transform 0.3s ease; }
 
-        /* ===== LANDING PAGE ===== */
+        /* ===== LANDING PAGE — AWARD-WINNING REDESIGN ===== */
+
+        /* Text clip-path reveal animation */
+        @keyframes clipReveal {
+            from { clip-path: inset(0 100% 0 0); }
+            to { clip-path: inset(0 0% 0 0); }
+        }
+        @keyframes textBlur {
+            from { opacity: 0; filter: blur(12px); transform: translateY(20px); }
+            to { opacity: 1; filter: blur(0); transform: translateY(0); }
+        }
+        @keyframes floatOrb {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -20px) scale(1.1); }
+            66% { transform: translate(-20px, 15px) scale(0.95); }
+        }
+        @keyframes marqueeScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        @keyframes counterUp {
+            from { opacity: 0; transform: translateY(100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes heroGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(1%, -1.5%) scale(1.03); }
+        }
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.2; transform: scaleY(0.5); transform-origin: top; }
+            50% { opacity: 0.8; transform: scaleY(1); }
+        }
+        @keyframes drawLineV {
+            from { height: 0; opacity: 0; }
+            to { height: 80px; opacity: 1; }
+        }
+
         .landing-hero {
             min-height: 100vh;
             display: flex;
@@ -729,150 +765,291 @@
             position: relative;
             overflow: hidden;
         }
+        /* Multi-layer ambient background */
         .landing-hero::before {
             content: '';
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 80% 60% at 25% 15%, rgba(184,150,59,0.07) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 80% at 75% 85%, rgba(26,26,20,0.03) 0%, transparent 60%),
-                radial-gradient(circle at 50% 50%, rgba(184,150,59,0.02) 0%, transparent 70%);
+                radial-gradient(ellipse 80% 50% at 20% 10%, rgba(184,150,59,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 70% at 80% 90%, rgba(26,26,20,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse 120% 80% at 50% 50%, rgba(184,150,59,0.015) 0%, transparent 70%);
             pointer-events: none;
-            animation: heroGlow 16s ease-in-out infinite alternate;
+            animation: heroGlow 20s ease-in-out infinite alternate;
         }
-        .landing-hero::after {
-            content: '';
+        /* Floating orbs */
+        .hero-orb {
             position: absolute;
-            top: 15%;
-            right: 8%;
-            width: 1px;
-            height: 30%;
-            background: linear-gradient(to bottom, transparent, rgba(184,150,59,0.15), transparent);
-            animation: fadeIn 2s ease 1s both;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(60px);
         }
-        @keyframes heroGlow {
-            0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-            100% { transform: translate(1%, -1.5%) scale(1.03) rotate(0.5deg); }
+        .hero-orb-1 {
+            width: 400px; height: 400px;
+            top: -10%; left: -5%;
+            background: rgba(184,150,59,0.06);
+            animation: floatOrb 18s ease-in-out infinite;
         }
-        /* Decorative architectural lines */
+        .hero-orb-2 {
+            width: 300px; height: 300px;
+            bottom: -5%; right: -5%;
+            background: rgba(184,150,59,0.04);
+            animation: floatOrb 22s ease-in-out infinite reverse;
+        }
+        .hero-orb-3 {
+            width: 200px; height: 200px;
+            top: 40%; right: 20%;
+            background: rgba(184,150,59,0.03);
+            animation: floatOrb 15s ease-in-out infinite 3s;
+        }
+        /* Architectural decoration */
         .hero-deco-line {
             position: absolute;
             background: rgba(184,150,59,0.1);
         }
         .hero-deco-line.horizontal {
-            height: 1px;
-            width: 120px;
-            top: 20%;
-            left: 5%;
+            height: 1px; width: 120px;
+            top: 20%; left: 5%;
             animation: drawLine 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
         }
         .hero-deco-line.vertical {
-            width: 1px;
-            height: 80px;
-            bottom: 15%;
-            right: 12%;
+            width: 1px; height: 80px;
+            bottom: 15%; right: 12%;
             animation: drawLineV 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
-        }
-        @keyframes drawLineV {
-            from { height: 0; opacity: 0; }
-            to { height: 80px; opacity: 1; }
         }
         .hero-deco-cross {
             position: absolute;
-            width: 12px; height: 12px;
-            top: 30%;
-            left: 8%;
-            animation: fadeIn 1s ease 1.5s both;
+            width: 14px; height: 14px;
+            top: 28%; left: 8%;
+            animation: fadeIn 1s ease 1.8s both;
         }
         .hero-deco-cross::before, .hero-deco-cross::after {
             content: '';
             position: absolute;
-            background: rgba(184,150,59,0.18);
+            background: rgba(184,150,59,0.15);
         }
-        .hero-deco-cross::before { width: 12px; height: 1px; top: 50%; left: 0; }
-        .hero-deco-cross::after { width: 1px; height: 12px; left: 50%; top: 0; }
+        .hero-deco-cross::before { width: 14px; height: 1px; top: 50%; left: 0; }
+        .hero-deco-cross::after { width: 1px; height: 14px; left: 50%; top: 0; }
+        /* Second cross */
+        .hero-deco-cross-2 {
+            position: absolute;
+            width: 10px; height: 10px;
+            bottom: 25%; right: 15%;
+            animation: fadeIn 1s ease 2.2s both;
+        }
+        .hero-deco-cross-2::before, .hero-deco-cross-2::after {
+            content: '';
+            position: absolute;
+            background: rgba(184,150,59,0.1);
+        }
+        .hero-deco-cross-2::before { width: 10px; height: 1px; top: 50%; left: 0; }
+        .hero-deco-cross-2::after { width: 1px; height: 10px; left: 50%; top: 0; }
+        /* Corner accents */
+        .hero-corner {
+            position: absolute;
+            width: 40px; height: 40px;
+        }
+        .hero-corner-tl { top: 6%; left: 4%; border-top: 1px solid rgba(184,150,59,0.12); border-left: 1px solid rgba(184,150,59,0.12); animation: fadeIn 1s ease 1s both; }
+        .hero-corner-br { bottom: 8%; right: 4%; border-bottom: 1px solid rgba(184,150,59,0.12); border-right: 1px solid rgba(184,150,59,0.12); animation: fadeIn 1s ease 1.2s both; }
 
+        /* Badge */
         .landing-hero .hero-badge {
             display: inline-flex;
             align-items: center;
             gap: 0.625rem;
             padding: 0.45rem 1.5rem;
-            border: 1px solid rgba(184,150,59,0.2);
+            border: 1px solid rgba(184,150,59,0.18);
             border-radius: 100px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.5625rem;
+            font-size: 0.5rem;
             font-weight: 600;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #B8963B;
             background: rgba(184,150,59,0.03);
-            animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+            backdrop-filter: blur(8px);
+            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
+        /* Title with clip-path reveal */
         .landing-hero .hero-main-title {
             font-family: 'Playfair Display', serif;
-            font-size: clamp(3rem, 8vw, 6.5rem);
+            font-size: clamp(3.5rem, 10vw, 8rem);
             font-weight: 700;
             color: #1A1A14;
-            letter-spacing: -0.05em;
-            line-height: 0.95;
-            margin-top: 2.5rem;
-            animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+            letter-spacing: -0.06em;
+            line-height: 0.88;
+            margin-top: 2rem;
+            position: relative;
         }
+        .landing-hero .hero-main-title .line {
+            display: block;
+            overflow: hidden;
+        }
+        .landing-hero .hero-main-title .line span {
+            display: inline-block;
+            animation: counterUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .landing-hero .hero-main-title .line:nth-child(1) span { animation-delay: 0.1s; }
+        .landing-hero .hero-main-title .line:nth-child(2) span { animation-delay: 0.25s; }
         .landing-hero .hero-main-title .accent {
-            background: linear-gradient(135deg, #B8963B 0%, #D4B66A 40%, #8A7030 100%);
+            background: linear-gradient(135deg, #B8963B 0%, #D4B66A 30%, #B8963B 60%, #8A7030 100%);
+            background-size: 200% 200%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             font-style: italic;
+            animation: counterUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both, shimmer 8s ease-in-out infinite 2s;
         }
         .landing-hero .hero-divider-line {
             width: 60px;
             height: 2px;
             background: linear-gradient(90deg, transparent, #B8963B, transparent);
             margin: 2rem auto 0;
-            animation: drawLine 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+            animation: clipReveal 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
         }
         .landing-hero .hero-subtitle {
-            font-size: clamp(0.9375rem, 2vw, 1.125rem);
+            font-size: clamp(0.875rem, 1.8vw, 1.0625rem);
             color: #717164;
-            max-width: 36rem;
-            line-height: 1.85;
+            max-width: 34rem;
+            line-height: 1.9;
             margin-top: 1.75rem;
-            animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
         }
         .landing-hero .hero-cta-group {
             display: flex;
             gap: 1.25rem;
             margin-top: 3rem;
-            animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+            animation: textBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
         }
+        /* Enhanced CTA */
+        .hero-cta-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 1rem 2.75rem;
+            background: #1A1A14;
+            color: #F5F2EC;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            border-radius: 12px;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-cta-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #B8963B, #D4B66A);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .hero-cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 48px rgba(26,26,20,0.2);
+        }
+        .hero-cta-primary:hover::before { opacity: 1; }
+        .hero-cta-primary span, .hero-cta-primary svg { position: relative; z-index: 1; }
+
+        .hero-cta-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.25rem;
+            border: 1px solid rgba(26,26,20,0.12);
+            color: #565648;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-radius: 12px;
+            transition: all 0.35s ease;
+            backdrop-filter: blur(4px);
+        }
+        .hero-cta-secondary:hover {
+            border-color: #B8963B;
+            color: #B8963B;
+            background: rgba(184,150,59,0.04);
+            transform: translateY(-2px);
+        }
+
+        /* Stats with counter animation */
         .landing-hero .hero-stats {
             display: flex;
             gap: 0;
             margin-top: 4rem;
-            animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.65s both;
+            animation: textBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1s both;
         }
         .landing-hero .stat-item {
-            padding: 0 2.5rem;
-            border-right: 1px solid rgba(26,26,20,0.08);
+            padding: 0 clamp(1.25rem, 3vw, 2.75rem);
+            border-right: 1px solid rgba(26,26,20,0.06);
             text-align: center;
+            position: relative;
         }
         .landing-hero .stat-item:last-child { border-right: none; }
         .landing-hero .stat-item .stat-num {
             font-family: 'Playfair Display', serif;
-            font-size: 2.25rem;
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
             font-weight: 700;
             color: #1A1A14;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.04em;
+            overflow: hidden;
         }
+        .landing-hero .stat-item .stat-num span {
+            display: inline-block;
+            animation: counterUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .landing-hero .stat-item:nth-child(1) .stat-num span { animation-delay: 1.1s; }
+        .landing-hero .stat-item:nth-child(2) .stat-num span { animation-delay: 1.25s; }
+        .landing-hero .stat-item:nth-child(3) .stat-num span { animation-delay: 1.4s; }
+        .landing-hero .stat-item:nth-child(4) .stat-num span { animation-delay: 1.55s; }
         .landing-hero .stat-item .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.4375rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #B8963B;
+            margin-top: 0.4rem;
+        }
+
+        /* Infinite marquee */
+        .hero-marquee {
+            width: 100%;
+            overflow: hidden;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid rgba(26,26,20,0.04);
+            border-bottom: 1px solid rgba(26,26,20,0.04);
+            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 1.2s both;
+        }
+        .hero-marquee-track {
+            display: flex;
+            gap: 3rem;
+            white-space: nowrap;
+            animation: marqueeScroll 40s linear infinite;
+            width: max-content;
+        }
+        .hero-marquee-item {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.5rem;
             letter-spacing: 0.15em;
             text-transform: uppercase;
-            color: #B8963B;
-            margin-top: 0.35rem;
+            color: #C4C4B8;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
+        .hero-marquee-item .dot {
+            width: 3px; height: 3px;
+            border-radius: 50%;
+            background: rgba(184,150,59,0.3);
+        }
+
+        /* Scroll hint */
         .landing-scroll-hint {
             position: absolute;
             bottom: 2.5rem;
@@ -882,17 +1059,13 @@
             flex-direction: column;
             align-items: center;
             gap: 0.75rem;
-            animation: fadeUp 1s cubic-bezier(0.22, 1, 0.36, 1) 1s both;
+            animation: textBlur 1s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both;
         }
         .landing-scroll-hint .scroll-line {
             width: 1px;
             height: 48px;
             background: linear-gradient(to bottom, #B8963B, transparent);
             animation: scrollPulse 2.5s ease-in-out infinite;
-        }
-        @keyframes scrollPulse {
-            0%, 100% { opacity: 0.2; transform: scaleY(0.5); transform-origin: top; }
-            50% { opacity: 0.8; transform: scaleY(1); }
         }
 
         /* ===== CATALOG SECTIONS ===== */
@@ -1119,15 +1292,19 @@
             .landing-hero .stat-item { padding: 0.75rem 1.5rem; border-right: none; border-bottom: 1px solid rgba(26,26,20,0.06); }
             .landing-hero .stat-item:last-child { border-bottom: none; }
             .landing-hero .hero-cta-group { flex-direction: column; align-items: stretch; width: 100%; max-width: 320px; }
-            .landing-hero .hero-cta-group .btn-primary,
-            .landing-hero .hero-cta-group .btn-secondary { justify-content: center; }
+            .landing-hero .hero-cta-group .hero-cta-primary,
+            .landing-hero .hero-cta-group .hero-cta-secondary { justify-content: center; }
             .catalog-section { padding: 3rem 1rem 2rem; }
             .catalog-chapter { flex-direction: column; gap: 0.25rem; }
             .catalog-chapter .chapter-num { font-size: 2.5rem; }
             .catalog-chapter .chapter-count { align-self: flex-start; margin-left: 0; }
             .product-cards { grid-template-columns: 1fr; }
             .landing-scroll-hint { display: none; }
-            .hero-deco-line, .hero-deco-cross { display: none; }
+            .hero-deco-line, .hero-deco-cross, .hero-deco-cross-2, .hero-corner { display: none; }
+            .hero-orb-1 { width: 200px; height: 200px; }
+            .hero-orb-2 { width: 150px; height: 150px; }
+            .hero-orb-3 { display: none; }
+            .hero-marquee { margin-top: 2rem; }
         }
     </style>
 </head>
@@ -1280,17 +1457,28 @@
 
         <!-- HERO -->
         <div class="landing-hero">
+            <!-- Floating ambient orbs -->
+            <div class="hero-orb hero-orb-1"></div>
+            <div class="hero-orb hero-orb-2"></div>
+            <div class="hero-orb hero-orb-3"></div>
+
             <!-- Decorative architectural elements -->
             <div class="hero-deco-line horizontal"></div>
             <div class="hero-deco-line vertical"></div>
             <div class="hero-deco-cross"></div>
+            <div class="hero-deco-cross-2"></div>
+
+            <!-- Corner accents -->
+            <div class="hero-corner hero-corner-tl"></div>
+            <div class="hero-corner hero-corner-br"></div>
 
             <div class="hero-badge">
                 <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#4A7C59;box-shadow:0 0 8px rgba(74,124,89,0.5)"></span>
                 ALDMEGA LAB / ENGINEERING PLATFORM
             </div>
             <h1 class="hero-main-title">
-                KMD<br><span class="accent">Assistant</span>
+                <span class="line"><span>KMD</span></span>
+                <span class="line"><span class="accent">Assistant</span></span>
             </h1>
             <div class="hero-divider-line"></div>
             <p class="hero-subtitle">
@@ -1299,33 +1487,57 @@
                 AI&#8209;анализ чертежей и управление производством.
             </p>
             <div class="hero-cta-group">
-                <button @click="scrollToCatalog()" class="btn-primary" style="padding:0.9rem 2.75rem;font-size:0.6875rem">
-                    Смотреть каталог
+                <button @click="scrollToCatalog()" class="hero-cta-primary">
+                    <span>Смотреть каталог</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
                 </button>
-                <button @click="showAiChat = true" class="btn-secondary" style="padding:0.8rem 2.25rem;font-size:0.6875rem">
-                    Спросить AI
+                <button @click="showAiChat = true" class="hero-cta-secondary">
+                    <span>Спросить AI</span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 </button>
             </div>
             <div class="hero-stats">
                 <div class="stat-item">
-                    <div class="stat-num">32</div>
+                    <div class="stat-num"><span>32</span></div>
                     <div class="stat-label">Модуля</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-num">7</div>
+                    <div class="stat-num"><span>7</span></div>
                     <div class="stat-label">AI моделей</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-num">50+</div>
+                    <div class="stat-num"><span>50+</span></div>
                     <div class="stat-label">Эндпоинтов</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-num">24/7</div>
+                    <div class="stat-num"><span>24/7</span></div>
                     <div class="stat-label">В облаке</div>
                 </div>
             </div>
+
+            <!-- Infinite marquee -->
+            <div class="hero-marquee">
+                <div class="hero-marquee-track">
+                    <span class="hero-marquee-item"><span class="dot"></span>Алюминиевые конструкции</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Фасадные системы</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Светопрозрачные конструкции</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Витражное остекление</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Конструкторская документация</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Расчёты по ГОСТ</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>AI-анализ чертежей</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Управление производством</span>
+                    <!-- Duplicated for seamless loop -->
+                    <span class="hero-marquee-item"><span class="dot"></span>Алюминиевые конструкции</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Фасадные системы</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Светопрозрачные конструкции</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Витражное остекление</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Конструкторская документация</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Расчёты по ГОСТ</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>AI-анализ чертежей</span>
+                    <span class="hero-marquee-item"><span class="dot"></span>Управление производством</span>
+                </div>
+            </div>
+
             <div class="landing-scroll-hint">
                 <span style="font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:#C4C4B8">Каталог</span>
                 <div class="scroll-line"></div>
