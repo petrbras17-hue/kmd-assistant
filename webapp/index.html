@@ -24,8 +24,15 @@
     <meta name="twitter:description" content="Инженерная платформа для проверки КМД документации, расчётов и управления проектами">
     <meta name="twitter:image" content="/icons/icon-512x512.png">
     <title>KMD Assistant — ALDMEGA LAB</title>
+    <!-- Content-Security-Policy: restrict resource origins -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <!-- Tailwind CSS: SRI not possible — CDN generates content dynamically per request -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine.js: pinned version with SRI -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"
+            integrity="sha384-LXWjKwDZz29o7TduNe+r/UxaolHh5FsSvy2W7bDHSZ8jJeGgDeuNnsDNHoxpSgDi"
+            crossorigin="anonymous"></script>
+    <!-- Import map: SRI for importmap entries is not supported by browsers yet -->
     <script type="importmap">
     {
         "imports": {
@@ -36,6 +43,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Google Fonts: SRI not possible — CSS response varies by user-agent -->
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
     tailwind.config = {
@@ -1841,9 +1849,9 @@
                 <div class="drop-zone p-10 text-center fade-up d1"
                      :class="{ 'dragover': dragA, 'loaded': fileA }"
                      @dragover.prevent="dragA = true" @dragleave="dragA = false"
-                     @drop.prevent="dragA = false; fileA = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragA = false; fileA = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputA.click()">
-                    <input type="file" x-ref="inputA" accept=".xlsx,.xls" class="hidden" @change="fileA = $event.target.files[0]">
+                    <input type="file" x-ref="inputA" accept=".xlsx,.xls" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileA = f">
                     <template x-if="!fileA">
                         <div>
                             <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
@@ -1867,9 +1875,9 @@
                 <div class="drop-zone p-10 text-center fade-up d2"
                      :class="{ 'dragover': dragB, 'loaded': fileB }"
                      @dragover.prevent="dragB = true" @dragleave="dragB = false"
-                     @drop.prevent="dragB = false; fileB = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragB = false; fileB = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputB.click()">
-                    <input type="file" x-ref="inputB" accept=".xlsx,.xls" class="hidden" @change="fileB = $event.target.files[0]">
+                    <input type="file" x-ref="inputB" accept=".xlsx,.xls" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileB = f">
                     <template x-if="!fileB">
                         <div>
                             <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
@@ -2008,9 +2016,9 @@
                 <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
                      :class="{ 'dragover': dragPdf, 'loaded': filePdf }"
                      @dragover.prevent="dragPdf = true" @dragleave="dragPdf = false"
-                     @drop.prevent="dragPdf = false; filePdf = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragPdf = false; filePdf = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputPdf.click()">
-                    <input type="file" x-ref="inputPdf" accept=".pdf" class="hidden" @change="filePdf = $event.target.files[0]">
+                    <input type="file" x-ref="inputPdf" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } filePdf = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
@@ -2100,9 +2108,9 @@
                 <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
                      :class="{ 'dragover': dragKmd, 'loaded': fileKmd }"
                      @dragover.prevent="dragKmd = true" @dragleave="dragKmd = false"
-                     @drop.prevent="dragKmd = false; fileKmd = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragKmd = false; fileKmd = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputKmd.click()">
-                    <input type="file" x-ref="inputKmd" accept=".pdf" class="hidden" @change="fileKmd = $event.target.files[0]">
+                    <input type="file" x-ref="inputKmd" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileKmd = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
                     </div>
@@ -2194,9 +2202,9 @@
             <div x-show="!cvResult && !loading" class="grid grid-cols-2 gap-6 mb-8 fade-up d1">
                 <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCvDraw, 'loaded': fileCvDraw }"
                      @dragover.prevent="dragCvDraw = true" @dragleave="dragCvDraw = false"
-                     @drop.prevent="dragCvDraw = false; fileCvDraw = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragCvDraw = false; fileCvDraw = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputCvDraw.click()">
-                    <input type="file" x-ref="inputCvDraw" accept=".pdf,.dxf" class="hidden" @change="fileCvDraw = $event.target.files[0]">
+                    <input type="file" x-ref="inputCvDraw" accept=".pdf,.dxf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCvDraw = f">
                     <template x-if="!fileCvDraw">
                         <div>
                             <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
@@ -2217,9 +2225,9 @@
 
                 <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCvSpec, 'loaded': fileCvSpec }"
                      @dragover.prevent="dragCvSpec = true" @dragleave="dragCvSpec = false"
-                     @drop.prevent="dragCvSpec = false; fileCvSpec = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragCvSpec = false; fileCvSpec = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputCvSpec.click()">
-                    <input type="file" x-ref="inputCvSpec" accept=".xlsx,.xls" class="hidden" @change="fileCvSpec = $event.target.files[0]">
+                    <input type="file" x-ref="inputCvSpec" accept=".xlsx,.xls" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCvSpec = f">
                     <template x-if="!fileCvSpec">
                         <div>
                             <div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
@@ -2301,13 +2309,13 @@
             </div>
 
             <div x-show="!cpResult && !loading" class="grid grid-cols-2 gap-6 mb-8 fade-up d1">
-                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpA, 'loaded': fileCpA }" @dragover.prevent="dragCpA = true" @dragleave="dragCpA = false" @drop.prevent="dragCpA = false; fileCpA = $event.dataTransfer.files[0]" @click="$refs.inputCpA.click()">
-                    <input type="file" x-ref="inputCpA" accept=".pdf" class="hidden" @change="fileCpA = $event.target.files[0]">
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpA, 'loaded': fileCpA }" @dragover.prevent="dragCpA = true" @dragleave="dragCpA = false" @drop.prevent="dragCpA = false; fileCpA = validateDroppedFile($event.dataTransfer.files[0])" @click="$refs.inputCpA.click()">
+                    <input type="file" x-ref="inputCpA" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCpA = f">
                     <template x-if="!fileCpA"><div><div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><span class="font-display text-xl text-carbon-400">A</span></div><p class="font-body font-medium text-sm text-carbon-700">PDF версия А</p><p class="text-xs text-carbon-400 mt-1">Исходный документ</p></div></template>
                     <template x-if="fileCpA"><div><div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div><p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCpA.name"></p><p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCpA.size / 1024 / 1024).toFixed(1) + ' MB'"></p></div></template>
                 </div>
-                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpB, 'loaded': fileCpB }" @dragover.prevent="dragCpB = true" @dragleave="dragCpB = false" @drop.prevent="dragCpB = false; fileCpB = $event.dataTransfer.files[0]" @click="$refs.inputCpB.click()">
-                    <input type="file" x-ref="inputCpB" accept=".pdf" class="hidden" @change="fileCpB = $event.target.files[0]">
+                <div class="drop-zone p-10 text-center" :class="{ 'dragover': dragCpB, 'loaded': fileCpB }" @dragover.prevent="dragCpB = true" @dragleave="dragCpB = false" @drop.prevent="dragCpB = false; fileCpB = validateDroppedFile($event.dataTransfer.files[0])" @click="$refs.inputCpB.click()">
+                    <input type="file" x-ref="inputCpB" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCpB = f">
                     <template x-if="!fileCpB"><div><div class="w-12 h-12 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><span class="font-display text-xl text-carbon-400">B</span></div><p class="font-body font-medium text-sm text-carbon-700">PDF версия Б</p><p class="text-xs text-carbon-400 mt-1">Исправленный документ</p></div></template>
                     <template x-if="fileCpB"><div><div class="w-12 h-12 mx-auto mb-4 bg-brass-pale rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div><p class="font-mono text-sm font-medium text-carbon-800" x-text="fileCpB.name"></p><p class="font-mono text-xs text-carbon-400 mt-1" x-text="(fileCpB.size / 1024 / 1024).toFixed(1) + ' MB'"></p></div></template>
                 </div>
@@ -2386,8 +2394,8 @@
             <div class="section-hero"><div class="hero-number">06</div><p class="hero-label">Generation</p><h2 class="hero-title">Генерация спецификации</h2><p class="hero-desc">Загрузите чертёж (PDF или DXF). Система извлечёт данные и сформирует XLSX спецификацию.</p><div class="hero-divider"></div></div>
 
             <div x-show="!specResult && !loading" class="fade-up d1">
-                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragSpec, 'loaded': fileSpec }" @dragover.prevent="dragSpec = true" @dragleave="dragSpec = false" @drop.prevent="dragSpec = false; fileSpec = $event.dataTransfer.files[0]" @click="$refs.inputSpec.click()">
-                    <input type="file" x-ref="inputSpec" accept=".pdf,.dxf" class="hidden" @change="fileSpec = $event.target.files[0]">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragSpec, 'loaded': fileSpec }" @dragover.prevent="dragSpec = true" @dragleave="dragSpec = false" @drop.prevent="dragSpec = false; fileSpec = validateDroppedFile($event.dataTransfer.files[0])" @click="$refs.inputSpec.click()">
+                    <input type="file" x-ref="inputSpec" accept=".pdf,.dxf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileSpec = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
                     <p class="font-body font-medium text-sm text-carbon-700" x-text="fileSpec ? fileSpec.name : 'Загрузите чертеж (PDF или DXF)'"></p>
                     <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileSpec ? (fileSpec.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
@@ -2425,8 +2433,8 @@
             <div class="section-hero"><div class="hero-number">07</div><p class="hero-label">Batch Processing</p><h2 class="hero-title">Пакетная обработка</h2><p class="hero-desc">Загрузите ZIP-архив с проектом КМД. Система автоматически обработает все PDF, DXF и XLSX файлы.</p><div class="hero-divider"></div></div>
 
             <div x-show="!batchResult && !loading" class="fade-up d1">
-                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragBatch, 'loaded': fileBatch }" @dragover.prevent="dragBatch = true" @dragleave="dragBatch = false" @drop.prevent="dragBatch = false; fileBatch = $event.dataTransfer.files[0]" @click="$refs.inputBatch.click()">
-                    <input type="file" x-ref="inputBatch" accept=".zip" class="hidden" @change="fileBatch = $event.target.files[0]">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragBatch, 'loaded': fileBatch }" @dragover.prevent="dragBatch = true" @dragleave="dragBatch = false" @drop.prevent="dragBatch = false; fileBatch = validateDroppedFile($event.dataTransfer.files[0])" @click="$refs.inputBatch.click()">
+                    <input type="file" x-ref="inputBatch" accept=".zip" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileBatch = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div>
                     <p class="font-body font-medium text-sm text-carbon-700" x-text="fileBatch ? fileBatch.name : 'Загрузите ZIP-архив проекта'"></p>
                     <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileBatch ? (fileBatch.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите (до 100 МБ)'"></p>
@@ -2473,8 +2481,8 @@
             <div class="section-hero"><div class="hero-number">08</div><p class="hero-label">Quality Check</p><h2 class="hero-title">Чек-лист КМД</h2><p class="hero-desc">Загрузите PDF с КМД. Система проверит документ по 7 категориям и покажет процент соответствия.</p><div class="hero-divider"></div></div>
 
             <div x-show="!clResult && !loading" class="fade-up d1">
-                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragCl, 'loaded': fileCl }" @dragover.prevent="dragCl = true" @dragleave="dragCl = false" @drop.prevent="dragCl = false; fileCl = $event.dataTransfer.files[0]" @click="$refs.inputCl.click()">
-                    <input type="file" x-ref="inputCl" accept=".pdf" class="hidden" @change="fileCl = $event.target.files[0]">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto" :class="{ 'dragover': dragCl, 'loaded': fileCl }" @dragover.prevent="dragCl = true" @dragleave="dragCl = false" @drop.prevent="dragCl = false; fileCl = validateDroppedFile($event.dataTransfer.files[0])" @click="$refs.inputCl.click()">
+                    <input type="file" x-ref="inputCl" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCl = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
                     <p class="font-body font-medium text-sm text-carbon-700" x-text="fileCl ? fileCl.name : 'Загрузите PDF для проверки'"></p>
                     <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileCl ? (fileCl.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
@@ -2633,9 +2641,9 @@
                 <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
                      :class="{ 'dragover': drag3dPdf, 'loaded': file3dPdf }"
                      @dragover.prevent="drag3dPdf = true" @dragleave="drag3dPdf = false"
-                     @drop.prevent="drag3dPdf = false; file3dPdf = $event.dataTransfer.files[0]"
+                     @drop.prevent="drag3dPdf = false; file3dPdf = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.input3dPdf.click()">
-                    <input type="file" x-ref="input3dPdf" accept=".pdf" class="hidden" @change="file3dPdf = $event.target.files[0]">
+                    <input type="file" x-ref="input3dPdf" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } file3dPdf = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
@@ -2995,9 +3003,9 @@
                 <div class="drop-zone p-14 text-center max-w-2xl mx-auto mb-6"
                      :class="{ 'dragover': dragCutPdf, 'loaded': fileCutPdf }"
                      @dragover.prevent="dragCutPdf = true" @dragleave="dragCutPdf = false"
-                     @drop.prevent="dragCutPdf = false; fileCutPdf = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragCutPdf = false; fileCutPdf = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputCutPdf.click()">
-                    <input type="file" x-ref="inputCutPdf" accept=".pdf" class="hidden" @change="fileCutPdf = $event.target.files[0]">
+                    <input type="file" x-ref="inputCutPdf" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileCutPdf = f">
                     <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
@@ -3769,9 +3777,9 @@
                 <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
                      :class="dragAiReview ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
                      @dragover.prevent="dragAiReview = true" @dragleave="dragAiReview = false"
-                     @drop.prevent="dragAiReview = false; fileAiReview = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragAiReview = false; fileAiReview = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputAiReview.click()">
-                    <input type="file" accept=".pdf" x-ref="inputAiReview" class="hidden" @change="fileAiReview = $event.target.files[0]">
+                    <input type="file" accept=".pdf" x-ref="inputAiReview" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileAiReview = f">
                     <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">PDF чертёж КМД</p>
                     <p class="text-sm text-carbon-500" x-text="fileAiReview ? fileAiReview.name : 'Перетащите файл или нажмите для выбора'"></p>
                 </div>
@@ -3809,9 +3817,9 @@
                 <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
                      :class="dragAiNote ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
                      @dragover.prevent="dragAiNote = true" @dragleave="dragAiNote = false"
-                     @drop.prevent="dragAiNote = false; fileAiNote = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragAiNote = false; fileAiNote = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputAiNote.click()">
-                    <input type="file" accept=".pdf" x-ref="inputAiNote" class="hidden" @change="fileAiNote = $event.target.files[0]">
+                    <input type="file" accept=".pdf" x-ref="inputAiNote" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileAiNote = f">
                     <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">PDF чертёж КМД</p>
                     <p class="text-sm text-carbon-500" x-text="fileAiNote ? fileAiNote.name : 'Перетащите файл или нажмите для выбора'"></p>
                 </div>
@@ -3991,18 +3999,18 @@
                     <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
                          :class="dragAiCmpA ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
                          @dragover.prevent="dragAiCmpA = true" @dragleave="dragAiCmpA = false"
-                         @drop.prevent="dragAiCmpA = false; fileAiCmpA = $event.dataTransfer.files[0]"
+                         @drop.prevent="dragAiCmpA = false; fileAiCmpA = validateDroppedFile($event.dataTransfer.files[0])"
                          @click="$refs.inputAiCmpA.click()">
-                        <input type="file" accept=".pdf" x-ref="inputAiCmpA" class="hidden" @change="fileAiCmpA = $event.target.files[0]">
+                        <input type="file" accept=".pdf" x-ref="inputAiCmpA" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileAiCmpA = f">
                         <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">Чертёж A (исходный)</p>
                         <p class="text-sm text-carbon-500" x-text="fileAiCmpA ? fileAiCmpA.name : 'Перетащите PDF'"></p>
                     </div>
                     <div class="section-panel p-8 text-center cursor-pointer border-2 border-dashed transition-colors"
                          :class="dragAiCmpB ? 'border-brass bg-brass-pale/30' : 'border-carbon-200 hover:border-brass-light'"
                          @dragover.prevent="dragAiCmpB = true" @dragleave="dragAiCmpB = false"
-                         @drop.prevent="dragAiCmpB = false; fileAiCmpB = $event.dataTransfer.files[0]"
+                         @drop.prevent="dragAiCmpB = false; fileAiCmpB = validateDroppedFile($event.dataTransfer.files[0])"
                          @click="$refs.inputAiCmpB.click()">
-                        <input type="file" accept=".pdf" x-ref="inputAiCmpB" class="hidden" @change="fileAiCmpB = $event.target.files[0]">
+                        <input type="file" accept=".pdf" x-ref="inputAiCmpB" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileAiCmpB = f">
                         <p class="font-mono text-xs tracking-[0.15em] uppercase text-carbon-400 mb-2">Чертёж B (изменённый)</p>
                         <p class="text-sm text-carbon-500" x-text="fileAiCmpB ? fileAiCmpB.name : 'Перетащите PDF'"></p>
                     </div>
@@ -4240,9 +4248,9 @@
                     <div class="drop-zone p-8 text-center mb-4"
                          :class="{ 'dragover': dragVer, 'loaded': fileVer }"
                          @dragover.prevent="dragVer = true" @dragleave="dragVer = false"
-                         @drop.prevent="dragVer = false; fileVer = $event.dataTransfer.files[0]"
+                         @drop.prevent="dragVer = false; fileVer = validateDroppedFile($event.dataTransfer.files[0])"
                          @click="$refs.inputVer.click()">
-                        <input type="file" x-ref="inputVer" accept=".pdf" class="hidden" @change="fileVer = $event.target.files[0]">
+                        <input type="file" x-ref="inputVer" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileVer = f">
                         <template x-if="!fileVer"><div><p class="font-body font-medium text-sm text-carbon-700">PDF документ</p><p class="text-xs text-carbon-400 mt-1">Перетащите или нажмите</p></div></template>
                         <template x-if="fileVer"><div><p class="font-mono text-xs text-brass font-semibold" x-text="fileVer.name"></p></div></template>
                     </div>
@@ -4302,9 +4310,9 @@
                 <div class="drop-zone p-10 text-center max-w-xl mx-auto mb-6"
                      :class="{ 'dragover': dragReq, 'loaded': fileReq }"
                      @dragover.prevent="dragReq = true" @dragleave="dragReq = false"
-                     @drop.prevent="dragReq = false; fileReq = $event.dataTransfer.files[0]"
+                     @drop.prevent="dragReq = false; fileReq = validateDroppedFile($event.dataTransfer.files[0])"
                      @click="$refs.inputReq.click()">
-                    <input type="file" x-ref="inputReq" accept=".pdf" class="hidden" @change="fileReq = $event.target.files[0]">
+                    <input type="file" x-ref="inputReq" accept=".pdf" class="hidden" @change="const f = $event.target.files[0]; if (f && !validateFileSize(f)) { error = 'Файл превышает 50 МБ'; $event.target.value = ''; return; } if (f && !validateFileType(f)) { error = 'Недопустимый тип файла'; $event.target.value = ''; return; } fileReq = f">
                     <template x-if="!fileReq"><div><p class="font-body font-medium text-sm text-carbon-700">КМД документ (PDF)</p><p class="text-xs text-carbon-400 mt-1">Перетащите или нажмите</p></div></template>
                     <template x-if="fileReq"><div><p class="font-mono text-xs text-brass font-semibold" x-text="fileReq.name"></p></div></template>
                 </div>
@@ -4765,6 +4773,37 @@
 </div>
 
 <script>
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const ALLOWED_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.dxf', '.dwg', '.docx', '.zip', '.7z'];
+
+function validateFileSize(file) {
+    if (!file) return true;
+    if (file.size > MAX_FILE_SIZE) {
+        return false;
+    }
+    return true;
+}
+
+function validateFileType(file) {
+    if (!file) return true;
+    const name = file.name.toLowerCase();
+    return ALLOWED_EXTENSIONS.some(ext => name.endsWith(ext));
+}
+
+/** Validate a dropped file and return it, or null + alert on failure. */
+function validateDroppedFile(file) {
+    if (!file) return null;
+    if (!validateFileSize(file)) {
+        alert(`Файл "${file.name}" слишком большой (макс. ${MAX_FILE_SIZE / 1024 / 1024} МБ)`);
+        return null;
+    }
+    if (!validateFileType(file)) {
+        alert(`Тип файла "${file.name}" не поддерживается. Допустимые: ${ALLOWED_EXTENSIONS.join(', ')}`);
+        return null;
+    }
+    return file;
+}
+
 function app() {
     return {
         activeTab: 'compare',
@@ -5020,8 +5059,61 @@ function app() {
         },
         _scheduleSave() { if (this._saveTimer) clearTimeout(this._saveTimer); this._saveTimer = setTimeout(() => this.saveState(), 500); },
         clearSavedState() { localStorage.removeItem(this._STORAGE_KEY); },
+        csrfToken: '',
+
+        async _fetchCsrfToken() {
+            try {
+                const res = await fetch('/api/csrf-token');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.csrfToken = data.csrf_token || '';
+                }
+            } catch (e) { console.warn('[KMD] CSRF token fetch failed:', e.message); }
+        },
+
+        _installCsrfInterceptor() {
+            const self = this;
+            const _origFetch = window.fetch;
+            window.fetch = function(input, init) {
+                init = init || {};
+                const method = (init.method || 'GET').toUpperCase();
+                if (method === 'POST' && self.csrfToken) {
+                    if (!init.headers) {
+                        init.headers = { 'X-CSRF-Token': self.csrfToken };
+                    } else if (init.headers instanceof Headers) {
+                        init.headers.set('X-CSRF-Token', self.csrfToken);
+                    } else if (typeof init.headers === 'object') {
+                        init.headers['X-CSRF-Token'] = self.csrfToken;
+                    }
+                }
+                return _origFetch.call(this, input, init).then(async (response) => {
+                    if (response.status === 403 && method === 'POST') {
+                        try {
+                            const clone = response.clone();
+                            const body = await clone.json();
+                            if (body.detail && body.detail.includes('CSRF')) {
+                                await self._fetchCsrfToken();
+                                if (self.csrfToken) {
+                                    if (!init.headers) init.headers = {};
+                                    if (init.headers instanceof Headers) {
+                                        init.headers.set('X-CSRF-Token', self.csrfToken);
+                                    } else {
+                                        init.headers['X-CSRF-Token'] = self.csrfToken;
+                                    }
+                                    return _origFetch.call(this, input, init);
+                                }
+                            }
+                        } catch (_) { /* not JSON or not CSRF error, return original */ }
+                    }
+                    return response;
+                });
+            };
+        },
+
         init() {
             this.loadState();
+            this._installCsrfInterceptor();
+            this._fetchCsrfToken();
             const watchProps = ['activeTab','showLanding','sidebarOpen','openCategories','thermalParams','windParams','sashParams','glassParams','fastenersParams','cuttingParams','profileParams','preview3dParams','preview3dMode','aiChatMessages','projectsList','hwParams','kmdGenParams','translateDirection','cncForm','qrPositions','actForm','photoForm','projForm'];
             for (const prop of watchProps) { this.$watch(prop, () => this._scheduleSave(), { deep: true }); }
             window.addEventListener('beforeunload', () => this.saveState());

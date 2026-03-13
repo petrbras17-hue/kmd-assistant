@@ -22,12 +22,17 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-PINECONE_API_KEY = os.getenv(
-    "PINECONE_API_KEY",
-    "pcsk_2X7jCg_ALmUcQBnEtwva5v5Q1cHjDLxuuuWFhowD6mb9eQzz6DoTQjYvHsDvxh3LkoGfgv",
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
+PINECONE_INDEX = os.getenv("PINECONE_INDEX", "kmd-knowledge")
+PINECONE_HOST = os.getenv(
+    "PINECONE_HOST", "kmd-knowledge-b0hkvr1.svc.aped-4627-b74a.pinecone.io"
 )
-PINECONE_INDEX = "kmd-knowledge"
-PINECONE_HOST = "kmd-knowledge-b0hkvr1.svc.aped-4627-b74a.pinecone.io"
+
+if not PINECONE_API_KEY:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "PINECONE_API_KEY is not set — RAG indexing will be unavailable"
+    )
 
 # Singleton client — lazy init
 _pc = None

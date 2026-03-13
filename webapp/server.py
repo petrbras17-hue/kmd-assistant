@@ -7,6 +7,7 @@ import os
 import sys
 import re
 import math
+import time
 import uuid
 import json
 import shutil
@@ -14,6 +15,7 @@ import zipfile
 import tempfile
 import html as _html
 import base64
+import hmac
 import hashlib
 import difflib
 from pathlib import Path
@@ -23,14 +25,44 @@ from typing import List
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.security import APIKeyHeader
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_LLM_MODEL = "google/gemini-2.0-flash-001"
+
+# ============== API KEY AUTHENTICATION ==============
+_env_api_key = os.getenv("KMD_API_KEY", "").strip()
+if _env_api_key:
+    KMD_API_KEY: str = _env_api_key
+else:
+    KMD_API_KEY = uuid.uuid4().hex
+    print(f"[AUTH] Generated API key (set KMD_API_KEY env var to override): {KMD_API_KEY}")
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def verify_api_key(api_key: str = Security(_api_key_header)):
+    """Dependency that validates X-API-Key header."""
+    if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+# Paths exempt from API key auth
+_AUTH_EXEMPT_PATHS: set[str] = {
+    "/", "/docs", "/redoc", "/openapi.json", "/api/health", "/api/auth/validate",
+}
+_AUTH_EXEMPT_PREFIXES: tuple[str, ...] = (
+    "/icons/", "/manifest.json", "/sw.js", "/offline.html",
+    "/api/download/", "/api/download-act/", "/api/download-nc/",
+)
 
 # Добавляем tools в путь
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
@@ -68,6 +100,7 @@ except Exception:
     _MULTI_VALIDATOR_AVAILABLE = False
 
 tags_metadata = [
+    {"name": "Auth", "description": "API key authentication and validation."},
     {"name": "Documentation", "description": "KMD document parsing, comparison, validation, checklists, and cross-validation."},
     {"name": "Calculators", "description": "Engineering calculators: thermal, wind load, sash weight, glass thickness, fasteners."},
     {"name": "3D & Optimization", "description": "3D preview, cutting optimization, profile recommendation, spec generation."},
@@ -75,6 +108,8 @@ tags_metadata = [
     {"name": "Production", "description": "CNC programs, QR labels, photo reports, acceptance acts, requisitions."},
     {"name": "Analytics & Projects", "description": "Statistics, activity log, project management, versioning, nodes library, file downloads."},
 ]
+
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="KMD Assistant API",
@@ -91,6 +126,90 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+
+# ---------- API-key auth middleware ----------
+
+from starlette.responses import JSONResponse as StarletteJSONResponse
+
+
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    """Require X-API-Key on mutating /api/* endpoints.
+
+    Browser requests authenticated via CSRF token are exempt (the CSRF
+    middleware validates them separately).  Machine-to-machine callers
+    must supply X-API-Key.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        method = request.method
+
+        # Only protect POST/PUT/PATCH/DELETE on /api/* paths
+        if method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api"):
+            # Check exemptions
+            if path not in _AUTH_EXEMPT_PATHS and not path.startswith(_AUTH_EXEMPT_PREFIXES):
+                api_key = request.headers.get("X-API-Key", "")
+                csrf_token = request.headers.get("X-CSRF-Token", "")
+                # Allow if valid API key OR valid CSRF token (browser)
+                has_valid_api_key = api_key and hmac.compare_digest(api_key, KMD_API_KEY)
+                has_valid_csrf = (
+                    csrf_token
+                    and csrf_token in csrf_tokens
+                    and csrf_tokens[csrf_token] > time.time()
+                )
+                if not has_valid_api_key and not has_valid_csrf:
+                    return StarletteJSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid or missing API key"},
+                    )
+
+        return await call_next(request)
+
+
+# APIKeyMiddleware is registered AFTER CSRFMiddleware (below) so that
+# Starlette's inverse ordering gives us: APIKey → CSRF → route handler.
+
+
+# Swagger "Authorize" button — adds X-API-Key to all try-it-out requests
+_original_openapi = app.openapi
+
+
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = _original_openapi()
+    schema.setdefault("components", {}).setdefault("securitySchemes", {})["ApiKeyAuth"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authenticated access. Pass via X-API-Key header.",
+    }
+    schema["security"] = [{"ApiKeyAuth": []}]
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _custom_openapi
+
+
+# ---------- Health & Auth endpoints ----------
+
+@app.get("/api/health", tags=["Auth"], summary="Health check")
+async def api_health():
+    """Health check endpoint — no auth required."""
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
+async def api_auth_validate(api_key: str = Security(_api_key_header)):
+    """Check if the provided X-API-Key header is valid."""
+    if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return {"status": "ok", "message": "API key is valid"}
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
 VERSIONS_DIR = Path(__file__).parent / "versions"
@@ -98,6 +217,53 @@ VERSIONS_JSON = Path(__file__).parent / "versions.json"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 VERSIONS_DIR.mkdir(exist_ok=True)
+
+# ============== CSRF PROTECTION ==============
+
+CSRF_TOKEN_TTL = 3600  # 1 hour
+CSRF_MAX_TOKENS = 10_000  # prevent unbounded memory growth
+csrf_tokens: dict[str, float] = {}  # token -> expiry timestamp
+
+# Endpoints exempt from CSRF validation
+_CSRF_EXEMPT_PATHS = {"/api/csrf-token"}
+
+
+def _cleanup_expired_csrf_tokens():
+    """Remove expired CSRF tokens from the in-memory store."""
+    now = time.time()
+    expired = [t for t, exp in csrf_tokens.items() if exp <= now]
+    for t in expired:
+        csrf_tokens.pop(t, None)
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Validate X-CSRF-Token header on all mutating /api/* requests."""
+
+    async def dispatch(self, request: Request, call_next):
+        if (
+            request.method in ("POST", "PUT", "PATCH", "DELETE")
+            and request.url.path.startswith("/api/")
+            and request.url.path not in _CSRF_EXEMPT_PATHS
+        ):
+            _cleanup_expired_csrf_tokens()
+            token = request.headers.get("X-CSRF-Token", "")
+            if not token or token not in csrf_tokens:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token missing or invalid"},
+                )
+            if csrf_tokens[token] <= time.time():
+                csrf_tokens.pop(token, None)
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token expired"},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(CSRFMiddleware)
+app.add_middleware(APIKeyMiddleware)  # registered last = executes first (outermost)
+
 
 # ============== IN-MEMORY ACTIVITY LOG ==============
 
@@ -227,10 +393,26 @@ async def pwa_icons(filename: str):
     )
 
 
+# ============== CSRF TOKEN ENDPOINT ==============
+
+@limiter.limit("30/minute")
+@app.get("/api/csrf-token")
+async def get_csrf_token(request: Request):
+    """Generate a new CSRF token (valid for 1 hour)."""
+    _cleanup_expired_csrf_tokens()
+    if len(csrf_tokens) >= CSRF_MAX_TOKENS:
+        raise HTTPException(status_code=429, detail="Too many active CSRF tokens")
+    token = uuid.uuid4().hex
+    csrf_tokens[token] = time.time() + CSRF_TOKEN_TTL
+    return {"csrf_token": token}
+
+
 # ============== 1. СРАВНЕНИЕ СПЕЦИФИКАЦИЙ ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/compare", tags=["Documentation"], summary="Compare two order specifications")
 async def api_compare(
+    request: Request,
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
 ):
@@ -345,8 +527,9 @@ async def api_compare(
 
 # ============== 2. ПРОВЕРКА КОМПЛЕКТНОСТИ PDF ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/check-pdf", tags=["Documentation"], summary="Validate KMD PDF completeness")
-async def api_check_pdf(file: UploadFile = File(...)):
+async def api_check_pdf(request: Request, file: UploadFile = File(...)):
     """Проверить комплектность PDF чертежей КМД."""
     path = save_upload(file)
 
@@ -442,8 +625,9 @@ async def api_check_pdf(file: UploadFile = File(...)):
 
 # ============== 3. ПАРСИНГ КМД ЧЕРТЕЖЕЙ ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/parse-kmd", tags=["Documentation"], summary="Parse KMD positions from PDF")
-async def api_parse_kmd(file: UploadFile = File(...)):
+async def api_parse_kmd(request: Request, file: UploadFile = File(...)):
     """Извлечь данные из PDF чертежей КМД: позиции, артикулы, размеры."""
     path = save_upload(file)
 
@@ -949,8 +1133,9 @@ def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
     return checks
 
 
+@limiter.limit("10/minute")
 @app.post("/api/checklist", tags=["Documentation"], summary="Run KMD checklist audit")
-async def api_checklist(file: UploadFile = File(...)):
+async def api_checklist(request: Request, file: UploadFile = File(...)):
     """
     Автоматический чек-лист КМД по 8 разделам АЛЬДМЕГА ЛАБ.
     Принимает PDF-файл, извлекает текст со всех страниц (PyMuPDF),
@@ -1007,8 +1192,10 @@ async def api_checklist(file: UploadFile = File(...)):
 
 # ============== 7. КРОСС-ВАЛИДАЦИЯ ЧЕРТЁЖ vs СПЕЦИФИКАЦИЯ ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/cross-validate", tags=["Documentation"], summary="Cross-validate drawing vs spec")
 async def api_cross_validate(
+    request: Request,
     drawing: UploadFile = File(...),
     spec: UploadFile = File(...),
 ):
@@ -1451,8 +1638,10 @@ def _extract_kmd_data(text: str):
     return positions, articles
 
 
+@limiter.limit("10/minute")
 @app.post("/api/compare-pdf", tags=["Documentation"], summary="Compare two PDF versions")
 async def api_compare_pdf(
+    request: Request,
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
 ):
@@ -1653,8 +1842,9 @@ async def api_compare_pdf(
 MAX_ZIP_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
+@limiter.limit("10/minute")
 @app.post("/api/batch-process", tags=["Documentation"], summary="Batch-process ZIP archive")
-async def api_batch_process(file: UploadFile = File(...)):
+async def api_batch_process(request: Request, file: UploadFile = File(...)):
     """
     Пакетная обработка ZIP-архива с проектом КМД.
     Принимает ZIP с PDF, DXF, XLSX файлами, прогоняет все доступные проверки
@@ -2073,8 +2263,9 @@ def _generate_spec_xlsx(positions: list[dict], source_file: str) -> Path:
     return result_path
 
 
+@limiter.limit("10/minute")
 @app.post("/api/generate-spec", tags=["3D & Optimization"], summary="Generate specification from drawing")
-async def api_generate_spec(file: UploadFile = File(...)):
+async def api_generate_spec(request: Request, file: UploadFile = File(...)):
     """Сгенерировать XLSX спецификацию из КМД чертежа (PDF или DXF)."""
     fname_lower = file.filename.lower()
     if not fname_lower.endswith((".pdf", ".dxf")):
@@ -3299,8 +3490,9 @@ async def api_recommend_profile(data: dict):
 # ============== F8. ТЕПЛОТЕХНИЧЕСКИЙ КАЛЬКУЛЯТОР ==============
 
 
+@limiter.limit("30/minute")
 @app.post("/api/calc-thermal", tags=["Calculators"], summary="Thermal resistance (GOST 26602.1)")
-async def api_calc_thermal(data: dict):
+async def api_calc_thermal(request: Request, data: dict):
     """Расчёт приведённого сопротивления теплопередаче по ГОСТ 26602.1 / ГОСТ 23166."""
     try:
         profile_uf = float(data.get("profile_uf", 1.3))
@@ -3391,8 +3583,9 @@ def _interpolate_kz(height_m: float, terrain: str) -> float:
     return table[-1]
 
 
+@limiter.limit("30/minute")
 @app.post("/api/calc-wind", tags=["Calculators"], summary="Wind load (SP 20.13330)")
-async def api_calc_wind(data: dict):
+async def api_calc_wind(request: Request, data: dict):
     """Расчёт ветровой нагрузки по СП 20.13330.2016."""
     try:
         wind_region = data.get("wind_region", "III")
@@ -3512,8 +3705,9 @@ _SASH_WEIGHT_LIMITS = {
 }
 
 
+@limiter.limit("30/minute")
 @app.post("/api/calc-sash-weight", tags=["Calculators"], summary="Sash weight calculation")
-async def api_calc_sash_weight(data: dict):
+async def api_calc_sash_weight(request: Request, data: dict):
     """Расчёт веса створки."""
     try:
         width_mm = float(data.get("width_mm", 800))
@@ -3597,8 +3791,9 @@ _GLASS_DATABASE = [
 ]
 
 
+@limiter.limit("30/minute")
 @app.post("/api/calc-glass", tags=["Calculators"], summary="Glass package selection")
-async def api_calc_glass(data: dict):
+async def api_calc_glass(request: Request, data: dict):
     """Подбор оптимального стеклопакета по параметрам."""
     try:
         width_mm = int(data.get("width_mm", 1200))
@@ -3734,8 +3929,9 @@ _ANCHOR_CAPACITY = {
 }
 
 
+@limiter.limit("30/minute")
 @app.post("/api/calc-fasteners", tags=["Calculators"], summary="Fastener calculation (GOST 30971)")
-async def api_calc_fasteners(data: dict):
+async def api_calc_fasteners(request: Request, data: dict):
     """Расчёт крепежа оконной/дверной рамы по ГОСТ."""
     try:
         frame_width_mm = float(data.get("frame_width_mm", 1500))
@@ -3853,8 +4049,9 @@ def _pdf_pages_to_base64(pdf_path: str, max_pages: int = 3) -> list[str]:
 
 # ============== F1: AI DRAWING REVIEW ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-review", tags=["AI Tools"], summary="AI review of KMD drawing")
-async def api_ai_review(file: UploadFile = File(...)):
+async def api_ai_review(request: Request, file: UploadFile = File(...)):
     """AI review of a KMD drawing PDF with RAG-powered validation."""
     path = save_upload(file)
     try:
@@ -3928,8 +4125,9 @@ async def api_ai_review(file: UploadFile = File(...)):
 
 # ============== F2: AI EXPLANATORY NOTE GENERATOR ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-generate-note", tags=["AI Tools"], summary="AI engineering note generation")
-async def api_ai_generate_note(file: UploadFile = File(...)):
+async def api_ai_generate_note(request: Request, file: UploadFile = File(...)):
     """AI-generated explanatory note (пояснительная записка) from a KMD PDF."""
     path = save_upload(file)
     try:
@@ -3978,8 +4176,9 @@ async def api_ai_generate_note(file: UploadFile = File(...)):
 
 # ============== F3: AI GOST ASSISTANT ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-gost", tags=["AI Tools"], summary="AI GOST/standard consultant")
-async def api_ai_gost(payload: dict):
+async def api_ai_gost(request: Request, payload: dict):
     """AI GOST assistant — answers questions about norms and standards for aluminum constructions."""
     question = payload.get("question", "").strip()
     if not question:
@@ -4050,8 +4249,9 @@ async def api_ai_gost(payload: dict):
 
 # ============== F4: AI HARDWARE SELECTOR ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-hardware", tags=["AI Tools"], summary="AI hardware recommendation")
-async def api_ai_hardware(payload: dict):
+async def api_ai_hardware(request: Request, payload: dict):
     """AI hardware recommendation for aluminum constructions."""
     try:
         construction_type = payload.get("construction_type", "окно")
@@ -4112,8 +4312,10 @@ async def api_ai_hardware(payload: dict):
 
 # ============== F5: AI VISUAL DRAWING COMPARISON ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-compare-visual", tags=["AI Tools"], summary="AI visual drawing comparison")
 async def api_ai_compare_visual(
+    request: Request,
     file_a: UploadFile = File(...),
     file_b: UploadFile = File(...),
 ):
@@ -4174,8 +4376,9 @@ async def api_ai_compare_visual(
 
 # ============== F6: AI KMD GENERATION ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-generate-kmd", tags=["AI Tools"], summary="AI KMD document generation")
-async def api_ai_generate_kmd(payload: dict):
+async def api_ai_generate_kmd(request: Request, payload: dict):
     """AI generation of KMD documentation from a technical brief."""
     try:
         object_name = payload.get("object_name", "")
@@ -4268,8 +4471,9 @@ async def api_ai_generate_kmd(payload: dict):
 
 # ============== F7: AI KMD TRANSLATOR ==============
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-translate", tags=["AI Tools"], summary="AI GOST/EN translation")
-async def api_ai_translate(payload: dict):
+async def api_ai_translate(request: Request, payload: dict):
     """AI translation of KMD documentation between GOST and EN standards."""
     try:
         text = payload.get("text", "").strip()
@@ -4449,8 +4653,9 @@ async def api_versioning_upload(file: UploadFile = File(...)):
         path.unlink(missing_ok=True)
 
 
+@limiter.limit("30/minute")
 @app.get("/api/versioning/history", tags=["Analytics & Projects"], summary="Get version history")
-async def api_versioning_history(filename: str = ""):
+async def api_versioning_history(request: Request, filename: str = ""):
     """Return version history for a file or all files."""
     db = _load_versions_db()
     if filename:
@@ -4706,8 +4911,9 @@ async def api_project_create(data: dict):
     return {"status": "ok", "project": project}
 
 
+@limiter.limit("30/minute")
 @app.get("/api/projects/list", tags=["Analytics & Projects"], summary="List all projects")
-async def api_projects_list():
+async def api_projects_list(request: Request):
     """Return all projects with statuses."""
     return {"status": "ok", "projects": projects_list, "stages": PROJECT_STAGES}
 
@@ -5557,8 +5763,9 @@ NODES_LIBRARY = {
 }
 
 
+@limiter.limit("30/minute")
 @app.get("/api/nodes-library", tags=["Analytics & Projects"], summary="Get standard nodes catalog")
-async def api_nodes_library():
+async def api_nodes_library(request: Request):
     """Return list of all standard nodes."""
     nodes_list = []
     for node_id, node in NODES_LIBRARY.items():
@@ -5573,8 +5780,9 @@ async def api_nodes_library():
     return {"status": "ok", "nodes": nodes_list}
 
 
+@limiter.limit("30/minute")
 @app.get("/api/nodes-library/{node_type}", tags=["Analytics & Projects"], summary="Get nodes by type")
-async def api_node_detail(node_type: str):
+async def api_node_detail(request: Request, node_type: str):
     """Return detailed info about a specific node."""
     node = NODES_LIBRARY.get(node_type)
     if not node:
@@ -5584,8 +5792,9 @@ async def api_node_detail(node_type: str):
 
 # ============== 13. СТАТИСТИКА / ДАШБОРД ==============
 
+@limiter.limit("30/minute")
 @app.get("/api/stats", tags=["Analytics & Projects"], summary="Get usage statistics")
-async def api_stats():
+async def api_stats(request: Request):
     """Вернуть счётчики и последние операции."""
     return {
         "counters": counters,
@@ -5607,8 +5816,9 @@ async def download_result(filename: str):
                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+@limiter.limit("10/minute")
 @app.post("/api/export-zip", tags=["Analytics & Projects"], summary="Bulk download results as ZIP")
-async def export_zip(payload: dict):
+async def export_zip(request: Request, payload: dict):
     """Download multiple result files as a single ZIP archive."""
     filenames = payload.get("filenames", [])
     if not filenames:
@@ -5663,8 +5873,9 @@ MODULE_DESCRIPTIONS = {
 _MODULE_CONTEXT_STR = "\n".join(f"- {k}: {v}" for k, v in MODULE_DESCRIPTIONS.items())
 
 
+@limiter.limit("10/minute")
 @app.post("/api/ai-chat", tags=["AI Tools"], summary="AI chat assistant")
-async def api_ai_chat(payload: dict):
+async def api_ai_chat(request: Request, payload: dict):
     """AI chat assistant that explains modules and answers KMD questions."""
     question = payload.get("question", "").strip()
     context_tab = payload.get("context", "")
