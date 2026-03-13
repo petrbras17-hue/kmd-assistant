@@ -54,6 +54,11 @@ counters = {
     "recommend_profile": 0,
     "optimize_cutting": 0,
     "preview_3d": 0,
+    "calc_thermal": 0,
+    "calc_wind": 0,
+    "calc_sash_weight": 0,
+    "calc_glass": 0,
+    "calc_fasteners": 0,
 }
 
 
@@ -3100,6 +3105,525 @@ async def api_recommend_profile(data: dict):
             "parameters_used": params,
             "wind_pressure_pa": round(wind_pa),
             "warnings": warnings,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F8. ТЕПЛОТЕХНИЧЕСКИЙ КАЛЬКУЛЯТОР ==============
+
+import math as _math
+
+
+@app.post("/api/calc-thermal")
+async def api_calc_thermal(data: dict):
+    """Расчёт приведённого сопротивления теплопередаче по ГОСТ 26602.1 / ГОСТ 23166."""
+    try:
+        profile_uf = float(data.get("profile_uf", 1.3))
+        glass_ug = float(data.get("glass_ug", 1.0))
+        glass_area_m2 = float(data.get("glass_area_m2", 2.5))
+        frame_area_m2 = float(data.get("frame_area_m2", 0.8))
+        psi_edge = float(data.get("psi_edge", 0.06))
+        edge_length_m = float(data.get("edge_length_m", 6.0))
+
+        total_area = frame_area_m2 + glass_area_m2
+        if total_area <= 0:
+            raise ValueError("Суммарная площадь должна быть > 0")
+
+        # Uw per GOST 26602.1
+        uw = (profile_uf * frame_area_m2 + glass_ug * glass_area_m2 + psi_edge * edge_length_m) / total_area
+        uw = round(uw, 3)
+
+        # Dew point approximation (Magnus formula at 50% RH, 20C indoor)
+        t_indoor = 20.0
+        rh = 50.0
+        a_m, b_m = 17.27, 237.7
+        gamma = (a_m * t_indoor) / (b_m + t_indoor) + _math.log(rh / 100.0)
+        dew_point = round((b_m * gamma) / (a_m - gamma), 1)
+
+        # Classification per GOST 23166-2021
+        if uw < 1.0:
+            classification = "А"
+            norm_limit = 1.0
+        elif uw <= 1.4:
+            classification = "Б"
+            norm_limit = 1.4
+        elif uw <= 1.8:
+            classification = "В"
+            norm_limit = 1.8
+        elif uw <= 2.2:
+            classification = "Г"
+            norm_limit = 2.2
+        else:
+            classification = "Д"
+            norm_limit = 2.6
+
+        meets_requirement = uw <= 1.8  # typical requirement for most Russian climate zones
+
+        log_activity("calc_thermal", f"Uw={uw}",
+                     f"Класс {classification}, Uw={uw} Вт/(м²·К)")
+
+        return {
+            "status": "ok",
+            "uw": uw,
+            "uf": profile_uf,
+            "ug": glass_ug,
+            "dew_point": dew_point,
+            "classification": classification,
+            "meets_requirement": meets_requirement,
+            "norm_limit": norm_limit,
+            "total_area_m2": round(total_area, 2),
+            "glass_fraction": round(glass_area_m2 / total_area * 100, 1),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F9. КАЛЬКУЛЯТОР ВЕТРОВОЙ НАГРУЗКИ ==============
+
+# k(z) table per SP 20.13330.2016, Table 11.2
+# Heights: 5, 10, 20, 40, 60, 80, 100, 150, 200, 250, 300 m
+_KZ_HEIGHTS = [5, 10, 20, 40, 60, 80, 100, 150, 200, 250, 300]
+_KZ_TABLE = {
+    "A": [0.75, 1.0, 1.25, 1.5, 1.7, 1.85, 2.0, 2.25, 2.45, 2.65, 2.75],
+    "B": [0.5, 0.65, 0.85, 1.1, 1.3, 1.45, 1.6, 1.9, 2.1, 2.3, 2.5],
+    "C": [0.4, 0.4, 0.55, 0.8, 1.0, 1.15, 1.25, 1.55, 1.8, 2.0, 2.2],
+}
+
+
+def _interpolate_kz(height_m: float, terrain: str) -> float:
+    """Линейная интерполяция k(z) по высоте."""
+    table = _KZ_TABLE.get(terrain, _KZ_TABLE["B"])
+    if height_m <= _KZ_HEIGHTS[0]:
+        return table[0]
+    if height_m >= _KZ_HEIGHTS[-1]:
+        return table[-1]
+    for i in range(len(_KZ_HEIGHTS) - 1):
+        h1, h2 = _KZ_HEIGHTS[i], _KZ_HEIGHTS[i + 1]
+        if h1 <= height_m <= h2:
+            t = (height_m - h1) / (h2 - h1)
+            return table[i] + t * (table[i + 1] - table[i])
+    return table[-1]
+
+
+@app.post("/api/calc-wind")
+async def api_calc_wind(data: dict):
+    """Расчёт ветровой нагрузки по СП 20.13330.2016."""
+    try:
+        wind_region = data.get("wind_region", "III")
+        terrain = data.get("terrain", "B")
+        height_m = float(data.get("height_m", 36))
+        building_width_m = float(data.get("building_width_m", 20))
+        building_height_m = float(data.get("building_height_m", 50))
+        panel_width_m = float(data.get("panel_width_m", 1.5))
+        panel_height_m = float(data.get("panel_height_m", 2.1))
+        zone = data.get("zone", "mid")  # "mid", "corner", "leeward"
+
+        w0 = WIND_PRESSURE_BASE.get(wind_region, 0.38)  # kPa
+        kz = round(_interpolate_kz(height_m, terrain), 3)
+
+        # Aerodynamic coefficient per SP 20
+        if zone == "corner":
+            ce = -1.4
+        elif zone == "leeward":
+            ce = -0.6
+        else:
+            ce = 0.8
+
+        # Safety factor for wind load (gamma_f)
+        gamma_f = 1.4
+
+        # Wind pressure on the panel
+        wind_pressure_kpa = w0 * kz * abs(ce) * gamma_f
+        wind_pressure_pa = round(wind_pressure_kpa * 1000, 1)
+        wind_pressure_kgm2 = round(wind_pressure_pa / 9.81, 1)
+
+        # Panel area and distributed load
+        panel_area_m2 = panel_width_m * panel_height_m
+        panel_load_n = round(wind_pressure_pa * panel_area_m2, 1)
+
+        # Required moment of inertia for deflection limit L/300
+        # For simply supported beam: I_req = 5 * q * L^4 / (384 * E * f_max)
+        # q = wind_pressure_pa * panel_width_m [N/m]
+        # L = panel_height_m [m]
+        # E = 70000 MPa for aluminum
+        # f_max = L / 300
+        q_nm = wind_pressure_pa * panel_width_m  # N/m
+        span_m = panel_height_m
+        e_mpa = 70000  # aluminum Young's modulus
+        f_max_m = span_m / 300
+        if f_max_m > 0 and e_mpa > 0:
+            # I_req in m^4
+            i_req_m4 = (5 * q_nm * span_m ** 4) / (384 * e_mpa * 1e6 * f_max_m)
+            # Convert to cm^4
+            required_ix_cm4 = round(i_req_m4 * 1e8, 2)
+        else:
+            required_ix_cm4 = 0
+
+        log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
+                     f"P={wind_pressure_pa} Па, F={panel_load_n} Н")
+
+        return {
+            "status": "ok",
+            "w0": w0,
+            "w0_pa": round(w0 * 1000),
+            "kz": kz,
+            "ce": ce,
+            "gamma_f": gamma_f,
+            "wind_pressure_pa": wind_pressure_pa,
+            "wind_pressure_kgm2": wind_pressure_kgm2,
+            "panel_area_m2": round(panel_area_m2, 2),
+            "panel_load_n": panel_load_n,
+            "required_ix_cm4": required_ix_cm4,
+            "safety_factor": gamma_f,
+            "height_m": height_m,
+            "terrain": terrain,
+            "zone": zone,
+            "wind_region": wind_region,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F10. КАЛЬКУЛЯТОР ВЕСА СТВОРКИ ==============
+
+def _parse_glass_formula(formula: str) -> dict:
+    """Парсинг формулы стеклопакета, напр. '4-16Ar-4-16Ar-4'."""
+    parts = _re.split(r'[-]', formula.strip())
+    glass_thicknesses = []
+    total_thickness_mm = 0
+    for p in parts:
+        p = p.strip()
+        # Check if it's a glass layer (pure number or number + letter like 4M1)
+        m = _re.match(r'^(\d+(?:\.\d+)?)\s*(?:M\d*|ESG|VSG|TVG)?$', p, _re.IGNORECASE)
+        if m:
+            t = float(m.group(1))
+            glass_thicknesses.append(t)
+            total_thickness_mm += t
+        else:
+            # It's a spacer/gap (e.g., 16Ar, 20, 16Kr)
+            m2 = _re.match(r'^(\d+(?:\.\d+)?)', p)
+            if m2:
+                total_thickness_mm += float(m2.group(1))
+    return {
+        "glass_thicknesses": glass_thicknesses,
+        "total_thickness_mm": total_thickness_mm,
+    }
+
+
+# Max sash weight limits by system
+_SASH_WEIGHT_LIMITS = {
+    "Reynaers MasterLine 8": 160,
+    "Reynaers CS 77": 130,
+    "Schüco AWS 75": 130,
+    "Schüco AWS 90": 150,
+    "Schüco ASS 77 PD": 200,
+    "Alutech W72": 100,
+    "Alutech W62": 80,
+    "Alutech ALT F50": 120,
+    "TATPROF ТП-50": 80,
+    "TATPROF ТП-65": 100,
+}
+
+
+@app.post("/api/calc-sash-weight")
+async def api_calc_sash_weight(data: dict):
+    """Расчёт веса створки."""
+    try:
+        width_mm = float(data.get("width_mm", 800))
+        height_mm = float(data.get("height_mm", 1400))
+        profile_weight_kg_m = float(data.get("profile_weight_kg_m", 1.8))
+        glass_formula = data.get("glass_formula", "4-16Ar-4-16Ar-4")
+        hardware_weight_kg = float(data.get("hardware_weight_kg", 2.5))
+
+        # Frame perimeter and profile weight
+        perimeter_m = 2 * (width_mm + height_mm) / 1000.0
+        profile_weight = round(perimeter_m * profile_weight_kg_m, 2)
+
+        # Glass weight
+        parsed = _parse_glass_formula(glass_formula)
+        frame_rebate_mm = 65  # typical frame rebate
+        glass_w = max(0, width_mm - 2 * frame_rebate_mm)
+        glass_h = max(0, height_mm - 2 * frame_rebate_mm)
+        glass_area_m2 = (glass_w * glass_h) / 1e6
+
+        # Glass density: 2.5 kg/m2 per mm of glass thickness
+        total_glass_thickness = sum(parsed["glass_thicknesses"])
+        glass_weight = round(glass_area_m2 * total_glass_thickness * 2.5, 2)
+
+        total_weight = round(profile_weight + glass_weight + hardware_weight_kg, 2)
+
+        # Check against limits
+        max_allowed = {}
+        warnings = []
+        for system, limit in _SASH_WEIGHT_LIMITS.items():
+            max_allowed[system] = limit
+            if total_weight > limit:
+                warnings.append(f"Превышен лимит {system}: {total_weight} кг > {limit} кг")
+
+        # General warnings
+        if total_weight > 130:
+            warnings.insert(0, "Вес створки выше 130 кг — требуется усиленная фурнитура")
+        if glass_area_m2 > 3.0:
+            warnings.append(f"Площадь остекления {glass_area_m2:.2f} м² — проверьте допуски стеклопакета")
+
+        log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
+                     f"Вес: {total_weight} кг, стекло: {glass_formula}")
+
+        return {
+            "status": "ok",
+            "profile_weight": profile_weight,
+            "glass_weight": glass_weight,
+            "hardware_weight": hardware_weight_kg,
+            "total_weight": total_weight,
+            "perimeter_m": round(perimeter_m, 2),
+            "glass_area_m2": round(glass_area_m2, 2),
+            "glass_thicknesses": parsed["glass_thicknesses"],
+            "glass_unit_thickness_mm": parsed["total_thickness_mm"],
+            "max_allowed": max_allowed,
+            "warnings": warnings,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F11. КАЛЬКУЛЯТОР СТЕКЛОПАКЕТОВ ==============
+
+_GLASS_DATABASE = [
+    {"formula": "4-16Ar-4", "ug": 1.1, "rw": 30, "thickness": 24, "max_w": 2500, "max_h": 3500},
+    {"formula": "4-16-4", "ug": 1.4, "rw": 29, "thickness": 24, "max_w": 2500, "max_h": 3500},
+    {"formula": "4-12Ar-4-12Ar-4", "ug": 0.8, "rw": 32, "thickness": 36, "max_w": 2400, "max_h": 3200},
+    {"formula": "4-16Ar-4-16Ar-4", "ug": 0.7, "rw": 34, "thickness": 44, "max_w": 2200, "max_h": 3000},
+    {"formula": "6-16Ar-4-16Ar-4", "ug": 0.7, "rw": 36, "thickness": 46, "max_w": 2200, "max_h": 3000},
+    {"formula": "6-16Ar-6-16Ar-6", "ug": 0.6, "rw": 38, "thickness": 50, "max_w": 2000, "max_h": 2800},
+    {"formula": "6-20Ar-4-20Ar-6", "ug": 0.5, "rw": 40, "thickness": 56, "max_w": 2000, "max_h": 2800},
+    {"formula": "8-16Ar-6-16Ar-8", "ug": 0.5, "rw": 42, "thickness": 54, "max_w": 1800, "max_h": 2500},
+    {"formula": "4-10-4-10-4", "ug": 1.2, "rw": 30, "thickness": 32, "max_w": 2400, "max_h": 3200},
+    {"formula": "6-12Ar-4-12Ar-6", "ug": 0.7, "rw": 36, "thickness": 40, "max_w": 2200, "max_h": 3000},
+    {"formula": "8-12Ar-8", "ug": 1.0, "rw": 35, "thickness": 28, "max_w": 2200, "max_h": 3000},
+    {"formula": "8-20Ar-8-20Ar-8", "ug": 0.5, "rw": 44, "thickness": 64, "max_w": 1600, "max_h": 2200},
+    {"formula": "6-14Ar-4-14Ar-6", "ug": 0.6, "rw": 37, "thickness": 44, "max_w": 2200, "max_h": 3000},
+    {"formula": "4-16Kr-4-16Kr-4", "ug": 0.6, "rw": 34, "thickness": 44, "max_w": 2200, "max_h": 3000},
+    {"formula": "10-16Ar-6-16Ar-10", "ug": 0.5, "rw": 46, "thickness": 58, "max_w": 1600, "max_h": 2200},
+    {"formula": "33.1-16Ar-4-16Ar-4", "ug": 0.7, "rw": 38, "thickness": 47, "max_w": 2000, "max_h": 2800},
+    {"formula": "44.1-16Ar-4-16Ar-44.1", "ug": 0.6, "rw": 42, "thickness": 57, "max_w": 1800, "max_h": 2500},
+]
+
+
+@app.post("/api/calc-glass")
+async def api_calc_glass(data: dict):
+    """Подбор оптимального стеклопакета по параметрам."""
+    try:
+        width_mm = int(data.get("width_mm", 1200))
+        height_mm = int(data.get("height_mm", 1800))
+        wind_pressure_pa = float(data.get("wind_pressure_pa", 800))
+        thermal_required_ug = float(data.get("thermal_required_ug", 1.0))
+        sound_required_db = int(data.get("sound_required_db", 38))
+        safety_required = bool(data.get("safety_required", False))
+
+        recommendations = []
+        for g in _GLASS_DATABASE:
+            score = 0
+            pros = []
+            cons = []
+
+            # 1. Thermal score (30 pts)
+            if g["ug"] <= thermal_required_ug:
+                thermal_score = 30
+                pros.append(f"Ug={g['ug']} — соответствует требованию ({thermal_required_ug})")
+            elif g["ug"] <= thermal_required_ug * 1.2:
+                thermal_score = 15
+                cons.append(f"Ug={g['ug']} — близко к требованию ({thermal_required_ug})")
+            else:
+                thermal_score = 0
+                cons.append(f"Ug={g['ug']} — не соответствует ({thermal_required_ug})")
+            score += thermal_score
+
+            # 2. Sound score (25 pts)
+            if g["rw"] >= sound_required_db:
+                sound_score = 25
+                pros.append(f"Rw={g['rw']} дБ — соответствует ({sound_required_db} дБ)")
+            elif g["rw"] >= sound_required_db - 3:
+                sound_score = 12
+                cons.append(f"Rw={g['rw']} дБ — незначительно ниже ({sound_required_db} дБ)")
+            else:
+                sound_score = 0
+                cons.append(f"Rw={g['rw']} дБ — не соответствует ({sound_required_db} дБ)")
+            score += sound_score
+
+            # 3. Wind resistance by thickness (20 pts)
+            # Thicker glass = better wind resistance
+            total_glass = sum(float(x) for x in _re.findall(r'(?:^|-)(\d+)(?:\.\d+)?(?:$|-)', g["formula"]))
+            if wind_pressure_pa <= 600:
+                wind_score = 20 if total_glass >= 8 else 15 if total_glass >= 6 else 10
+            elif wind_pressure_pa <= 1000:
+                wind_score = 20 if total_glass >= 12 else 15 if total_glass >= 10 else 5
+            else:
+                wind_score = 20 if total_glass >= 16 else 10 if total_glass >= 12 else 0
+            score += wind_score
+            if wind_score >= 15:
+                pros.append("Достаточная ветровая стойкость")
+
+            # 4. Size compatibility (15 pts)
+            if width_mm <= g["max_w"] and height_mm <= g["max_h"]:
+                score += 15
+                pros.append(f"Размер в пределах допуска ({g['max_w']}x{g['max_h']})")
+            elif width_mm <= g["max_w"] * 1.1 and height_mm <= g["max_h"] * 1.1:
+                score += 5
+                cons.append("Размер на границе допуска — требуется проверка")
+            else:
+                cons.append(f"Превышен макс. размер ({g['max_w']}x{g['max_h']} мм)")
+
+            # 5. Weight/practicality (10 pts)
+            if g["thickness"] <= 44:
+                score += 10
+                pros.append("Стандартная монтажная ширина")
+            elif g["thickness"] <= 56:
+                score += 5
+                cons.append("Увеличенная монтажная ширина")
+            else:
+                cons.append("Требуется широкий профиль (60+ мм)")
+
+            # Safety check
+            if safety_required:
+                is_safety = "33.1" in g["formula"] or "44.1" in g["formula"] or "55.1" in g["formula"]
+                if is_safety:
+                    score += 10
+                    pros.append("Триплекс/закалённое — безопасное стекло")
+                else:
+                    score -= 10
+                    cons.append("Не содержит безопасного стекла (триплекс/закалённое)")
+
+            recommendations.append({
+                "formula": g["formula"],
+                "thickness_mm": g["thickness"],
+                "ug": g["ug"],
+                "rw_db": g["rw"],
+                "score": max(0, min(100, score)),
+                "pros": pros,
+                "cons": cons,
+            })
+
+        recommendations.sort(key=lambda x: x["score"], reverse=True)
+
+        warnings = []
+        if width_mm > 2500 or height_mm > 3500:
+            warnings.append("При размерах более 2500x3500 мм требуется индивидуальный расчёт стеклопакета")
+        if safety_required:
+            warnings.append("Для безопасного остекления рекомендуется триплекс (33.1, 44.1) или закалённое стекло ESG")
+        if wind_pressure_pa > 1200:
+            warnings.append("При ветровом давлении > 1200 Па рекомендуется утолщённое стекло (8+ мм)")
+
+        log_activity("calc_glass", f"{width_mm}x{height_mm}",
+                     f"Лучшее: {recommendations[0]['formula']} (score={recommendations[0]['score']})")
+
+        return {
+            "status": "ok",
+            "recommendations": recommendations[:8],
+            "total_variants": len(_GLASS_DATABASE),
+            "warnings": warnings,
+            "params": {
+                "width_mm": width_mm,
+                "height_mm": height_mm,
+                "wind_pressure_pa": wind_pressure_pa,
+                "thermal_required_ug": thermal_required_ug,
+                "sound_required_db": sound_required_db,
+                "safety_required": safety_required,
+            },
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F12. КАЛЬКУЛЯТОР КРЕПЕЖА ==============
+
+_ANCHOR_CAPACITY = {
+    "бетон": {"capacity_kn": 8.0, "anchor": "рамный 10x132", "min_depth_mm": 80},
+    "кирпич": {"capacity_kn": 5.0, "anchor": "рамный 10x152", "min_depth_mm": 100},
+    "газобетон": {"capacity_kn": 2.0, "anchor": "специальный для газобетона 10x160", "min_depth_mm": 120},
+    "пустотелый кирпич": {"capacity_kn": 3.5, "anchor": "химический анкер + шпилька M10", "min_depth_mm": 110},
+    "дерево": {"capacity_kn": 4.0, "anchor": "шуруп по дереву 7.5x132", "min_depth_mm": 80},
+}
+
+
+@app.post("/api/calc-fasteners")
+async def api_calc_fasteners(data: dict):
+    """Расчёт крепежа оконной/дверной рамы по ГОСТ."""
+    try:
+        frame_width_mm = float(data.get("frame_width_mm", 1500))
+        frame_height_mm = float(data.get("frame_height_mm", 2100))
+        weight_kg = float(data.get("weight_kg", 85))
+        wind_pressure_pa = float(data.get("wind_pressure_pa", 600))
+        wall_type = data.get("wall_type", "бетон")
+        anchor_type = data.get("anchor_type", "рамный")
+
+        # Perimeter in mm
+        perimeter_mm = 2 * (frame_width_mm + frame_height_mm)
+        # Max spacing 700mm per GOST 30971
+        max_spacing_mm = 700
+        # Min anchors = perimeter / max_spacing, but also min 2 per side
+        n_from_spacing = _math.ceil(perimeter_mm / max_spacing_mm)
+        # At least 2 per side (corner anchors at 150-200mm from corner)
+        n_min_sides = 2 * 2 + 2 * max(2, _math.ceil(frame_width_mm / max_spacing_mm))
+        total_anchors = max(n_from_spacing, n_min_sides, 4)
+
+        actual_spacing = round(perimeter_mm / total_anchors, 0)
+
+        # Frame area
+        frame_area_m2 = (frame_width_mm * frame_height_mm) / 1e6
+
+        # Forces
+        wind_force_n = wind_pressure_pa * frame_area_m2
+        gravity_force_n = weight_kg * 9.81
+        safety_factor = 1.5
+
+        # Total design force (vector sum approximation)
+        total_force_n = _math.sqrt(wind_force_n ** 2 + gravity_force_n ** 2) * safety_factor
+        force_per_anchor_n = round(total_force_n / total_anchors, 1)
+
+        # Anchor capacity
+        wall_info = _ANCHOR_CAPACITY.get(wall_type, _ANCHOR_CAPACITY["бетон"])
+        anchor_capacity_n = wall_info["capacity_kn"] * 1000  # kN to N
+
+        safety_margin = round(anchor_capacity_n / force_per_anchor_n, 2) if force_per_anchor_n > 0 else 99.0
+
+        warnings = []
+        if safety_margin < 1.0:
+            warnings.append(f"ВНИМАНИЕ: Нагрузка на анкер ({force_per_anchor_n:.0f} Н) превышает допуск ({anchor_capacity_n:.0f} Н)!")
+            warnings.append("Увеличьте количество анкеров или используйте более мощный тип")
+        elif safety_margin < 1.5:
+            warnings.append("Запас прочности менее 1.5 — рекомендуется увеличить количество анкеров")
+
+        if wall_type == "газобетон":
+            warnings.append("Для газобетона рекомендуется использовать химические анкеры для повышенной надёжности")
+        if weight_kg > 100:
+            warnings.append("При весе конструкции > 100 кг обязательно использование нижних опорных подкладок")
+        if frame_height_mm > 2500:
+            warnings.append("При высоте рамы > 2.5 м рекомендуется дополнительное промежуточное крепление")
+
+        log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
+                     f"Анкеров: {total_anchors}, запас: {safety_margin}x")
+
+        return {
+            "status": "ok",
+            "total_anchors": total_anchors,
+            "spacing_mm": actual_spacing,
+            "force_per_anchor_n": force_per_anchor_n,
+            "anchor_capacity_n": anchor_capacity_n,
+            "safety_margin": safety_margin,
+            "recommended_anchor": wall_info["anchor"],
+            "min_embed_depth_mm": wall_info["min_depth_mm"],
+            "wind_force_n": round(wind_force_n, 1),
+            "gravity_force_n": round(gravity_force_n, 1),
+            "total_design_force_n": round(total_force_n, 1),
+            "wall_type": wall_type,
+            "wall_type_warnings": warnings,
+            "frame_area_m2": round(frame_area_m2, 2),
         }
 
     except Exception as e:

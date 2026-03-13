@@ -378,12 +378,12 @@
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
                             <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Modules</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">10</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">15</p>
                         </div>
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
                             <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Endpoints</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">12</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">17</p>
                         </div>
                     </div>
                 </div>
@@ -407,6 +407,11 @@
                     {id: 'preview3d', label: '3D Просмотр'},
                     {id: 'cutting', label: 'Раскрой'},
                     {id: 'profileai', label: 'Подбор системы'},
+                    {id: 'thermal', label: 'Теплотехника'},
+                    {id: 'wind', label: 'Ветер'},
+                    {id: 'sashweight', label: 'Вес створки'},
+                    {id: 'glass', label: 'Стеклопакет'},
+                    {id: 'fasteners', label: 'Крепёж'},
                     {id: 'dashboard', label: 'Дашборд'},
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
@@ -1688,9 +1693,618 @@
         </section>
 
 
+        <!-- ===== TAB F8: THERMAL CALCULATOR ===== -->
+        <section x-show="activeTab === 'thermal'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">13 / Thermal</p>
+                <h2 class="section-title">Теплотехнический расчёт</h2>
+                <p class="section-subtitle">Расчёт приведённого коэффициента теплопередачи Uw по ГОСТ 26602.1 и классификация по ГОСТ 23166.</p>
+            </div>
+
+            <div x-show="!thermalResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="section-label mb-2 block">Uf профиля, Вт/(м²·К)</label>
+                            <input type="number" x-model.number="thermalParams.profile_uf" step="0.1" min="0.1" max="5" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Ug стеклопакета, Вт/(м²·К)</label>
+                            <input type="number" x-model.number="thermalParams.glass_ug" step="0.1" min="0.1" max="5" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Площадь остекления, м²</label>
+                            <input type="number" x-model.number="thermalParams.glass_area_m2" step="0.1" min="0.1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Площадь рамы, м²</label>
+                            <input type="number" x-model.number="thermalParams.frame_area_m2" step="0.1" min="0.1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Psi краевой зоны, Вт/(м·К)</label>
+                            <input type="number" x-model.number="thermalParams.psi_edge" step="0.01" min="0" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Длина краевой зоны, м</label>
+                            <input type="number" x-model.number="thermalParams.edge_length_m" step="0.1" min="0" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button @click="runCalcThermal()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            Рассчитать
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'thermal'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Расчёт теплотехники</p>
+            </div>
+
+            <div x-show="thermalResult" class="fade-up">
+                <div class="mb-6"><button @click="thermalResult = null" class="btn-secondary">Заново</button></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left">
+                        <p class="section-label mb-2">Uw</p>
+                        <p class="font-display text-3xl" :style="thermalResult?.uw <= 1.0 ? 'color:#4A7C59' : thermalResult?.uw <= 1.8 ? 'color:#C4873B' : 'color:#A14242'" x-text="thermalResult?.uw"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">Вт/(м²·К)</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Класс</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="thermalResult?.classification"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">по ГОСТ 23166</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Точка росы</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="thermalResult?.dew_point + '°C'"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">при RH 50%</p>
+                    </div>
+                    <div class="metric-card" :style="thermalResult?.meets_requirement ? 'border-left:3px solid #4A7C59' : 'border-left:3px solid #A14242'">
+                        <p class="section-label mb-2">Соответствие</p>
+                        <p class="font-display text-xl" :style="thermalResult?.meets_requirement ? 'color:#4A7C59' : 'color:#A14242'" x-text="thermalResult?.meets_requirement ? 'Соответствует' : 'Не соответствует'"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="'Норма: ' + thermalResult?.norm_limit + ' Вт/(м²·К)'"></p>
+                    </div>
+                </div>
+
+                <div class="section-panel">
+                    <h3 class="section-label mb-4">Детали расчёта</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Uf профиля</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="thermalResult?.uf + ' Вт/(м²·К)'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Ug стеклопакета</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="thermalResult?.ug + ' Вт/(м²·К)'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Общая площадь</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="thermalResult?.total_area_m2 + ' м²'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Доля остекления</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="thermalResult?.glass_fraction + '%'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ===== TAB F9: WIND LOAD CALCULATOR ===== -->
+        <section x-show="activeTab === 'wind'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">14 / Wind Load</p>
+                <h2 class="section-title">Ветровая нагрузка</h2>
+                <p class="section-subtitle">Расчёт ветрового давления на светопрозрачную конструкцию по СП 20.13330.2016.</p>
+            </div>
+
+            <div x-show="!windResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="section-label mb-2 block">Ветровой район</label>
+                            <select x-model="windParams.wind_region" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="I">I (0.17 кПа)</option>
+                                <option value="II">II (0.30 кПа)</option>
+                                <option value="III">III (0.38 кПа)</option>
+                                <option value="IV">IV (0.48 кПа)</option>
+                                <option value="V">V (0.60 кПа)</option>
+                                <option value="VI">VI (0.73 кПа)</option>
+                                <option value="VII">VII (0.85 кПа)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Тип местности</label>
+                            <select x-model="windParams.terrain" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="A">A — открытая</option>
+                                <option value="B">B — город, лес</option>
+                                <option value="C">C — застройка > 25м</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Высота установки, м</label>
+                            <input type="number" x-model.number="windParams.height_m" step="1" min="1" max="300" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Ширина панели, м</label>
+                            <input type="number" x-model.number="windParams.panel_width_m" step="0.1" min="0.1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Высота панели, м</label>
+                            <input type="number" x-model.number="windParams.panel_height_m" step="0.1" min="0.1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Зона фасада</label>
+                            <select x-model="windParams.zone" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="mid">Наветренная (середина)</option>
+                                <option value="corner">Угловая зона</option>
+                                <option value="leeward">Подветренная</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button @click="runCalcWind()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            Рассчитать
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'wind'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Расчёт ветровой нагрузки</p>
+            </div>
+
+            <div x-show="windResult" class="fade-up">
+                <div class="mb-6"><button @click="windResult = null" class="btn-secondary">Заново</button></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left">
+                        <p class="section-label mb-2">Давление</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="windResult?.wind_pressure_pa"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">Па</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Давление</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="windResult?.wind_pressure_kgm2"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">кг/м²</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Нагрузка на панель</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="windResult?.panel_load_n"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">Н</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Треб. Ix</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="windResult?.required_ix_cm4"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">см⁴</p>
+                    </div>
+                </div>
+
+                <div class="section-panel">
+                    <h3 class="section-label mb-4">Параметры расчёта</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">w0 (базовое)</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.w0 + ' кПа'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">k(z)</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.kz"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">ce (аэродинамика)</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.ce"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Район</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.wind_region"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Высота</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.height_m + ' м'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Площадь панели</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="windResult?.panel_area_m2 + ' м²'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ===== TAB F10: SASH WEIGHT CALCULATOR ===== -->
+        <section x-show="activeTab === 'sashweight'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">15 / Sash Weight</p>
+                <h2 class="section-title">Вес створки</h2>
+                <p class="section-subtitle">Расчёт массы створки с проверкой допустимых значений по фурнитуре и профильным системам.</p>
+            </div>
+
+            <div x-show="!sashResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="section-label mb-2 block">Ширина створки, мм</label>
+                            <input type="number" x-model.number="sashParams.width_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Высота створки, мм</label>
+                            <input type="number" x-model.number="sashParams.height_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Вес профиля, кг/м</label>
+                            <input type="number" x-model.number="sashParams.profile_weight_kg_m" step="0.1" min="0.1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="section-label mb-2 block">Формула стеклопакета</label>
+                            <input type="text" x-model="sashParams.glass_formula" placeholder="4-16Ar-4-16Ar-4" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Масса фурнитуры, кг</label>
+                            <input type="number" x-model.number="sashParams.hardware_weight_kg" step="0.1" min="0" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button @click="runCalcSashWeight()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                            Рассчитать вес
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'sashweight'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Расчёт веса створки</p>
+            </div>
+
+            <div x-show="sashResult" class="fade-up">
+                <div class="mb-6"><button @click="sashResult = null" class="btn-secondary">Заново</button></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left">
+                        <p class="section-label mb-2">Общий вес</p>
+                        <p class="font-display text-3xl" :style="sashResult?.total_weight <= 100 ? 'color:#4A7C59' : sashResult?.total_weight <= 130 ? 'color:#C4873B' : 'color:#A14242'" x-text="sashResult?.total_weight"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">кг</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Профиль</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="sashResult?.profile_weight"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">кг</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Стеклопакет</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="sashResult?.glass_weight"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">кг</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Фурнитура</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="sashResult?.hardware_weight"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">кг</p>
+                    </div>
+                </div>
+
+                <!-- Warnings -->
+                <template x-for="(warn, wi) in sashResult?.warnings || []" :key="wi">
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    </div>
+                </template>
+
+                <!-- Max weights table -->
+                <div class="section-panel mt-4">
+                    <h3 class="section-label mb-4">Лимиты профильных систем</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <template x-for="(limit, system) in sashResult?.max_allowed || {}" :key="system">
+                            <div class="flex justify-between items-center py-2 px-3 rounded-lg" :style="sashResult?.total_weight <= limit ? 'background:rgba(74,124,89,0.06)' : 'background:rgba(161,66,66,0.06)'">
+                                <span class="text-xs text-carbon-700" x-text="system"></span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono text-xs font-semibold" :style="sashResult?.total_weight <= limit ? 'color:#4A7C59' : 'color:#A14242'" x-text="limit + ' кг'"></span>
+                                    <svg x-show="sashResult?.total_weight <= limit" class="w-3.5 h-3.5 text-status-ok" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    <svg x-show="sashResult?.total_weight > limit" class="w-3.5 h-3.5 text-status-fail" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-carbon-100 grid grid-cols-2 gap-4">
+                        <div class="flex justify-between py-1">
+                            <span class="text-sm text-carbon-500">Периметр створки</span>
+                            <span class="font-mono text-sm text-carbon-800" x-text="sashResult?.perimeter_m + ' м'"></span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-sm text-carbon-500">Площадь стекла</span>
+                            <span class="font-mono text-sm text-carbon-800" x-text="sashResult?.glass_area_m2 + ' м²'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ===== TAB F11: GLASS UNIT CALCULATOR ===== -->
+        <section x-show="activeTab === 'glass'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">16 / Glass Unit</p>
+                <h2 class="section-title">Подбор стеклопакета</h2>
+                <p class="section-subtitle">Оптимальный подбор формулы стеклопакета по теплотехнике, звукоизоляции и ветровой нагрузке.</p>
+            </div>
+
+            <div x-show="!glassResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="section-label mb-2 block">Ширина проёма, мм</label>
+                            <input type="number" x-model.number="glassParams.width_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Высота проёма, мм</label>
+                            <input type="number" x-model.number="glassParams.height_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Ветровое давление, Па</label>
+                            <input type="number" x-model.number="glassParams.wind_pressure_pa" step="50" min="0" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Требуемое Ug, Вт/(м²·К)</label>
+                            <input type="number" x-model.number="glassParams.thermal_required_ug" step="0.1" min="0.1" max="3" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Требуемый Rw, дБ</label>
+                            <input type="number" x-model.number="glassParams.sound_required_db" step="1" min="20" max="55" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div class="flex items-end">
+                            <label class="flex items-center gap-2 cursor-pointer pb-2">
+                                <input type="checkbox" x-model="glassParams.safety_required" class="w-4 h-4 rounded border-carbon-300 text-brass focus:ring-brass">
+                                <span class="text-sm font-body text-carbon-700">Безопасное стекло</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button @click="runCalcGlass()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            Подобрать
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'glass'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Подбор стеклопакета</p>
+            </div>
+
+            <div x-show="glassResult" class="fade-up">
+                <div class="mb-6 flex gap-3 items-center">
+                    <button @click="glassResult = null" class="btn-secondary">Заново</button>
+                    <span class="font-mono text-xs text-carbon-400" x-text="'Вариантов в базе: ' + (glassResult?.total_variants || 0)"></span>
+                </div>
+
+                <!-- Warnings -->
+                <template x-for="(warn, wi) in glassResult?.warnings || []" :key="wi">
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    </div>
+                </template>
+
+                <!-- Glass recommendations -->
+                <div class="space-y-4 mt-4">
+                    <template x-for="(rec, ri) in glassResult?.recommendations || []" :key="ri">
+                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #B8963B' : ''">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-sm font-bold"
+                                         :style="ri === 0 ? 'background:rgba(184,150,59,0.15);color:#B8963B' : ri === 1 ? 'background:rgba(74,124,89,0.1);color:#4A7C59' : 'background:rgba(26,26,20,0.05);color:#9A9A8C'"
+                                         x-text="ri + 1">
+                                    </div>
+                                    <div>
+                                        <h3 class="font-mono text-lg font-bold text-carbon-900" x-text="rec.formula"></h3>
+                                        <p class="font-mono text-[10px] text-carbon-400 tracking-wide uppercase" x-text="rec.thickness_mm + ' мм общая толщина'"></p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 70 ? 'color:#4A7C59' : rec.score >= 40 ? 'color:#C4873B' : 'color:#A14242'" x-text="rec.score"></span>
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Score</p>
+                                </div>
+                            </div>
+
+                            <div class="w-full bg-carbon-100 rounded-full h-1.5 mb-4">
+                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 70 ? '#4A7C59' : rec.score >= 40 ? '#C4873B' : '#A14242')"></div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Ug</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.ug + ' Вт/(м²·К)'"></p>
+                                </div>
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Rw</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.rw_db + ' дБ'"></p>
+                                </div>
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Толщина</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.thickness_mm + ' мм'"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="font-mono text-[9px] text-status-ok uppercase tracking-wider mb-1.5 font-semibold">Соответствует</p>
+                                    <template x-for="(pro, pi) in rec.pros" :key="pi">
+                                        <div class="flex items-start gap-1.5 mb-1">
+                                            <svg class="w-3 h-3 flex-shrink-0 mt-0.5 text-status-ok" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span class="text-xs text-carbon-600" x-text="pro"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div>
+                                    <p class="font-mono text-[9px] text-status-fail uppercase tracking-wider mb-1.5 font-semibold">Ограничения</p>
+                                    <template x-for="(con, ci) in rec.cons" :key="ci">
+                                        <div class="flex items-start gap-1.5 mb-1">
+                                            <svg class="w-3 h-3 flex-shrink-0 mt-0.5 text-status-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                                            <span class="text-xs text-carbon-500" x-text="con"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ===== TAB F12: FASTENERS CALCULATOR ===== -->
+        <section x-show="activeTab === 'fasteners'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">17 / Fasteners</p>
+                <h2 class="section-title">Расчёт крепежа</h2>
+                <p class="section-subtitle">Расчёт количества и типа анкерных креплений для монтажа конструкций по ГОСТ 30971.</p>
+            </div>
+
+            <div x-show="!fastenersResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="section-label mb-2 block">Ширина рамы, мм</label>
+                            <input type="number" x-model.number="fastenersParams.frame_width_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Высота рамы, мм</label>
+                            <input type="number" x-model.number="fastenersParams.frame_height_mm" step="10" min="100" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Масса конструкции, кг</label>
+                            <input type="number" x-model.number="fastenersParams.weight_kg" step="1" min="1" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Ветровое давление, Па</label>
+                            <input type="number" x-model.number="fastenersParams.wind_pressure_pa" step="50" min="0" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Тип стены</label>
+                            <select x-model="fastenersParams.wall_type" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="бетон">Бетон</option>
+                                <option value="кирпич">Кирпич</option>
+                                <option value="газобетон">Газобетон</option>
+                                <option value="пустотелый кирпич">Пустотелый кирпич</option>
+                                <option value="дерево">Дерево</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-2 block">Тип анкера</label>
+                            <select x-model="fastenersParams.anchor_type" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="рамный">Рамный</option>
+                                <option value="анкерный">Анкерный</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button @click="runCalcFasteners()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            Рассчитать
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'fasteners'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Расчёт крепежа</p>
+            </div>
+
+            <div x-show="fastenersResult" class="fade-up">
+                <div class="mb-6"><button @click="fastenersResult = null" class="btn-secondary">Заново</button></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left">
+                        <p class="section-label mb-2">Анкеров</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="fastenersResult?.total_anchors"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">штук</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Шаг</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="fastenersResult?.spacing_mm"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">мм</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Нагрузка/анкер</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="fastenersResult?.force_per_anchor_n"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">Н</p>
+                    </div>
+                    <div class="metric-card" :style="fastenersResult?.safety_margin >= 2.0 ? 'border-left:3px solid #4A7C59' : fastenersResult?.safety_margin >= 1.0 ? 'border-left:3px solid #C4873B' : 'border-left:3px solid #A14242'">
+                        <p class="section-label mb-2">Запас прочности</p>
+                        <p class="font-display text-3xl" :style="fastenersResult?.safety_margin >= 2.0 ? 'color:#4A7C59' : fastenersResult?.safety_margin >= 1.0 ? 'color:#C4873B' : 'color:#A14242'" x-text="fastenersResult?.safety_margin + 'x'"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">коэффициент</p>
+                    </div>
+                </div>
+
+                <!-- Warnings -->
+                <template x-for="(warn, wi) in fastenersResult?.wall_type_warnings || []" :key="wi">
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" :style="warn.includes('ВНИМАНИЕ') ? 'background:rgba(161,66,66,0.08);border:1px solid rgba(161,66,66,0.2)' : 'background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2)'">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" :style="warn.includes('ВНИМАНИЕ') ? 'color:#A14242' : 'color:#C4873B'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" :style="warn.includes('ВНИМАНИЕ') ? 'color:#A14242' : 'color:#8A7030'" x-text="warn"></span>
+                    </div>
+                </template>
+
+                <!-- Details -->
+                <div class="section-panel mt-4">
+                    <h3 class="section-label mb-4">Детали расчёта</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Рекомендуемый анкер</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.recommended_anchor"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Глубина заделки</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.min_embed_depth_mm + ' мм'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Несущая способность анкера</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.anchor_capacity_n + ' Н'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Площадь рамы</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.frame_area_m2 + ' м²'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Ветровая сила</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.wind_force_n + ' Н'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Сила тяжести</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.gravity_force_n + ' Н'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Расчётная сила (с k=1.5)</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.total_design_force_n + ' Н'"></span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-carbon-100">
+                            <span class="text-sm text-carbon-500">Тип стены</span>
+                            <span class="font-mono text-sm font-semibold text-carbon-800" x-text="fastenersResult?.wall_type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
         <!-- ===== TAB 9: DASHBOARD ===== -->
         <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
-            <div class="mb-10 fade-up"><p class="section-label mb-3">09 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
+            <div class="mb-10 fade-up"><p class="section-label mb-3">18 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
 
             <div x-show="!dashStats" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Загрузка статистики</p></div>
 
@@ -1831,6 +2445,26 @@ function app() {
         cuttingParams: { stock_length: 6500, blade_width: 5, min_remnant: 50, cuts: [{article: '4080102', length: 1200, qty: 10}] },
         fileCutPdf: null, dragCutPdf: false,
         cuttingResult: null,
+
+        // Thermal calculator state
+        thermalParams: { profile_uf: 1.3, glass_ug: 1.0, glass_area_m2: 2.5, frame_area_m2: 0.8, psi_edge: 0.06, edge_length_m: 6.0 },
+        thermalResult: null,
+
+        // Wind calculator state
+        windParams: { wind_region: 'III', terrain: 'B', height_m: 36, building_width_m: 20, building_height_m: 50, panel_width_m: 1.5, panel_height_m: 2.1, zone: 'mid' },
+        windResult: null,
+
+        // Sash weight calculator state
+        sashParams: { width_mm: 800, height_mm: 1400, profile_weight_kg_m: 1.8, glass_formula: '4-16Ar-4-16Ar-4', hardware_weight_kg: 2.5 },
+        sashResult: null,
+
+        // Glass calculator state
+        glassParams: { width_mm: 1200, height_mm: 1800, wind_pressure_pa: 800, thermal_required_ug: 1.0, sound_required_db: 38, safety_required: false },
+        glassResult: null,
+
+        // Fasteners calculator state
+        fastenersParams: { frame_width_mm: 1500, frame_height_mm: 2100, weight_kg: 85, wind_pressure_pa: 600, wall_type: 'бетон', anchor_type: 'рамный' },
+        fastenersResult: null,
 
         addCutRow() { this.cuttingParams.cuts.push({article: '', length: '', qty: 1}); },
         removeCutRow(i) { this.cuttingParams.cuts.splice(i, 1); },
@@ -2010,6 +2644,58 @@ function app() {
         },
 
         resetComparePdf() { this.cpResult = null; this.fileCpA = null; this.fileCpB = null; },
+
+        // ===== Engineering Calculators =====
+
+        async runCalcThermal() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/calc-thermal', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.thermalParams) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.thermalResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runCalcWind() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/calc-wind', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.windParams) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.windResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runCalcSashWeight() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/calc-sash-weight', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.sashParams) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.sashResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runCalcGlass() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/calc-glass', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.glassParams) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.glassResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runCalcFasteners() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/calc-fasteners', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.fastenersParams) });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.fastenersResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
 
         // ===== 3D Preview Methods =====
 
