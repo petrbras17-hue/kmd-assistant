@@ -11,4 +11,5 @@ webapp/versions/
 webapp/versions.json
 *.session
 *.log
+*.db
 .claude/

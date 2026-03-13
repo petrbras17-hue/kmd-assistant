@@ -25,6 +25,14 @@ from typing import List
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from sqlalchemy import select, func as sa_func
+from webapp.database import async_session, engine as db_engine
+from webapp.models import (
+    ActivityLog as ActivityLogModel,
+    Base as DBBase,
+    DocumentVersion,
+    Project as ProjectModel,
+)
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
@@ -87,6 +95,7 @@ from rag_engine import (
     get_gost_context, get_kmd_formatting_rules, find_similar_kmd,
     validate_kmd_document,
 )
+from webapp.cache import cache_get, cache_set, cache_invalidate, _make_key
 try:
     from kmd_rules_engine import validate_kmd_full, format_report_ru
     _RULES_ENGINE_AVAILABLE = True
@@ -213,6 +222,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
 VERSIONS_DIR = Path(__file__).parent / "versions"
+# DEPRECATED: VERSIONS_JSON was used for file-based version storage.
+# Metadata is now stored in PostgreSQL via DocumentVersion model.
+# Kept for potential migration of legacy data.
 VERSIONS_JSON = Path(__file__).parent / "versions.json"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
@@ -265,6 +277,13 @@ app.add_middleware(CSRFMiddleware)
 app.add_middleware(APIKeyMiddleware)  # registered last = executes first (outermost)
 
 
+@app.on_event("startup")
+async def _create_db_tables():
+    """Auto-create database tables on startup (useful for local SQLite dev)."""
+    async with db_engine.begin() as conn:
+        await conn.run_sync(DBBase.metadata.create_all)
+
+
 # ============== IN-MEMORY ACTIVITY LOG ==============
 
 activity_log: list[dict] = []
@@ -308,9 +327,10 @@ projects_list: list[dict] = []
 PROJECT_STAGES = ["замер", "КМД", "производство", "доставка", "монтаж", "сдано"]
 
 
-def log_activity(op_type: str, filename: str, summary: str):
-    """Добавить запись в лог активности."""
+async def log_activity(op_type: str, filename: str, summary: str):
+    """Write activity entry to database and update in-memory counters."""
     counters[op_type] = counters.get(op_type, 0) + 1
+    # In-memory cache (no size cap — DB is the authoritative store)
     entry = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "type": op_type,
@@ -318,8 +338,20 @@ def log_activity(op_type: str, filename: str, summary: str):
         "summary": summary,
     }
     activity_log.insert(0, entry)
-    if len(activity_log) > MAX_ACTIVITY:
-        activity_log.pop()
+    del activity_log[MAX_ACTIVITY:]
+    # Persist to database
+    try:
+        async with async_session() as session:
+            db_entry = ActivityLogModel(
+                operation=op_type,
+                file_name=filename,
+                result_summary=summary,
+            )
+            session.add(db_entry)
+            await session.commit()
+    except Exception:
+        # DB write failure should not break the endpoint
+        pass
 
 
 def save_upload(file: UploadFile) -> Path:
@@ -506,7 +538,7 @@ async def api_compare(
             "identical": len(df_a) - len(diffs) + len([d for d in diffs if d['status'] == 'extra']),
         }
 
-        log_activity("compare", f"{file_a.filename} / {file_b.filename}",
+        await log_activity("compare", f"{file_a.filename} / {file_b.filename}",
                      f"Различий: {len(diffs)}, удалено: {summary['removed']}, изменено: {summary['changed']}")
 
         return {
@@ -603,7 +635,7 @@ async def api_check_pdf(request: Request, file: UploadFile = File(...)):
         checks.append({"check": "Пустые страницы отсутствуют",
                        "passed": type_counts.get('пустая', 0) == 0})
 
-        log_activity("check_pdf", file.filename,
+        await log_activity("check_pdf", file.filename,
                      f"Страниц: {total_pages}, позиций: {len(all_positions)}")
 
         return {
@@ -648,7 +680,7 @@ async def api_parse_kmd(request: Request, file: UploadFile = File(...)):
                 "glass": pos.get("glass", []),
             })
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"Позиций: {result['total_positions']}, артикулов: {result['articles_count']}")
 
         return {
@@ -682,7 +714,7 @@ async def api_parse_dxf(file: UploadFile = File(...)):
     try:
         result = parse_dxf_for_web(str(path))
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"DXF: слоёв {len(result['layers'])}, текстов {len(result['texts'])}, "
                      f"размеров {len(result['dimensions'])}, блоков {len(result['blocks'])}")
 
@@ -797,7 +829,7 @@ async def api_ocr_parse(file: UploadFile = File(...)):
             "articles_count": len(all_articles),
         }
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"OCR: {ocr_page_count} стр., позиций: {len(all_positions)}, "
                      f"артикулов: {len(all_articles)}")
 
@@ -1169,7 +1201,7 @@ async def api_checklist(request: Request, file: UploadFile = File(...)):
         passed_weight = sum(c.get("weight", 2) for c in checks if c["passed"])
         overall_score = round(passed_weight / total_weight * 100, 1) if total_weight else 0.0
 
-        log_activity("checklist", file.filename,
+        await log_activity("checklist", file.filename,
                      f"Оценка: {overall_score}%, пройдено: {passed_checks}/{total_checks}")
 
         return {
@@ -1361,7 +1393,7 @@ async def api_cross_validate(
             "match_rate": match_rate,
         }
 
-        log_activity(
+        await log_activity(
             "cross_validate",
             f"{drawing.filename} / {spec.filename}",
             f"Совпадений: {matched_count}, расхождений: {len(qty_mismatches)}, "
@@ -1411,7 +1443,7 @@ async def api_rag_validate(file: UploadFile = File(...)):
             articles=articles,
         )
 
-        log_activity("rag_validate", file.filename, f"RAG validation: {len(articles)} articles")
+        await log_activity("rag_validate", file.filename, f"RAG validation: {len(articles)} articles")
 
         return {
             "status": "ok",
@@ -1435,16 +1467,27 @@ async def api_validate_articles(payload: dict):
     if not articles:
         raise HTTPException(status_code=400, detail="Список артикулов пуст")
 
+    # Check cache
+    cache_key = _make_key("rag_articles", *sorted(articles[:50]))
+    cached = await cache_get(cache_key)
+    if cached:
+        return json.loads(cached)
+
     results = await validate_articles_batch(articles[:50])
     valid_count = sum(1 for r in results if r.get("valid"))
 
-    return {
+    response = {
         "status": "ok",
         "total": len(results),
         "valid": valid_count,
         "invalid": len(results) - valid_count,
         "results": results,
     }
+
+    # Cache the result
+    await cache_set(cache_key, json.dumps(response, default=str))
+
+    return response
 
 
 # ============== 7b. RULE ENGINE VALIDATION ==============
@@ -1808,7 +1851,7 @@ async def api_compare_pdf(
             "overall_similarity": overall_sim,
         }
 
-        log_activity(
+        await log_activity(
             "compare_pdf",
             f"{file_a.filename} / {file_b.filename}",
             f"Удалено: {len(deleted_pages)}, добавлено: {len(added_pages)}, "
@@ -2071,7 +2114,7 @@ async def api_batch_process(request: Request, file: UploadFile = File(...)):
         critical_count = sum(1 for i in all_issues if i["severity"] == "critical")
         warning_count = sum(1 for i in all_issues if i["severity"] == "warning")
 
-        log_activity(
+        await log_activity(
             "batch",
             file.filename,
             f"Файлов: {total_files}, PDF: {len(files_found['pdf'])}, "
@@ -2377,7 +2420,7 @@ async def api_generate_spec(request: Request, file: UploadFile = File(...)):
             ),
         }
 
-        log_activity(
+        await log_activity(
             "generate_spec", file.filename,
             f"Позиций: {len(positions)}, артикулов: {len(all_articles_set)}, "
             f"изделий: {total_qty}",
@@ -2511,7 +2554,7 @@ async def api_preview_3d(params: dict):
         counters["preview_3d"] += 1
         scene = _build_scene(params)
         ctype = params.get("construction_type", "окно")
-        log_activity(
+        await log_activity(
             "preview_3d", f"{ctype}",
             f"{scene['frame']['width']}x{scene['frame']['height']} мм, "
             f"секций: {len(scene['sections'])}",
@@ -2626,7 +2669,7 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
         scene = _build_scene(params)
 
         counters["preview_3d"] += 1
-        log_activity(
+        await log_activity(
             "preview_3d", file.filename,
             f"PDF -> {construction_type} {width_mm}x{height_mm} мм, "
             f"секций: {len(sections)}",
@@ -2824,7 +2867,7 @@ async def api_optimize_cutting(req: CuttingRequest):
     """Оптимизировать раскрой профилей (ручной ввод)."""
     try:
         result = _optimize_cutting(req)
-        log_activity(
+        await log_activity(
             "optimize_cutting", "manual",
             f"Хлыстов: {result['total_bars_needed']}, отходы: {result['waste_percent']}%",
         )
@@ -2912,7 +2955,7 @@ async def api_optimize_cutting_from_pdf(
         result["extracted_articles"] = unique_articles
         result["extracted_cuts"] = cuts_list
 
-        log_activity(
+        await log_activity(
             "optimize_cutting", file.filename,
             f"Артикулов: {len(unique_articles)}, хлыстов: {result['total_bars_needed']}, "
             f"отходы: {result['waste_percent']}%",
@@ -3469,7 +3512,7 @@ async def api_recommend_profile(data: dict):
                 "Огнестойкие исполнения доступны не во всех системах — уточняйте у производителя"
             )
 
-        log_activity(
+        await log_activity(
             "recommend_profile",
             f"{construction_type} {width_mm}x{height_mm}",
             f"Найдено {len(scored)} систем, лучшая: {scored[0]['system']} ({scored[0]['score']})",
@@ -3495,6 +3538,12 @@ async def api_recommend_profile(data: dict):
 async def api_calc_thermal(request: Request, data: dict):
     """Расчёт приведённого сопротивления теплопередаче по ГОСТ 26602.1 / ГОСТ 23166."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_thermal", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         profile_uf = float(data.get("profile_uf", 1.3))
         glass_ug = float(data.get("glass_ug", 1.0))
         glass_area_m2 = float(data.get("glass_area_m2", 2.5))
@@ -3536,10 +3585,10 @@ async def api_calc_thermal(request: Request, data: dict):
 
         meets_requirement = uw <= 1.8  # typical requirement for most Russian climate zones
 
-        log_activity("calc_thermal", f"Uw={uw}",
+        await log_activity("calc_thermal", f"Uw={uw}",
                      f"Класс {classification}, Uw={uw} Вт/(м²·К)")
 
-        return {
+        result = {
             "status": "ok",
             "uw": uw,
             "uf": profile_uf,
@@ -3551,6 +3600,9 @@ async def api_calc_thermal(request: Request, data: dict):
             "total_area_m2": round(total_area, 2),
             "glass_fraction": round(glass_area_m2 / total_area * 100, 1),
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3588,6 +3640,12 @@ def _interpolate_kz(height_m: float, terrain: str) -> float:
 async def api_calc_wind(request: Request, data: dict):
     """Расчёт ветровой нагрузки по СП 20.13330.2016."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_wind", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         wind_region = data.get("wind_region", "III")
         terrain = data.get("terrain", "B")
         height_m = float(data.get("height_m", 36))
@@ -3638,10 +3696,10 @@ async def api_calc_wind(request: Request, data: dict):
         else:
             required_ix_cm4 = 0
 
-        log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
+        await log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
                      f"P={wind_pressure_pa} Па, F={panel_load_n} Н")
 
-        return {
+        result = {
             "status": "ok",
             "w0": w0,
             "w0_pa": round(w0 * 1000),
@@ -3659,6 +3717,9 @@ async def api_calc_wind(request: Request, data: dict):
             "zone": zone,
             "wind_region": wind_region,
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3710,6 +3771,12 @@ _SASH_WEIGHT_LIMITS = {
 async def api_calc_sash_weight(request: Request, data: dict):
     """Расчёт веса створки."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_sash", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         width_mm = float(data.get("width_mm", 800))
         height_mm = float(data.get("height_mm", 1400))
         profile_weight_kg_m = float(data.get("profile_weight_kg_m", 1.8))
@@ -3747,10 +3814,10 @@ async def api_calc_sash_weight(request: Request, data: dict):
         if glass_area_m2 > 3.0:
             warnings.append(f"Площадь остекления {glass_area_m2:.2f} м² — проверьте допуски стеклопакета")
 
-        log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
+        await log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
                      f"Вес: {total_weight} кг, стекло: {glass_formula}")
 
-        return {
+        result = {
             "status": "ok",
             "profile_weight": profile_weight,
             "glass_weight": glass_weight,
@@ -3763,6 +3830,9 @@ async def api_calc_sash_weight(request: Request, data: dict):
             "max_allowed": max_allowed,
             "warnings": warnings,
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3796,6 +3866,12 @@ _GLASS_DATABASE = [
 async def api_calc_glass(request: Request, data: dict):
     """Подбор оптимального стеклопакета по параметрам."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_glass", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         width_mm = int(data.get("width_mm", 1200))
         height_mm = int(data.get("height_mm", 1800))
         wind_pressure_pa = float(data.get("wind_pressure_pa", 800))
@@ -3896,10 +3972,10 @@ async def api_calc_glass(request: Request, data: dict):
         if wind_pressure_pa > 1200:
             warnings.append("При ветровом давлении > 1200 Па рекомендуется утолщённое стекло (8+ мм)")
 
-        log_activity("calc_glass", f"{width_mm}x{height_mm}",
+        await log_activity("calc_glass", f"{width_mm}x{height_mm}",
                      f"Лучшее: {recommendations[0]['formula']} (score={recommendations[0]['score']})")
 
-        return {
+        result = {
             "status": "ok",
             "recommendations": recommendations[:8],
             "total_variants": len(_GLASS_DATABASE),
@@ -3913,6 +3989,9 @@ async def api_calc_glass(request: Request, data: dict):
                 "safety_required": safety_required,
             },
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3934,6 +4013,12 @@ _ANCHOR_CAPACITY = {
 async def api_calc_fasteners(request: Request, data: dict):
     """Расчёт крепежа оконной/дверной рамы по ГОСТ."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_fasteners", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         frame_width_mm = float(data.get("frame_width_mm", 1500))
         frame_height_mm = float(data.get("frame_height_mm", 2100))
         weight_kg = float(data.get("weight_kg", 85))
@@ -3985,10 +4070,10 @@ async def api_calc_fasteners(request: Request, data: dict):
         if frame_height_mm > 2500:
             warnings.append("При высоте рамы > 2.5 м рекомендуется дополнительное промежуточное крепление")
 
-        log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
+        await log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
                      f"Анкеров: {total_anchors}, запас: {safety_margin}x")
 
-        return {
+        result = {
             "status": "ok",
             "total_anchors": total_anchors,
             "spacing_mm": actual_spacing,
@@ -4004,6 +4089,9 @@ async def api_calc_fasteners(request: Request, data: dict):
             "wall_type_warnings": warnings,
             "frame_area_m2": round(frame_area_m2, 2),
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -4110,7 +4198,7 @@ async def api_ai_review(request: Request, file: UploadFile = File(...)):
         model = DEFAULT_LLM_MODEL
         review_text = await _call_llm(messages, model=model, max_tokens=4000)
 
-        log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
+        await log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
         return {"status": "ok", "review_text": review_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4161,7 +4249,7 @@ async def api_ai_generate_note(request: Request, file: UploadFile = File(...)):
         model = DEFAULT_LLM_MODEL
         note_text = await _call_llm(messages, model=model, max_tokens=6000)
 
-        log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
+        await log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
         return {"status": "ok", "note_text": note_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4231,7 +4319,7 @@ async def api_ai_gost(request: Request, payload: dict):
             for m in re.finditer(pat, answer):
                 norms.add(m.group())
 
-        log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
+        await log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
         return {
             "status": "ok",
             "answer": answer,
@@ -4294,7 +4382,7 @@ async def api_ai_hardware(request: Request, payload: dict):
             except json.JSONDecodeError:
                 pass
 
-        log_activity("ai_hardware", "params", f"AI фурнитура: {construction_type} {profile_system}")
+        await log_activity("ai_hardware", "params", f"AI фурнитура: {construction_type} {profile_system}")
         return {
             "status": "ok",
             "recommendations": recommendations,
@@ -4360,7 +4448,7 @@ async def api_ai_compare_visual(
         model = DEFAULT_LLM_MODEL
         comparison_text = await _call_llm(messages, model=model, max_tokens=4000)
 
-        log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
+        await log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
         return {"status": "ok", "comparison_text": comparison_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4453,7 +4541,7 @@ async def api_ai_generate_kmd(request: Request, payload: dict):
         model = DEFAULT_LLM_MODEL
         kmd_document = await _call_llm(messages, model=model, max_tokens=8000)
 
-        log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
+        await log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
         return {
             "status": "ok",
             "kmd_document": kmd_document,
@@ -4572,7 +4660,7 @@ async def api_ai_translate(request: Request, payload: dict):
         else:
             translated_text = result_text
 
-        log_activity("ai_translate", direction, f"AI перевод КМД ({direction})")
+        await log_activity("ai_translate", direction, f"AI перевод КМД ({direction})")
         return {
             "status": "ok",
             "translated_text": translated_text,
@@ -4591,18 +4679,58 @@ async def api_ai_translate(request: Request, payload: dict):
 
 # ============== F13. KMD VERSIONING ==============
 
-def _load_versions_db() -> dict:
-    """Load versions metadata from JSON file."""
-    if VERSIONS_JSON.exists():
-        return json.loads(VERSIONS_JSON.read_text(encoding="utf-8"))
-    return {}
+async def _load_versions_for_file(filename: str) -> list[dict]:
+    """Load all versions of a file from DB."""
+    async with async_session() as session:
+        stmt = select(DocumentVersion).where(
+            DocumentVersion.filename == filename
+        ).order_by(DocumentVersion.version)
+        result = await session.execute(stmt)
+        return [
+            {
+                "version": v.version,
+                "filename": v.filename,
+                "stored_as": Path(v.file_path).name,
+                "date": v.created_at.isoformat(timespec="seconds") if v.created_at else "",
+                "text_hash": v.file_hash or "",
+            }
+            for v in result.scalars().all()
+        ]
 
 
-def _save_versions_db(db: dict):
-    """Save versions metadata to JSON file (atomic write)."""
-    tmp = VERSIONS_JSON.with_suffix(".tmp")
-    tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(VERSIONS_JSON)
+async def _load_all_versions() -> dict[str, list[dict]]:
+    """Load all versions grouped by filename from DB."""
+    async with async_session() as session:
+        stmt = select(DocumentVersion).order_by(
+            DocumentVersion.filename, DocumentVersion.version
+        )
+        result = await session.execute(stmt)
+        grouped: dict[str, list[dict]] = {}
+        for v in result.scalars().all():
+            entry = {
+                "version": v.version,
+                "filename": v.filename,
+                "stored_as": Path(v.file_path).name,
+                "date": v.created_at.isoformat(timespec="seconds") if v.created_at else "",
+                "text_hash": v.file_hash or "",
+            }
+            grouped.setdefault(v.filename, []).append(entry)
+        return grouped
+
+
+async def _save_version_to_db(filename: str, version_num: int, file_path: str, file_hash: str, project_id: int = None):
+    """Save a new version entry to DB."""
+    async with async_session() as session:
+        entry = DocumentVersion(
+            filename=filename,
+            version=version_num,
+            file_path=file_path,
+            file_hash=file_hash,
+            project_id=project_id,
+        )
+        session.add(entry)
+        await session.commit()
+        return entry
 
 
 @app.post("/api/versioning/upload", tags=["Analytics & Projects"], summary="Upload document version")
@@ -4622,13 +4750,19 @@ async def api_versioning_upload(file: UploadFile = File(...)):
 
         text_hash = hashlib.sha256(full_text.encode("utf-8")).hexdigest()[:16]
 
-        db = _load_versions_db()
-        versions = db.get(original_name, [])
+        versions = await _load_versions_for_file(original_name)
         version_num = len(versions) + 1
 
         versioned_filename = f"v{version_num}_{uuid.uuid4().hex[:6]}_{original_name}"
         dest = VERSIONS_DIR / versioned_filename
         shutil.copy2(str(path), str(dest))
+
+        await _save_version_to_db(
+            filename=original_name,
+            version_num=version_num,
+            file_path=str(dest),
+            file_hash=text_hash,
+        )
 
         version_entry = {
             "version": version_num,
@@ -4639,11 +4773,8 @@ async def api_versioning_upload(file: UploadFile = File(...)):
             "page_count": page_count,
             "text_length": len(full_text),
         }
-        versions.append(version_entry)
-        db[original_name] = versions
-        _save_versions_db(db)
 
-        log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
+        await log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
 
         return {"status": "ok", "version": version_num, "entry": version_entry}
 
@@ -4657,11 +4788,11 @@ async def api_versioning_upload(file: UploadFile = File(...)):
 @app.get("/api/versioning/history", tags=["Analytics & Projects"], summary="Get version history")
 async def api_versioning_history(request: Request, filename: str = ""):
     """Return version history for a file or all files."""
-    db = _load_versions_db()
     if filename:
-        versions = db.get(filename, [])
+        versions = await _load_versions_for_file(filename)
         return {"status": "ok", "filename": filename, "versions": versions}
     # Return all files with their versions
+    db = await _load_all_versions()
     result = []
     for fname, versions in db.items():
         result.append({"filename": fname, "versions_count": len(versions), "versions": versions})
@@ -4673,11 +4804,10 @@ async def api_versioning_diff(v1: str, v2: str, filename: str = ""):
     """Compare text of two versions. v1 and v2 are version numbers."""
     import fitz
 
-    db = _load_versions_db()
     if not filename:
         raise HTTPException(status_code=400, detail="Укажите filename параметр")
 
-    versions = db.get(filename, [])
+    versions = await _load_versions_for_file(filename)
     v1_num, v2_num = int(v1), int(v2)
 
     entry1 = next((v for v in versions if v["version"] == v1_num), None)
@@ -4864,7 +4994,7 @@ async def api_generate_requisition(file: UploadFile = File(...)):
         result_path = RESULTS_DIR / result_name
         wb.save(str(result_path))
 
-        log_activity("requisition", file.filename, f"Найдено {len(articles)} артикулов")
+        await log_activity("requisition", file.filename, f"Найдено {len(articles)} артикулов")
 
         return {
             "status": "ok",
@@ -4882,6 +5012,24 @@ async def api_generate_requisition(file: UploadFile = File(...)):
 
 # ============== F15. PROJECT TRACKER ==============
 
+
+def _project_to_dict(p: ProjectModel) -> dict:
+    """Convert a ProjectModel ORM instance to a frontend-compatible dict."""
+    extra = p.stages or {}
+    return {
+        "id": p.id,
+        "name": p.name,
+        "customer": p.customer or "",
+        "address": p.address or "",
+        "positions_count": extra.get("positions_count", 0),
+        "deadline": extra.get("deadline", ""),
+        "status": p.status,
+        "status_index": PROJECT_STAGES.index(p.status) if p.status in PROJECT_STAGES else 0,
+        "created_at": p.created_at.isoformat(timespec="seconds") if p.created_at else "",
+        "status_history": extra.get("status_history", []),
+    }
+
+
 @app.post("/api/projects/create", tags=["Analytics & Projects"], summary="Create project")
 async def api_project_create(data: dict):
     """Create a new project."""
@@ -4890,24 +5038,33 @@ async def api_project_create(data: dict):
         if field not in data:
             raise HTTPException(status_code=400, detail=f"Поле '{field}' обязательно")
 
-    project = {
-        "id": str(uuid.uuid4().hex[:8]),
-        "name": data["name"],
-        "customer": data["customer"],
-        "address": data["address"],
-        "positions_count": int(data["positions_count"]),
-        "deadline": data["deadline"],
-        "status": PROJECT_STAGES[0],
-        "status_index": 0,
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-        "status_history": [
-            {"stage": PROJECT_STAGES[0], "timestamp": datetime.now().isoformat(timespec="seconds")}
-        ],
-    }
+    now_ts = datetime.now().isoformat(timespec="seconds")
+    status_history = [{"stage": PROJECT_STAGES[0], "timestamp": now_ts}]
+
+    db_project = ProjectModel(
+        name=data["name"],
+        customer=data["customer"],
+        address=data["address"],
+        status=PROJECT_STAGES[0],
+        stages={
+            "positions_count": int(data["positions_count"]),
+            "deadline": data["deadline"],
+            "status_history": status_history,
+        },
+    )
+
+    async with async_session() as session:
+        session.add(db_project)
+        await session.commit()
+        await session.refresh(db_project)
+
+    project = _project_to_dict(db_project)
+
+    # Update in-memory cache for backward compat
     projects_list.insert(0, project)
     if len(projects_list) > 500:
         projects_list.pop()
-    log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
+    await log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
     return {"status": "ok", "project": project}
 
 
@@ -4915,29 +5072,57 @@ async def api_project_create(data: dict):
 @app.get("/api/projects/list", tags=["Analytics & Projects"], summary="List all projects")
 async def api_projects_list(request: Request):
     """Return all projects with statuses."""
-    return {"status": "ok", "projects": projects_list, "stages": PROJECT_STAGES}
+    async with async_session() as session:
+        result = await session.execute(
+            select(ProjectModel).order_by(ProjectModel.created_at.desc())
+        )
+        db_projects = result.scalars().all()
+
+    projects = [_project_to_dict(p) for p in db_projects]
+
+    # Sync in-memory cache
+    projects_list.clear()
+    projects_list.extend(projects)
+
+    return {"status": "ok", "projects": projects, "stages": PROJECT_STAGES}
 
 
 @app.post("/api/projects/{project_id}/update-status", tags=["Analytics & Projects"], summary="Update project status")
-async def api_project_update_status(project_id: str):
+async def api_project_update_status(project_id: int):
     """Move project to next stage."""
-    project = next((p for p in projects_list if p["id"] == project_id), None)
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    async with async_session() as session:
+        db_project = await session.get(ProjectModel, project_id)
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Проект не найден")
 
-    current_idx = project["status_index"]
-    if current_idx >= len(PROJECT_STAGES) - 1:
-        return {"status": "ok", "message": "Проект уже завершён", "project": project}
+        current_idx = PROJECT_STAGES.index(db_project.status) if db_project.status in PROJECT_STAGES else 0
+        if current_idx >= len(PROJECT_STAGES) - 1:
+            return {"status": "ok", "message": "Проект уже завершён", "project": _project_to_dict(db_project)}
 
-    next_idx = current_idx + 1
-    project["status"] = PROJECT_STAGES[next_idx]
-    project["status_index"] = next_idx
-    project["status_history"].append({
-        "stage": PROJECT_STAGES[next_idx],
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-    })
+        next_idx = current_idx + 1
+        db_project.status = PROJECT_STAGES[next_idx]
 
-    log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
+        stages_data = dict(db_project.stages or {})  # copy to ensure new identity
+        history = list(stages_data.get("status_history", []))
+        history.append({
+            "stage": PROJECT_STAGES[next_idx],
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+        })
+        stages_data["status_history"] = history
+        db_project.stages = stages_data  # new dict = triggers SQLAlchemy change detection
+
+        await session.commit()
+        await session.refresh(db_project)
+
+    project = _project_to_dict(db_project)
+
+    # Update in-memory cache
+    for i, p in enumerate(projects_list):
+        if p.get("id") == project_id:
+            projects_list[i] = project
+            break
+
+    await log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
     return {"status": "ok", "project": project}
 
 
@@ -5057,7 +5242,7 @@ async def api_generate_act(data: dict):
     result_path = RESULTS_DIR / result_name
     doc.save(str(result_path))
 
-    log_activity("act_gen", data["project_name"], f"Акт КС-2: {len(works)} работ, {total_sum:.2f} руб.")
+    await log_activity("act_gen", data["project_name"], f"Акт КС-2: {len(works)} работ, {total_sum:.2f} руб.")
 
     return {
         "status": "ok",
@@ -5205,7 +5390,7 @@ async def api_generate_cnc(data: dict):
     result_path = RESULTS_DIR / result_name
     result_path.write_text(program_text, encoding="utf-8")
 
-    log_activity("cnc", f"{len(cuts)} позиций", f"ЧПУ программа: {total_operations} операций, {machine_type}")
+    await log_activity("cnc", f"{len(cuts)} позиций", f"ЧПУ программа: {total_operations} операций, {machine_type}")
 
     return {
         "status": "ok",
@@ -5281,7 +5466,7 @@ async def api_generate_qr(data: dict):
 
     labels_html += "</div></body></html>"
 
-    log_activity("qr_labels", f"{len(positions)} позиций", f"Маркировка: {len(positions)} этикеток")
+    await log_activity("qr_labels", f"{len(positions)} позиций", f"Маркировка: {len(positions)} этикеток")
 
     return {
         "status": "ok",
@@ -5381,7 +5566,7 @@ async def api_generate_photo_report(data: dict):
     result_path = RESULTS_DIR / result_name
     wb.save(str(result_path))
 
-    log_activity("photo_report", project_name, f"Фотоотчёт: {len(positions)} позиций")
+    await log_activity("photo_report", project_name, f"Фотоотчёт: {len(positions)} позиций")
 
     return {
         "status": "ok",
@@ -5795,11 +5980,63 @@ async def api_node_detail(request: Request, node_type: str):
 @limiter.limit("30/minute")
 @app.get("/api/stats", tags=["Analytics & Projects"], summary="Get usage statistics")
 async def api_stats(request: Request):
-    """Вернуть счётчики и последние операции."""
+    """Вернуть счётчики и последние операции (из БД с пагинацией)."""
+    page = int(request.query_params.get("page", 1))
+    per_page = min(int(request.query_params.get("per_page", 20)), 100)
+    offset = (page - 1) * per_page
+
+    try:
+        async with async_session() as session:
+            # Get counters from DB grouped by operation
+            stmt = select(
+                ActivityLogModel.operation,
+                sa_func.count(ActivityLogModel.id),
+            ).group_by(ActivityLogModel.operation)
+            result = await session.execute(stmt)
+            db_counters = dict(result.all())
+
+            # Total rows for pagination metadata
+            total_stmt = select(sa_func.count(ActivityLogModel.id))
+            total_result = await session.execute(total_stmt)
+            total_rows = total_result.scalar() or 0
+
+            # Recent entries with pagination
+            stmt = (
+                select(ActivityLogModel)
+                .order_by(ActivityLogModel.timestamp.desc())
+                .offset(offset)
+                .limit(per_page)
+            )
+            result = await session.execute(stmt)
+            recent = [
+                {
+                    "timestamp": row.timestamp.isoformat(timespec="seconds"),
+                    "type": row.operation,
+                    "filename": row.file_name or "",
+                    "summary": row.result_summary or "",
+                }
+                for row in result.scalars().all()
+            ]
+    except Exception:
+        # Fallback to in-memory data if DB is unavailable
+        db_counters = {}
+        total_rows = len(activity_log)
+        recent = activity_log[offset : offset + per_page]
+
+    # Merge in-memory counters with DB counters
+    merged = {**counters}
+    for k, v in db_counters.items():
+        merged[k] = max(merged.get(k, 0), v)
+
     return {
-        "counters": counters,
-        "total_operations": sum(counters.values()),
-        "recent": activity_log[:20],
+        "counters": merged,
+        "total_operations": sum(merged.values()),
+        "recent": recent,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total_rows,
+        },
     }
 
 
