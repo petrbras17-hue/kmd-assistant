@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Добавляем tools в путь
@@ -1424,6 +1424,11 @@ async def api_batch_process(file: UploadFile = File(...)):
                     status_code=400,
                     detail="Распакованный размер слишком велик",
                 )
+            # Zip-slip protection: validate all paths before extraction
+            for member in zf.infolist():
+                member_path = Path(tmp_dir) / member.filename
+                if not member_path.resolve().is_relative_to(Path(tmp_dir).resolve()):
+                    raise HTTPException(status_code=400, detail="ZIP содержит небезопасные пути")
             zf.extractall(tmp_dir)
 
         # Классификация файлов
@@ -3665,6 +3670,8 @@ async def api_calc_fasteners(data: dict):
 
 async def _call_llm(messages: list[dict], model: str = "google/gemini-2.0-flash-001", max_tokens: int = 4000) -> str:
     """Call OpenRouter API and return the response text."""
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=503, detail="OpenRouter API key не настроен. Добавьте OPENROUTER_API_KEY в .env")
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             OPENROUTER_URL,
@@ -3702,8 +3709,8 @@ def _pdf_pages_to_base64(pdf_path: str, max_pages: int = 3) -> list[str]:
 @app.post("/api/ai-review")
 async def api_ai_review(file: UploadFile = File(...)):
     """AI review of a KMD drawing PDF."""
+    path = save_upload(file)
     try:
-        path = save_upload(file)
         text = extract_text_from_pdf(str(path))
         images_b64 = _pdf_pages_to_base64(str(path), max_pages=3)
 
@@ -3737,8 +3744,12 @@ async def api_ai_review(file: UploadFile = File(...)):
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
 
 
 # ============== F2: AI EXPLANATORY NOTE GENERATOR ==============
@@ -3746,8 +3757,8 @@ async def api_ai_review(file: UploadFile = File(...)):
 @app.post("/api/ai-generate-note")
 async def api_ai_generate_note(file: UploadFile = File(...)):
     """AI-generated explanatory note (пояснительная записка) from a KMD PDF."""
+    path = save_upload(file)
     try:
-        path = save_upload(file)
         text = extract_text_from_pdf(str(path))
         images_b64 = _pdf_pages_to_base64(str(path), max_pages=3)
 
@@ -3783,8 +3794,12 @@ async def api_ai_generate_note(file: UploadFile = File(...)):
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
 
 
 # ============== F3: AI GOST ASSISTANT ==============
@@ -3912,10 +3927,9 @@ async def api_ai_compare_visual(
     file_b: UploadFile = File(...),
 ):
     """AI visual comparison of two KMD drawing PDFs."""
+    path_a = save_upload(file_a)
+    path_b = save_upload(file_b)
     try:
-        path_a = save_upload(file_a)
-        path_b = save_upload(file_b)
-
         images_a = _pdf_pages_to_base64(str(path_a), max_pages=3)
         images_b = _pdf_pages_to_base64(str(path_b), max_pages=3)
 
@@ -3958,8 +3972,13 @@ async def api_ai_compare_visual(
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path_a.unlink(missing_ok=True)
+        path_b.unlink(missing_ok=True)
 
 
 # ============== F6: AI KMD GENERATION ==============
@@ -4185,8 +4204,10 @@ def _load_versions_db() -> dict:
 
 
 def _save_versions_db(db: dict):
-    """Save versions metadata to JSON file."""
-    VERSIONS_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+    """Save versions metadata to JSON file (atomic write)."""
+    tmp = VERSIONS_JSON.with_suffix(".tmp")
+    tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(VERSIONS_JSON)
 
 
 @app.post("/api/versioning/upload")
@@ -4489,6 +4510,8 @@ async def api_project_create(data: dict):
         ],
     }
     projects_list.insert(0, project)
+    if len(projects_list) > 500:
+        projects_list.pop()
     log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
     return {"status": "ok", "project": project}
 
@@ -4841,11 +4864,13 @@ async def api_generate_qr(data: dict):
 <div class="labels-grid">
 """
 
+    import html as _html
+
     for pos in positions:
-        pos_id = pos.get("id", "N/A")
-        desc = pos.get("description", "")
-        article = pos.get("article", "")
-        qty = pos.get("quantity", 1)
+        pos_id = _html.escape(str(pos.get("id", "N/A")))
+        desc = _html.escape(str(pos.get("description", "")))
+        article = _html.escape(str(pos.get("article", "")))
+        qty = int(pos.get("quantity", 1))
         data_str = json.dumps({"id": pos_id, "art": article, "qty": qty}, ensure_ascii=False)
         # Simple barcode-style representation using article digits
         barcode_repr = "".join(f"{'|' if int(c) % 2 == 0 else ':'}" for c in article if c.isdigit()) if article else "|||::|||"
@@ -5392,6 +5417,76 @@ async def download_result(filename: str):
         raise HTTPException(status_code=404, detail="Файл не найден")
     return FileResponse(path, filename=safe_name,
                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ============== AI CHAT ASSISTANT ==============
+
+MODULE_DESCRIPTIONS = {
+    "compare": "Сравнение двух заказных спецификаций XLSX. Находит расхождения по артикулам, количеству, цветам.",
+    "check": "Проверка комплектности PDF чертежей КМД — определяет типы страниц, наличие спецификаций, позиций.",
+    "parse": "Парсинг КМД из PDF/DXF — извлечение позиций, артикулов, размеров, штампов чертежей.",
+    "crossval": "Кросс-валидация: сверка данных из чертежа PDF/DXF со спецификацией XLSX.",
+    "comparepdf": "Сравнение двух версий PDF — находит текстовые различия между ревизиями чертежей.",
+    "genspec": "Генерация спецификации XLSX из PDF чертежа — автоматическое создание ведомости.",
+    "batch": "Пакетная обработка ZIP-архива с чертежами — анализ всех PDF/DXF/XLSX разом.",
+    "checklist": "Чек-лист КМД по 31 критерию в 7 категориях — оценка качества документации с весами.",
+    "thermal": "Расчёт приведённого сопротивления теплопередаче Uw по ГОСТ 26602.1 / SP 50.13330.",
+    "wind": "Расчёт ветровой нагрузки по SP 20.13330.2016 с учётом района, местности, высоты, зоны.",
+    "sashweight": "Расчёт массы створки — профили, стеклопакет, фурнитура. Проверка ограничений.",
+    "glass": "Подбор формулы стеклопакета по нагрузке, теплотехнике, звукоизоляции. 17 формул.",
+    "fasteners": "Расчёт крепежа — анкеры/кронштейны по ГОСТ 30971 для бетона/кирпича/газобетона.",
+    "preview3d": "3D визуализация конструкции в Three.js — окна, витражи, двери с размерами.",
+    "cutting": "Оптимизация раскроя профиля — алгоритм FFD, карты реза, статистика отходов.",
+    "profileai": "Подбор профильной системы — 18 реальных систем (Reynaers, Schuco, Alutech, TATPROF).",
+    "aireview": "AI ревью чертежа — vision-модель находит ошибки, пропуски, несоответствия ГОСТ.",
+    "ainote": "AI генерация пояснительной записки (ПЗ) по ГОСТ 21.502 из чертежа.",
+    "aigost": "AI консультант по ГОСТ/СП/СНиП — отвечает на вопросы по нормативам.",
+    "aihardware": "AI подбор фурнитуры по параметрам створки — Roto, Siegenia, Maco, GU.",
+    "aicompare": "AI визуальное сравнение двух чертежей — находит все отличия.",
+    "aigenkmd": "AI генерация КМД документации из технического задания.",
+    "aitranslate": "AI перевод КМД терминологии ГОСТ <-> EN (Eurocode).",
+    "versioning": "Версионирование КМД — загрузка ревизий, сравнение версий, история изменений.",
+    "requisition": "Автоматическая заявка на материалы из PDF чертежа — XLSX ведомость.",
+    "projects": "Трекер проектов — канбан от замера до сдачи объекта.",
+    "actgen": "Генерация актов приёмки-сдачи работ в DOCX.",
+    "cnc": "Генерация программ ЧПУ (G-code) для пильных и фрезерных центров.",
+    "qrlabels": "Маркировка позиций — генерация этикеток с данными для печати.",
+    "photoreport": "Шаблон фотоотчёта XLSX для мобильной фиксации монтажа.",
+    "nodeslibrary": "Библиотека стандартных узлов — 8 типов с SVG схемами и описаниями.",
+    "dashboard": "Дашборд — счётчики операций, последние действия, статистика использования.",
+}
+
+
+@app.post("/api/ai-chat")
+async def api_ai_chat(payload: dict):
+    """AI chat assistant that explains modules and answers KMD questions."""
+    question = payload.get("question", "").strip()
+    context_tab = payload.get("context", "")
+
+    if not question:
+        raise HTTPException(status_code=400, detail="Введите вопрос")
+
+    # Build context about available modules
+    module_context = "\n".join(f"- {k}: {v}" for k, v in MODULE_DESCRIPTIONS.items())
+    current_module = MODULE_DESCRIPTIONS.get(context_tab, "")
+
+    messages = [{"role": "user", "content": (
+        "Ты AI-помощник платформы KMD Assistant от ALDMEGA LAB для инженеров алюминиевых конструкций. "
+        "Отвечай кратко, по делу, на русском. Ты эксперт в КМД, ГОСТ, алюминиевых окнах/витражах/фасадах.\n\n"
+        f"Доступные модули платформы:\n{module_context}\n\n"
+        f"Пользователь сейчас на вкладке: {context_tab} — {current_module}\n\n"
+        f"Вопрос пользователя: {question}"
+    )}]
+
+    try:
+        answer = await _call_llm(messages, model="google/gemini-2.0-flash-001", max_tokens=2000)
+        return {"status": "ok", "answer": answer}
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter: {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

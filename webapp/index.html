@@ -105,37 +105,221 @@
         .geo-float-2 { animation: float2 15s ease-in-out infinite; }
         .geo-float-3 { animation: float3 10s ease-in-out infinite; }
 
-        /* Glass nav */
+        /* Glass nav - top bar */
         .glass-nav {
-            background: rgba(245, 242, 236, 0.85);
+            background: rgba(245, 242, 236, 0.92);
             backdrop-filter: blur(20px) saturate(1.2);
             -webkit-backdrop-filter: blur(20px) saturate(1.2);
             border-bottom: 1px solid rgba(26,26,20,0.06);
         }
 
-        /* Tab button */
-        .tab-btn {
-            position: relative;
-            padding: 0.5rem 1rem;
-            font-size: 0.6875rem;
-            font-weight: 500;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #9A9A8C;
-            transition: color 0.3s ease;
-            white-space: nowrap;
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: #1A1A14;
+            z-index: 100;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #3D3D32 transparent;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .tab-btn:hover { color: #2A2A22; }
-        .tab-btn.active { color: #B8963B; }
-        .tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 1rem;
-            right: 1rem;
-            height: 2px;
-            background: #B8963B;
-            animation: drawLine 0.3s ease both;
+        .sidebar.collapsed { transform: translateX(-280px); }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #3D3D32; border-radius: 2px; }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26,26,20,0.4);
+            backdrop-filter: blur(4px);
+            z-index: 99;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Sidebar search */
+        .sidebar-search {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            color: #EEEEE9;
+            font-size: 0.8125rem;
+            padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .sidebar-search::placeholder { color: #717164; }
+        .sidebar-search:focus { border-color: #B8963B; }
+
+        /* Category */
+        .nav-category {
+            font-size: 0.5625rem;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #717164;
+            padding: 0.75rem 1.25rem 0.35rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+        .nav-category:hover { color: #9A9A8C; }
+        .nav-category .cat-chevron {
+            transition: transform 0.2s ease;
+            font-size: 0.5rem;
+        }
+        .nav-category .cat-chevron.open { transform: rotate(90deg); }
+
+        /* Nav item */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 1.25rem;
+            font-size: 0.8125rem;
+            color: #C4C4B8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 2px solid transparent;
+        }
+        .nav-item:hover { color: #EEEEE9; background: rgba(255,255,255,0.04); }
+        .nav-item.active {
+            color: #D4B66A;
+            background: rgba(184,150,59,0.08);
+            border-left-color: #B8963B;
+        }
+        .nav-item .nav-icon { width: 16px; text-align: center; font-size: 0.75rem; opacity: 0.7; }
+        .nav-item.active .nav-icon { opacity: 1; }
+
+        /* Content offset when sidebar open */
+        .main-shifted { margin-left: 280px; transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* AI Chat panel */
+        .ai-chat-panel {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 380px;
+            max-height: 520px;
+            background: #FAFAF7;
+            border: 1px solid rgba(26,26,20,0.08);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(26,26,20,0.15), 0 4px 16px rgba(26,26,20,0.08);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: #DDDDD4 transparent;
+        }
+        .ai-msg {
+            margin-bottom: 0.75rem;
+            max-width: 90%;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            padding: 0.625rem 0.875rem;
+            border-radius: 12px;
+        }
+        .ai-msg.user {
+            margin-left: auto;
+            background: #2A2A22;
+            color: #EEEEE9;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-msg.bot {
+            background: #EEEEE9;
+            color: #2A2A22;
+            border-bottom-left-radius: 4px;
+        }
+        .ai-chat-input {
+            border-top: 1px solid rgba(26,26,20,0.06);
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .ai-chat-input input {
+            flex: 1;
+            border: 1px solid #DDDDD4;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
+            outline: none;
+            background: white;
+        }
+        .ai-chat-input input:focus { border-color: #B8963B; }
+
+        /* Floating AI button */
+        .ai-fab {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2A2A22, #3D3D32);
+            color: #D4B66A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 199;
+            box-shadow: 0 6px 24px rgba(26,26,20,0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ai-fab:hover { transform: scale(1.08); box-shadow: 0 8px 32px rgba(26,26,20,0.3); }
+
+        /* Menu toggle button */
+        .menu-toggle {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .menu-toggle:hover { background: rgba(26,26,20,0.05); }
+        .menu-toggle span {
+            display: block;
+            width: 18px;
+            height: 1.5px;
+            background: #2A2A22;
+            border-radius: 1px;
+            transition: all 0.3s ease;
+        }
+
+        /* Command palette shortcut badge */
+        .kbd {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.125rem 0.375rem;
+            font-size: 0.625rem;
+            font-family: 'IBM Plex Mono', monospace;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: #717164;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar { width: 260px; }
+            .sidebar.collapsed { transform: translateX(-260px); }
+            .main-shifted { margin-left: 0; }
+            .ai-chat-panel { width: 320px; right: 0.75rem; bottom: 0.75rem; }
         }
 
         /* Drop zones */
@@ -332,115 +516,131 @@
 </head>
 <body class="min-h-screen arch-grid grain">
 
-<div x-data="app()" x-cloak>
+<div x-data="app()" x-cloak @keydown.window="if((e=$event).ctrlKey && e.key==='k'){e.preventDefault();sidebarOpen=true;$nextTick(()=>$refs.navSearchInput&&$refs.navSearchInput.focus())}">
 
-    <!-- ===== HERO SECTION ===== -->
-    <div class="relative overflow-hidden" style="background: linear-gradient(135deg, #F5F2EC 0%, #EDE9E0 50%, #E5E0D6 100%);">
-        <!-- Geometric decorations -->
-        <svg class="absolute top-8 right-16 w-64 h-64 geo-float-1" viewBox="0 0 200 200" fill="none" style="opacity:0.04">
-            <rect x="20" y="20" width="160" height="160" stroke="#1A1A14" stroke-width="1"/>
-            <rect x="50" y="50" width="100" height="100" stroke="#1A1A14" stroke-width="0.5"/>
-            <line x1="20" y1="20" x2="180" y2="180" stroke="#1A1A14" stroke-width="0.5"/>
-        </svg>
-        <svg class="absolute bottom-4 left-20 w-40 h-40 geo-float-2" viewBox="0 0 200 200" fill="none" style="opacity:0.03">
-            <circle cx="100" cy="100" r="80" stroke="#B8963B" stroke-width="0.5"/>
-            <circle cx="100" cy="100" r="40" stroke="#B8963B" stroke-width="0.5"/>
-            <line x1="100" y1="20" x2="100" y2="180" stroke="#B8963B" stroke-width="0.5"/>
-        </svg>
-        <svg class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 geo-float-3" viewBox="0 0 400 400" fill="none" style="opacity:0.015">
-            <polygon points="200,20 380,190 320,380 80,380 20,190" stroke="#1A1A14" stroke-width="0.5"/>
-        </svg>
+    <!-- ===== SIDEBAR NAVIGATION ===== -->
+    <div x-show="sidebarOpen" @click="sidebarOpen = false" class="sidebar-overlay" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="lg:hidden"></div>
 
-        <div class="max-w-7xl mx-auto px-8 pt-10 pb-8 relative z-10">
-            <div class="flex items-end justify-between">
-                <div class="fade-up">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="w-10 h-10 border-2 border-carbon-900 rounded-lg flex items-center justify-center">
-                            <span class="font-mono text-sm font-bold text-carbon-900">K</span>
-                        </div>
-                        <div>
-                            <span class="font-mono text-[9px] font-semibold tracking-[0.2em] uppercase text-carbon-400">ALDMEGA LAB</span>
-                        </div>
-                    </div>
-                    <h1 class="font-display text-5xl font-300 text-carbon-900 tracking-tight leading-none" style="font-weight:300">
-                        KMD Assistant
-                    </h1>
-                    <p class="font-display text-xl text-carbon-400 mt-2 italic" style="font-weight:300">
-                        Intelligent Documentation Platform
-                    </p>
+    <aside :class="sidebarOpen ? '' : 'collapsed'" class="sidebar">
+        <!-- Sidebar header -->
+        <div class="px-5 pt-5 pb-3">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="font-display text-lg text-white tracking-tight" style="font-weight:400">KMD Assistant</h2>
+                    <p class="font-mono text-[8px] tracking-[0.2em] uppercase text-brass-dark" style="color:#B8963B">ALDMEGA LAB</p>
                 </div>
-                <div class="fade-up d3 hidden lg:block">
-                    <div class="flex items-center gap-6 text-right">
-                        <div>
-                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Version</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">2.0</p>
-                        </div>
-                        <div class="w-px h-8 bg-carbon-200"></div>
-                        <div>
-                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Modules</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">23</p>
-                        </div>
-                        <div class="w-px h-8 bg-carbon-200"></div>
-                        <div>
-                            <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Endpoints</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">30</p>
-                        </div>
-                    </div>
-                </div>
+                <button @click="sidebarOpen = false" class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 text-carbon-400 hover:text-white transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+                </button>
+            </div>
+            <!-- Search -->
+            <div class="relative">
+                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-carbon-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" x-model="navSearch" x-ref="navSearchInput" @keydown.escape="navSearch = ''" class="sidebar-search" placeholder="Поиск модуля...">
+                <span class="absolute right-2.5 top-1/2 -translate-y-1/2 kbd" x-show="!navSearch">Ctrl+K</span>
             </div>
         </div>
-    </div>
 
-    <!-- ===== NAV BAR ===== -->
-    <nav class="glass-nav sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-8">
-            <div class="flex items-center gap-1 overflow-x-auto py-3" style="-ms-overflow-style:none;scrollbar-width:none;">
-                <template x-for="tab in [
-                    {id: 'compare', label: 'Спецификации'},
-                    {id: 'check', label: 'Проверка PDF'},
-                    {id: 'parse', label: 'Парсинг КМД'},
-                    {id: 'crossval', label: 'Кросс-валидация'},
-                    {id: 'comparepdf', label: 'Сравнение PDF'},
-                    {id: 'genspec', label: 'Генерация'},
-                    {id: 'batch', label: 'Пакетная'},
-                    {id: 'checklist', label: 'Чек-лист'},
-                    {id: 'preview3d', label: '3D Просмотр'},
-                    {id: 'cutting', label: 'Раскрой'},
-                    {id: 'profileai', label: 'Подбор системы'},
-                    {id: 'thermal', label: 'Теплотехника'},
-                    {id: 'wind', label: 'Ветер'},
-                    {id: 'sashweight', label: 'Вес створки'},
-                    {id: 'glass', label: 'Стеклопакет'},
-                    {id: 'fasteners', label: 'Крепёж'},
-                    {id: 'aireview', label: 'AI Ревью'},
-                    {id: 'ainote', label: 'AI Записка'},
-                    {id: 'aigost', label: 'AI ГОСТ'},
-                    {id: 'aihardware', label: 'AI Фурнитура'},
-                    {id: 'aicompare', label: 'AI Сравнение'},
-                    {id: 'aigenkmd', label: 'AI КМД'},
-                    {id: 'aitranslate', label: 'AI Перевод'},
-                    {id: 'versioning', label: 'Версии'},
-                    {id: 'requisition', label: 'Заявка'},
-                    {id: 'projects', label: 'Проекты'},
-                    {id: 'actgen', label: 'Акты'},
-                    {id: 'cnc', label: 'ЧПУ'},
-                    {id: 'qrlabels', label: 'Маркировка'},
-                    {id: 'photoreport', label: 'Фотоотчёт'},
-                    {id: 'nodeslibrary', label: 'Узлы'},
-                    {id: 'dashboard', label: 'Дашборд'},
-                ]" :key="tab.id">
-                    <button @click="activeTab = tab.id"
-                        :class="activeTab === tab.id ? 'active' : ''"
-                        class="tab-btn"
-                        x-text="tab.label">
+        <!-- Nav categories -->
+        <nav class="pb-6">
+            <template x-for="cat in navCategories" :key="cat.key">
+                <div x-show="filteredItems(cat).length > 0">
+                    <div class="nav-category" @click="toggleCategory(cat.key)">
+                        <span x-text="cat.label"></span>
+                        <span class="cat-chevron" :class="openCategories.includes(cat.key) ? 'open' : ''">&#9654;</span>
+                    </div>
+                    <div x-show="openCategories.includes(cat.key) || navSearch.length > 0" x-transition>
+                        <template x-for="item in filteredItems(cat)" :key="item.id">
+                            <div @click="activeTab = item.id; if(window.innerWidth < 1024) sidebarOpen = false"
+                                 :class="activeTab === item.id ? 'active' : ''"
+                                 class="nav-item">
+                                <span class="nav-icon" x-html="item.icon"></span>
+                                <span x-text="item.label" class="truncate"></span>
+                                <span x-show="item.ai" class="ml-auto px-1.5 py-0.5 text-[9px] font-mono font-semibold rounded" style="background:rgba(184,150,59,0.15);color:#D4B66A">AI</span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </nav>
+
+        <!-- Sidebar footer -->
+        <div class="border-t border-white/5 px-5 py-4 mt-auto">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-status-ok"></div>
+                    <span class="font-mono text-[9px] tracking-[0.1em] uppercase text-carbon-500">v3.0</span>
+                </div>
+                <span class="font-mono text-[9px] text-carbon-500">32 modules</span>
+                <span class="font-mono text-[9px] text-carbon-500">40+ API</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===== TOP BAR ===== -->
+    <nav class="glass-nav sticky top-0 z-50" :class="sidebarOpen ? 'main-shifted' : ''" style="transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1)">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="menu-toggle">
+                        <span></span><span></span><span></span>
                     </button>
-                </template>
+                    <div class="hidden sm:flex items-center gap-2">
+                        <span class="font-display text-lg text-carbon-800 tracking-tight" style="font-weight:400">KMD Assistant</span>
+                        <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-carbon-400 hidden md:inline">/ ALDMEGA LAB</span>
+                    </div>
+                </div>
+                <!-- Current module indicator -->
+                <div class="flex items-center gap-3">
+                    <span class="font-mono text-[10px] tracking-[0.1em] uppercase text-carbon-400" x-text="currentModuleLabel()"></span>
+                    <button @click="showAiChat = !showAiChat" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all" :class="showAiChat ? 'bg-carbon-800 text-brass-light' : 'bg-carbon-100 text-carbon-600 hover:bg-carbon-200'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        AI
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
 
+    <!-- ===== AI CHAT PANEL ===== -->
+    <div x-show="showAiChat" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0 scale-95" class="ai-chat-panel">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-carbon-100">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-carbon-800 flex items-center justify-center">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4B66A" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/></svg>
+                </div>
+                <div>
+                    <span class="text-sm font-semibold text-carbon-800">KMD AI</span>
+                    <span class="text-[9px] font-mono text-carbon-400 ml-1">assistant</span>
+                </div>
+            </div>
+            <button @click="showAiChat = false" class="w-6 h-6 flex items-center justify-center rounded hover:bg-carbon-100 text-carbon-400">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="ai-chat-messages" x-ref="chatMessages">
+            <template x-for="(msg, i) in aiChatMessages" :key="i">
+                <div :class="'ai-msg ' + msg.role">
+                    <div x-text="msg.text"></div>
+                </div>
+            </template>
+            <div x-show="aiChatLoading" class="ai-msg bot">
+                <div class="flex items-center gap-2 text-carbon-400">
+                    <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="30 70"/></svg>
+                    <span class="text-xs">Думаю...</span>
+                </div>
+            </div>
+        </div>
+        <div class="ai-chat-input">
+            <input type="text" x-model="aiChatInput" @keydown.enter="sendAiChat()" placeholder="Спросите про любой модуль...">
+            <button @click="sendAiChat()" class="px-3 py-1.5 rounded-lg bg-carbon-800 text-white text-xs font-medium hover:bg-carbon-700 transition-colors" :disabled="aiChatLoading || !aiChatInput.trim()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4z"/><path d="m22 2-10 10"/></svg>
+            </button>
+        </div>
+    </div>
+
     <!-- ===== MAIN CONTENT ===== -->
-    <main class="max-w-7xl mx-auto px-8 py-12">
+    <main class="max-w-7xl mx-auto px-8 py-12" :class="sidebarOpen ? 'main-shifted' : ''" style="transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1)">
 
         <!-- ===== TAB 1: COMPARE SPECS ===== -->
         <section x-show="activeTab === 'compare'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
@@ -3281,6 +3481,109 @@ function app() {
         activeTab: 'compare',
         loading: false,
         error: null,
+
+        // Navigation state
+        sidebarOpen: window.innerWidth >= 1024,
+        navSearch: '',
+        showAiChat: false,
+        openCategories: ['docs', 'calc', 'visual', 'ai', 'prod', 'analytics'],
+
+        // AI Chat state
+        aiChatMessages: [
+            {role: 'bot', text: 'Привет! Я AI-помощник KMD Assistant. Спрашивайте про любой модуль, расчёт или ГОСТ — помогу разобраться.'}
+        ],
+        aiChatInput: '',
+        aiChatLoading: false,
+
+        navCategories: [
+            {key: 'docs', label: 'Документация', items: [
+                {id: 'compare', label: 'Сравнение спецификаций', icon: '&#8644;', ai: false},
+                {id: 'check', label: 'Проверка PDF', icon: '&#9745;', ai: false},
+                {id: 'parse', label: 'Парсинг КМД', icon: '&#9998;', ai: false},
+                {id: 'crossval', label: 'Кросс-валидация', icon: '&#8651;', ai: false},
+                {id: 'comparepdf', label: 'Сравнение PDF', icon: '&#8596;', ai: false},
+                {id: 'genspec', label: 'Генерация спецификации', icon: '&#9641;', ai: false},
+                {id: 'batch', label: 'Пакетная обработка', icon: '&#9881;', ai: false},
+                {id: 'checklist', label: 'Чек-лист КМД', icon: '&#9744;', ai: false},
+            ]},
+            {key: 'calc', label: 'Калькуляторы', items: [
+                {id: 'thermal', label: 'Теплотехника', icon: '&#9832;', ai: false},
+                {id: 'wind', label: 'Ветровая нагрузка', icon: '&#9729;', ai: false},
+                {id: 'sashweight', label: 'Вес створки', icon: '&#9878;', ai: false},
+                {id: 'glass', label: 'Стеклопакет', icon: '&#9672;', ai: false},
+                {id: 'fasteners', label: 'Крепёж', icon: '&#8857;', ai: false},
+            ]},
+            {key: 'visual', label: '3D и оптимизация', items: [
+                {id: 'preview3d', label: '3D Просмотр', icon: '&#9634;', ai: false},
+                {id: 'cutting', label: 'Раскрой профиля', icon: '&#9986;', ai: false},
+                {id: 'profileai', label: 'Подбор системы', icon: '&#9733;', ai: false},
+            ]},
+            {key: 'ai', label: 'AI инструменты', items: [
+                {id: 'aireview', label: 'Ревью чертежа', icon: '&#9673;', ai: true},
+                {id: 'ainote', label: 'Пояснительная записка', icon: '&#9998;', ai: true},
+                {id: 'aigost', label: 'Консультант ГОСТ', icon: '&#9878;', ai: true},
+                {id: 'aihardware', label: 'Подбор фурнитуры', icon: '&#9881;', ai: true},
+                {id: 'aicompare', label: 'Сравнение чертежей', icon: '&#8644;', ai: true},
+                {id: 'aigenkmd', label: 'Генерация КМД', icon: '&#9733;', ai: true},
+                {id: 'aitranslate', label: 'Перевод ГОСТ/EN', icon: '&#127760;', ai: true},
+            ]},
+            {key: 'prod', label: 'Производство', items: [
+                {id: 'versioning', label: 'Версионирование', icon: '&#8635;', ai: false},
+                {id: 'requisition', label: 'Заявка на материалы', icon: '&#9993;', ai: false},
+                {id: 'projects', label: 'Проекты', icon: '&#9632;', ai: false},
+                {id: 'actgen', label: 'Акты', icon: '&#9997;', ai: false},
+                {id: 'cnc', label: 'Программы ЧПУ', icon: '&#9211;', ai: false},
+                {id: 'qrlabels', label: 'Маркировка', icon: '&#9783;', ai: false},
+                {id: 'photoreport', label: 'Фотоотчёт', icon: '&#9862;', ai: false},
+                {id: 'nodeslibrary', label: 'Библиотека узлов', icon: '&#9638;', ai: false},
+            ]},
+            {key: 'analytics', label: 'Аналитика', items: [
+                {id: 'dashboard', label: 'Дашборд', icon: '&#9636;', ai: false},
+            ]},
+        ],
+
+        filteredItems(cat) {
+            if (!this.navSearch) return cat.items;
+            const q = this.navSearch.toLowerCase();
+            return cat.items.filter(i => i.label.toLowerCase().includes(q) || i.id.toLowerCase().includes(q));
+        },
+
+        toggleCategory(key) {
+            const idx = this.openCategories.indexOf(key);
+            if (idx >= 0) this.openCategories.splice(idx, 1);
+            else this.openCategories.push(key);
+        },
+
+        currentModuleLabel() {
+            for (const cat of this.navCategories) {
+                const item = cat.items.find(i => i.id === this.activeTab);
+                if (item) return item.label;
+            }
+            return '';
+        },
+
+        async sendAiChat() {
+            const text = this.aiChatInput.trim();
+            if (!text) return;
+            this.aiChatMessages.push({role: 'user', text});
+            this.aiChatInput = '';
+            this.aiChatLoading = true;
+            this.$nextTick(() => { this.$refs.chatMessages.scrollTop = this.$refs.chatMessages.scrollHeight; });
+            try {
+                const res = await fetch('/api/ai-chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: text, context: this.activeTab}),
+                });
+                if (!res.ok) { const e = await res.json().catch(() => ({detail:'Ошибка сервера'})); throw new Error(e.detail); }
+                const data = await res.json();
+                this.aiChatMessages.push({role: 'bot', text: data.answer});
+            } catch (e) {
+                this.aiChatMessages.push({role: 'bot', text: 'Ошибка: ' + e.message});
+            }
+            this.aiChatLoading = false;
+            this.$nextTick(() => { this.$refs.chatMessages.scrollTop = this.$refs.chatMessages.scrollHeight; });
+        },
 
         fileA: null, fileB: null, dragA: false, dragB: false,
         compareResult: null,

@@ -18,10 +18,16 @@ def extract_rar(rar_path: str, output_dir: str = None) -> list:
 
 
 def extract_zip(zip_path: str, output_dir: str = None) -> list:
-    """Распаковать ZIP архив."""
+    """Распаковать ZIP архив с защитой от zip-slip."""
+    from pathlib import Path as _Path
     out = output_dir or os.path.splitext(zip_path)[0]
     os.makedirs(out, exist_ok=True)
+    out_resolved = _Path(out).resolve()
     with zipfile.ZipFile(zip_path) as zf:
+        for member in zf.infolist():
+            member_path = _Path(out) / member.filename
+            if not member_path.resolve().is_relative_to(out_resolved):
+                raise ValueError(f"Небезопасный путь в архиве: {member.filename}")
         zf.extractall(out)
         return zf.namelist()
 
