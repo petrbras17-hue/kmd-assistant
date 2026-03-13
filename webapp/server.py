@@ -7,6 +7,7 @@ import os
 import sys
 import re
 import math
+import time
 import uuid
 import json
 import shutil
@@ -29,6 +30,7 @@ from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -202,6 +204,51 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 VERSIONS_DIR.mkdir(exist_ok=True)
 
+# ============== CSRF PROTECTION ==============
+
+CSRF_TOKEN_TTL = 3600  # 1 hour
+csrf_tokens: dict[str, float] = {}  # token -> expiry timestamp
+
+# Endpoints exempt from CSRF validation
+_CSRF_EXEMPT_PATHS = {"/api/csrf-token"}
+
+
+def _cleanup_expired_csrf_tokens():
+    """Remove expired CSRF tokens from the in-memory store."""
+    now = time.time()
+    expired = [t for t, exp in csrf_tokens.items() if exp <= now]
+    for t in expired:
+        csrf_tokens.pop(t, None)
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Validate X-CSRF-Token header on all POST /api/* requests."""
+
+    async def dispatch(self, request: Request, call_next):
+        if (
+            request.method == "POST"
+            and request.url.path.startswith("/api/")
+            and request.url.path not in _CSRF_EXEMPT_PATHS
+        ):
+            _cleanup_expired_csrf_tokens()
+            token = request.headers.get("X-CSRF-Token", "")
+            if not token or token not in csrf_tokens:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token missing or invalid"},
+                )
+            if csrf_tokens[token] <= time.time():
+                csrf_tokens.pop(token, None)
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token expired"},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(CSRFMiddleware)
+
+
 # ============== IN-MEMORY ACTIVITY LOG ==============
 
 activity_log: list[dict] = []
@@ -328,6 +375,17 @@ async def pwa_icons(filename: str):
         file_path,
         headers={"Cache-Control": "public, max-age=2592000, immutable"},
     )
+
+
+# ============== CSRF TOKEN ENDPOINT ==============
+
+@app.get("/api/csrf-token")
+async def get_csrf_token():
+    """Generate a new CSRF token (valid for 1 hour)."""
+    _cleanup_expired_csrf_tokens()
+    token = uuid.uuid4().hex
+    csrf_tokens[token] = time.time() + CSRF_TOKEN_TTL
+    return {"csrf_token": token}
 
 
 # ============== 1. СРАВНЕНИЕ СПЕЦИФИКАЦИЙ ==============

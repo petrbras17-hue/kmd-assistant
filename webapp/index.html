@@ -5045,8 +5045,61 @@ function app() {
         },
         _scheduleSave() { if (this._saveTimer) clearTimeout(this._saveTimer); this._saveTimer = setTimeout(() => this.saveState(), 500); },
         clearSavedState() { localStorage.removeItem(this._STORAGE_KEY); },
+        csrfToken: '',
+
+        async _fetchCsrfToken() {
+            try {
+                const res = await fetch('/api/csrf-token');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.csrfToken = data.csrf_token || '';
+                }
+            } catch (e) { console.warn('[KMD] CSRF token fetch failed:', e.message); }
+        },
+
+        _installCsrfInterceptor() {
+            const self = this;
+            const _origFetch = window.fetch;
+            window.fetch = function(input, init) {
+                init = init || {};
+                const method = (init.method || 'GET').toUpperCase();
+                if (method === 'POST' && self.csrfToken) {
+                    if (!init.headers) {
+                        init.headers = { 'X-CSRF-Token': self.csrfToken };
+                    } else if (init.headers instanceof Headers) {
+                        init.headers.set('X-CSRF-Token', self.csrfToken);
+                    } else if (typeof init.headers === 'object') {
+                        init.headers['X-CSRF-Token'] = self.csrfToken;
+                    }
+                }
+                return _origFetch.call(this, input, init).then(async (response) => {
+                    if (response.status === 403 && method === 'POST') {
+                        try {
+                            const clone = response.clone();
+                            const body = await clone.json();
+                            if (body.detail && body.detail.includes('CSRF')) {
+                                await self._fetchCsrfToken();
+                                if (self.csrfToken) {
+                                    if (!init.headers) init.headers = {};
+                                    if (init.headers instanceof Headers) {
+                                        init.headers.set('X-CSRF-Token', self.csrfToken);
+                                    } else {
+                                        init.headers['X-CSRF-Token'] = self.csrfToken;
+                                    }
+                                    return _origFetch.call(this, input, init);
+                                }
+                            }
+                        } catch (_) { /* not JSON or not CSRF error, return original */ }
+                    }
+                    return response;
+                });
+            };
+        },
+
         init() {
             this.loadState();
+            this._installCsrfInterceptor();
+            this._fetchCsrfToken();
             const watchProps = ['activeTab','showLanding','sidebarOpen','openCategories','thermalParams','windParams','sashParams','glassParams','fastenersParams','cuttingParams','profileParams','preview3dParams','preview3dMode','aiChatMessages','projectsList','hwParams','kmdGenParams','translateDirection','cncForm','qrPositions','actForm','photoForm','projForm'];
             for (const prop of watchProps) { this.$watch(prop, () => this._scheduleSave(), { deep: true }); }
             window.addEventListener('beforeunload', () => this.saveState());
