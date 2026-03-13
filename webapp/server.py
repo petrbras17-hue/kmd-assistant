@@ -25,6 +25,9 @@ from typing import List
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from sqlalchemy import select, func as sa_func
+from webapp.database import async_session, engine as db_engine
+from webapp.models import ActivityLog as ActivityLogModel, Base as DBBase
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
@@ -265,6 +268,13 @@ app.add_middleware(CSRFMiddleware)
 app.add_middleware(APIKeyMiddleware)  # registered last = executes first (outermost)
 
 
+@app.on_event("startup")
+async def _create_db_tables():
+    """Auto-create database tables on startup (useful for local SQLite dev)."""
+    async with db_engine.begin() as conn:
+        await conn.run_sync(DBBase.metadata.create_all)
+
+
 # ============== IN-MEMORY ACTIVITY LOG ==============
 
 activity_log: list[dict] = []
@@ -308,9 +318,10 @@ projects_list: list[dict] = []
 PROJECT_STAGES = ["замер", "КМД", "производство", "доставка", "монтаж", "сдано"]
 
 
-def log_activity(op_type: str, filename: str, summary: str):
-    """Добавить запись в лог активности."""
+async def log_activity(op_type: str, filename: str, summary: str):
+    """Write activity entry to database and update in-memory counters."""
     counters[op_type] = counters.get(op_type, 0) + 1
+    # In-memory cache (no size cap — DB is the authoritative store)
     entry = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "type": op_type,
@@ -318,8 +329,19 @@ def log_activity(op_type: str, filename: str, summary: str):
         "summary": summary,
     }
     activity_log.insert(0, entry)
-    if len(activity_log) > MAX_ACTIVITY:
-        activity_log.pop()
+    # Persist to database
+    try:
+        async with async_session() as session:
+            db_entry = ActivityLogModel(
+                operation=op_type,
+                file_name=filename,
+                result_summary=summary,
+            )
+            session.add(db_entry)
+            await session.commit()
+    except Exception:
+        # DB write failure should not break the endpoint
+        pass
 
 
 def save_upload(file: UploadFile) -> Path:
@@ -506,7 +528,7 @@ async def api_compare(
             "identical": len(df_a) - len(diffs) + len([d for d in diffs if d['status'] == 'extra']),
         }
 
-        log_activity("compare", f"{file_a.filename} / {file_b.filename}",
+        await log_activity("compare", f"{file_a.filename} / {file_b.filename}",
                      f"Различий: {len(diffs)}, удалено: {summary['removed']}, изменено: {summary['changed']}")
 
         return {
@@ -603,7 +625,7 @@ async def api_check_pdf(request: Request, file: UploadFile = File(...)):
         checks.append({"check": "Пустые страницы отсутствуют",
                        "passed": type_counts.get('пустая', 0) == 0})
 
-        log_activity("check_pdf", file.filename,
+        await log_activity("check_pdf", file.filename,
                      f"Страниц: {total_pages}, позиций: {len(all_positions)}")
 
         return {
@@ -648,7 +670,7 @@ async def api_parse_kmd(request: Request, file: UploadFile = File(...)):
                 "glass": pos.get("glass", []),
             })
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"Позиций: {result['total_positions']}, артикулов: {result['articles_count']}")
 
         return {
@@ -682,7 +704,7 @@ async def api_parse_dxf(file: UploadFile = File(...)):
     try:
         result = parse_dxf_for_web(str(path))
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"DXF: слоёв {len(result['layers'])}, текстов {len(result['texts'])}, "
                      f"размеров {len(result['dimensions'])}, блоков {len(result['blocks'])}")
 
@@ -797,7 +819,7 @@ async def api_ocr_parse(file: UploadFile = File(...)):
             "articles_count": len(all_articles),
         }
 
-        log_activity("parse_kmd", file.filename,
+        await log_activity("parse_kmd", file.filename,
                      f"OCR: {ocr_page_count} стр., позиций: {len(all_positions)}, "
                      f"артикулов: {len(all_articles)}")
 
@@ -1169,7 +1191,7 @@ async def api_checklist(request: Request, file: UploadFile = File(...)):
         passed_weight = sum(c.get("weight", 2) for c in checks if c["passed"])
         overall_score = round(passed_weight / total_weight * 100, 1) if total_weight else 0.0
 
-        log_activity("checklist", file.filename,
+        await log_activity("checklist", file.filename,
                      f"Оценка: {overall_score}%, пройдено: {passed_checks}/{total_checks}")
 
         return {
@@ -1361,7 +1383,7 @@ async def api_cross_validate(
             "match_rate": match_rate,
         }
 
-        log_activity(
+        await log_activity(
             "cross_validate",
             f"{drawing.filename} / {spec.filename}",
             f"Совпадений: {matched_count}, расхождений: {len(qty_mismatches)}, "
@@ -1411,7 +1433,7 @@ async def api_rag_validate(file: UploadFile = File(...)):
             articles=articles,
         )
 
-        log_activity("rag_validate", file.filename, f"RAG validation: {len(articles)} articles")
+        await log_activity("rag_validate", file.filename, f"RAG validation: {len(articles)} articles")
 
         return {
             "status": "ok",
@@ -1808,7 +1830,7 @@ async def api_compare_pdf(
             "overall_similarity": overall_sim,
         }
 
-        log_activity(
+        await log_activity(
             "compare_pdf",
             f"{file_a.filename} / {file_b.filename}",
             f"Удалено: {len(deleted_pages)}, добавлено: {len(added_pages)}, "
@@ -2071,7 +2093,7 @@ async def api_batch_process(request: Request, file: UploadFile = File(...)):
         critical_count = sum(1 for i in all_issues if i["severity"] == "critical")
         warning_count = sum(1 for i in all_issues if i["severity"] == "warning")
 
-        log_activity(
+        await log_activity(
             "batch",
             file.filename,
             f"Файлов: {total_files}, PDF: {len(files_found['pdf'])}, "
@@ -2377,7 +2399,7 @@ async def api_generate_spec(request: Request, file: UploadFile = File(...)):
             ),
         }
 
-        log_activity(
+        await log_activity(
             "generate_spec", file.filename,
             f"Позиций: {len(positions)}, артикулов: {len(all_articles_set)}, "
             f"изделий: {total_qty}",
@@ -2511,7 +2533,7 @@ async def api_preview_3d(params: dict):
         counters["preview_3d"] += 1
         scene = _build_scene(params)
         ctype = params.get("construction_type", "окно")
-        log_activity(
+        await log_activity(
             "preview_3d", f"{ctype}",
             f"{scene['frame']['width']}x{scene['frame']['height']} мм, "
             f"секций: {len(scene['sections'])}",
@@ -2626,7 +2648,7 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
         scene = _build_scene(params)
 
         counters["preview_3d"] += 1
-        log_activity(
+        await log_activity(
             "preview_3d", file.filename,
             f"PDF -> {construction_type} {width_mm}x{height_mm} мм, "
             f"секций: {len(sections)}",
@@ -2824,7 +2846,7 @@ async def api_optimize_cutting(req: CuttingRequest):
     """Оптимизировать раскрой профилей (ручной ввод)."""
     try:
         result = _optimize_cutting(req)
-        log_activity(
+        await log_activity(
             "optimize_cutting", "manual",
             f"Хлыстов: {result['total_bars_needed']}, отходы: {result['waste_percent']}%",
         )
@@ -2912,7 +2934,7 @@ async def api_optimize_cutting_from_pdf(
         result["extracted_articles"] = unique_articles
         result["extracted_cuts"] = cuts_list
 
-        log_activity(
+        await log_activity(
             "optimize_cutting", file.filename,
             f"Артикулов: {len(unique_articles)}, хлыстов: {result['total_bars_needed']}, "
             f"отходы: {result['waste_percent']}%",
@@ -3469,7 +3491,7 @@ async def api_recommend_profile(data: dict):
                 "Огнестойкие исполнения доступны не во всех системах — уточняйте у производителя"
             )
 
-        log_activity(
+        await log_activity(
             "recommend_profile",
             f"{construction_type} {width_mm}x{height_mm}",
             f"Найдено {len(scored)} систем, лучшая: {scored[0]['system']} ({scored[0]['score']})",
@@ -3536,7 +3558,7 @@ async def api_calc_thermal(request: Request, data: dict):
 
         meets_requirement = uw <= 1.8  # typical requirement for most Russian climate zones
 
-        log_activity("calc_thermal", f"Uw={uw}",
+        await log_activity("calc_thermal", f"Uw={uw}",
                      f"Класс {classification}, Uw={uw} Вт/(м²·К)")
 
         return {
@@ -3638,7 +3660,7 @@ async def api_calc_wind(request: Request, data: dict):
         else:
             required_ix_cm4 = 0
 
-        log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
+        await log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
                      f"P={wind_pressure_pa} Па, F={panel_load_n} Н")
 
         return {
@@ -3747,7 +3769,7 @@ async def api_calc_sash_weight(request: Request, data: dict):
         if glass_area_m2 > 3.0:
             warnings.append(f"Площадь остекления {glass_area_m2:.2f} м² — проверьте допуски стеклопакета")
 
-        log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
+        await log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
                      f"Вес: {total_weight} кг, стекло: {glass_formula}")
 
         return {
@@ -3896,7 +3918,7 @@ async def api_calc_glass(request: Request, data: dict):
         if wind_pressure_pa > 1200:
             warnings.append("При ветровом давлении > 1200 Па рекомендуется утолщённое стекло (8+ мм)")
 
-        log_activity("calc_glass", f"{width_mm}x{height_mm}",
+        await log_activity("calc_glass", f"{width_mm}x{height_mm}",
                      f"Лучшее: {recommendations[0]['formula']} (score={recommendations[0]['score']})")
 
         return {
@@ -3985,7 +4007,7 @@ async def api_calc_fasteners(request: Request, data: dict):
         if frame_height_mm > 2500:
             warnings.append("При высоте рамы > 2.5 м рекомендуется дополнительное промежуточное крепление")
 
-        log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
+        await log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
                      f"Анкеров: {total_anchors}, запас: {safety_margin}x")
 
         return {
@@ -4110,7 +4132,7 @@ async def api_ai_review(request: Request, file: UploadFile = File(...)):
         model = DEFAULT_LLM_MODEL
         review_text = await _call_llm(messages, model=model, max_tokens=4000)
 
-        log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
+        await log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
         return {"status": "ok", "review_text": review_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4161,7 +4183,7 @@ async def api_ai_generate_note(request: Request, file: UploadFile = File(...)):
         model = DEFAULT_LLM_MODEL
         note_text = await _call_llm(messages, model=model, max_tokens=6000)
 
-        log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
+        await log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
         return {"status": "ok", "note_text": note_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4231,7 +4253,7 @@ async def api_ai_gost(request: Request, payload: dict):
             for m in re.finditer(pat, answer):
                 norms.add(m.group())
 
-        log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
+        await log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
         return {
             "status": "ok",
             "answer": answer,
@@ -4294,7 +4316,7 @@ async def api_ai_hardware(request: Request, payload: dict):
             except json.JSONDecodeError:
                 pass
 
-        log_activity("ai_hardware", "params", f"AI фурнитура: {construction_type} {profile_system}")
+        await log_activity("ai_hardware", "params", f"AI фурнитура: {construction_type} {profile_system}")
         return {
             "status": "ok",
             "recommendations": recommendations,
@@ -4360,7 +4382,7 @@ async def api_ai_compare_visual(
         model = DEFAULT_LLM_MODEL
         comparison_text = await _call_llm(messages, model=model, max_tokens=4000)
 
-        log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
+        await log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
         return {"status": "ok", "comparison_text": comparison_text, "model_used": model}
 
     except httpx.HTTPStatusError as e:
@@ -4453,7 +4475,7 @@ async def api_ai_generate_kmd(request: Request, payload: dict):
         model = DEFAULT_LLM_MODEL
         kmd_document = await _call_llm(messages, model=model, max_tokens=8000)
 
-        log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
+        await log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
         return {
             "status": "ok",
             "kmd_document": kmd_document,
@@ -4572,7 +4594,7 @@ async def api_ai_translate(request: Request, payload: dict):
         else:
             translated_text = result_text
 
-        log_activity("ai_translate", direction, f"AI перевод КМД ({direction})")
+        await log_activity("ai_translate", direction, f"AI перевод КМД ({direction})")
         return {
             "status": "ok",
             "translated_text": translated_text,
@@ -4643,7 +4665,7 @@ async def api_versioning_upload(file: UploadFile = File(...)):
         db[original_name] = versions
         _save_versions_db(db)
 
-        log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
+        await log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
 
         return {"status": "ok", "version": version_num, "entry": version_entry}
 
@@ -4864,7 +4886,7 @@ async def api_generate_requisition(file: UploadFile = File(...)):
         result_path = RESULTS_DIR / result_name
         wb.save(str(result_path))
 
-        log_activity("requisition", file.filename, f"Найдено {len(articles)} артикулов")
+        await log_activity("requisition", file.filename, f"Найдено {len(articles)} артикулов")
 
         return {
             "status": "ok",
@@ -4907,7 +4929,7 @@ async def api_project_create(data: dict):
     projects_list.insert(0, project)
     if len(projects_list) > 500:
         projects_list.pop()
-    log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
+    await log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
     return {"status": "ok", "project": project}
 
 
@@ -4937,7 +4959,7 @@ async def api_project_update_status(project_id: str):
         "timestamp": datetime.now().isoformat(timespec="seconds"),
     })
 
-    log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
+    await log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
     return {"status": "ok", "project": project}
 
 
@@ -5057,7 +5079,7 @@ async def api_generate_act(data: dict):
     result_path = RESULTS_DIR / result_name
     doc.save(str(result_path))
 
-    log_activity("act_gen", data["project_name"], f"Акт КС-2: {len(works)} работ, {total_sum:.2f} руб.")
+    await log_activity("act_gen", data["project_name"], f"Акт КС-2: {len(works)} работ, {total_sum:.2f} руб.")
 
     return {
         "status": "ok",
@@ -5205,7 +5227,7 @@ async def api_generate_cnc(data: dict):
     result_path = RESULTS_DIR / result_name
     result_path.write_text(program_text, encoding="utf-8")
 
-    log_activity("cnc", f"{len(cuts)} позиций", f"ЧПУ программа: {total_operations} операций, {machine_type}")
+    await log_activity("cnc", f"{len(cuts)} позиций", f"ЧПУ программа: {total_operations} операций, {machine_type}")
 
     return {
         "status": "ok",
@@ -5281,7 +5303,7 @@ async def api_generate_qr(data: dict):
 
     labels_html += "</div></body></html>"
 
-    log_activity("qr_labels", f"{len(positions)} позиций", f"Маркировка: {len(positions)} этикеток")
+    await log_activity("qr_labels", f"{len(positions)} позиций", f"Маркировка: {len(positions)} этикеток")
 
     return {
         "status": "ok",
@@ -5381,7 +5403,7 @@ async def api_generate_photo_report(data: dict):
     result_path = RESULTS_DIR / result_name
     wb.save(str(result_path))
 
-    log_activity("photo_report", project_name, f"Фотоотчёт: {len(positions)} позиций")
+    await log_activity("photo_report", project_name, f"Фотоотчёт: {len(positions)} позиций")
 
     return {
         "status": "ok",
@@ -5795,11 +5817,63 @@ async def api_node_detail(request: Request, node_type: str):
 @limiter.limit("30/minute")
 @app.get("/api/stats", tags=["Analytics & Projects"], summary="Get usage statistics")
 async def api_stats(request: Request):
-    """Вернуть счётчики и последние операции."""
+    """Вернуть счётчики и последние операции (из БД с пагинацией)."""
+    page = int(request.query_params.get("page", 1))
+    per_page = min(int(request.query_params.get("per_page", 20)), 100)
+    offset = (page - 1) * per_page
+
+    try:
+        async with async_session() as session:
+            # Get counters from DB grouped by operation
+            stmt = select(
+                ActivityLogModel.operation,
+                sa_func.count(ActivityLogModel.id),
+            ).group_by(ActivityLogModel.operation)
+            result = await session.execute(stmt)
+            db_counters = dict(result.all())
+
+            # Total rows for pagination metadata
+            total_stmt = select(sa_func.count(ActivityLogModel.id))
+            total_result = await session.execute(total_stmt)
+            total_rows = total_result.scalar() or 0
+
+            # Recent entries with pagination
+            stmt = (
+                select(ActivityLogModel)
+                .order_by(ActivityLogModel.timestamp.desc())
+                .offset(offset)
+                .limit(per_page)
+            )
+            result = await session.execute(stmt)
+            recent = [
+                {
+                    "timestamp": row.timestamp.isoformat(timespec="seconds"),
+                    "type": row.operation,
+                    "filename": row.file_name or "",
+                    "summary": row.result_summary or "",
+                }
+                for row in result.scalars().all()
+            ]
+    except Exception:
+        # Fallback to in-memory data if DB is unavailable
+        db_counters = {}
+        total_rows = len(activity_log)
+        recent = activity_log[offset : offset + per_page]
+
+    # Merge in-memory counters with DB counters
+    merged = {**counters}
+    for k, v in db_counters.items():
+        merged[k] = max(merged.get(k, 0), v)
+
     return {
-        "counters": counters,
-        "total_operations": sum(counters.values()),
-        "recent": activity_log[:20],
+        "counters": merged,
+        "total_operations": sum(merged.values()),
+        "recent": recent,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total_rows,
+        },
     }
 
 
