@@ -5,24 +5,26 @@ FastAPI бэкенд с инструментами проверки КМД до�
 
 import os
 import sys
+import re
+import math
 import uuid
 import json
 import shutil
 import zipfile
 import tempfile
 import html as _html
-import re as _re
 import base64
 import hashlib
 import difflib
 from pathlib import Path
 from datetime import datetime
+from typing import List
 
 import httpx
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -34,11 +36,10 @@ DEFAULT_LLM_MODEL = "google/gemini-2.0-flash-001"
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 
 from compare_orders import extract_articles, compare_orders
-from pdf_tools import extract_text_from_pdf, extract_tables_from_pdf
-from docx_tools import read_docx, read_docx_with_tables
+from pdf_tools import extract_text_from_pdf
 from dxf_tools import parse_dxf_for_web
 from ocr_tools import (
-    ocr_pil_image, preprocess_image,
+    ocr_pil_image,
     parse_positions, parse_articles, parse_dimensions,
 )
 
@@ -165,8 +166,6 @@ async def api_compare(
             suffixes=('_А', '_Б')
         )
 
-        import math
-
         def safe_float(val, default=0.0):
             try:
                 v = float(val)
@@ -290,7 +289,6 @@ async def api_check_pdf(file: UploadFile = File(...)):
 
             # Извлекаем позиции изделий
             positions = []
-            import re
             for m in re.finditer(r'Поз\.\s*([А-Яа-яA-Za-z0-9\-\.]+).*?Количество\s*:?\s*(\d+)', text):
                 positions.append({"pos": m.group(1), "qty": int(m.group(2))})
 
@@ -354,7 +352,6 @@ async def api_parse_kmd(file: UploadFile = File(...)):
 
     try:
         import fitz
-        import re
         doc = fitz.open(str(path))
 
         items = []
@@ -587,7 +584,6 @@ def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
 
     Возвращает список проверок [{category, check_name, passed, details, weight}, ...].
     """
-    import re
 
     full_lower = full_text.lower()
     checks: list[dict] = []
@@ -959,8 +955,6 @@ async def api_cross_validate(
     spec_path = save_upload(spec)
 
     try:
-        import re
-        import math
         import pandas as pd
 
         def safe_float(val, default=0.0):
@@ -1173,7 +1167,6 @@ def _classify_page(text: str) -> str:
 
 def _extract_kmd_data(text: str):
     """Извлечь КМД-данные: позиции, артикулы, количество."""
-    import re
     positions = {}
     for m in re.finditer(
         r'[Пп]оз\.?\s*([А-Яа-яA-Za-z0-9\-\.]+)\s*,?\s*[Кк]оличество\s*:?\s*(\d+)',
@@ -1206,7 +1199,6 @@ async def api_compare_pdf(
 
     try:
         import fitz
-        import re
         import difflib
 
         # --- Извлечение текста из обоих PDF ---
@@ -1491,11 +1483,11 @@ async def api_batch_process(file: UploadFile = File(...)):
                 articles_found = set()
 
                 for pt in page_texts:
-                    for m in _re.finditer(
+                    for m in re.finditer(
                         r'Поз\.?\s*([А-Яа-яA-Za-z0-9\-\.]+)', pt,
                     ):
                         positions_found.add(m.group(1))
-                    for m in _re.finditer(r'\b(\d{7,8})\b', pt):
+                    for m in re.finditer(r'\b(\d{7,8})\b', pt):
                         art = m.group(1)
                         if int(art) > 100000:
                             articles_found.add(art)
@@ -1553,9 +1545,9 @@ async def api_batch_process(file: UploadFile = File(...)):
                 dxf_articles = set()
                 for txt_entry in result.get("texts", []):
                     txt = txt_entry.get("text", "") if isinstance(txt_entry, dict) else str(txt_entry)
-                    for m in _re.finditer(r'[А-ЯA-Z]\s*[\-\.]\s*\d+', txt):
+                    for m in re.finditer(r'[А-ЯA-Z]\s*[\-\.]\s*\d+', txt):
                         dxf_positions.add(m.group(0).strip())
-                    for m in _re.finditer(r'\b(\d{7,8})\b', txt):
+                    for m in re.finditer(r'\b(\d{7,8})\b', txt):
                         art = m.group(1)
                         if int(art) > 100000:
                             dxf_articles.add(art)
@@ -1661,7 +1653,6 @@ async def api_batch_process(file: UploadFile = File(...)):
 def _extract_kmd_data_from_pdf(pdf_path: str) -> list[dict]:
     """Извлечь КМД-данные из PDF: позиции, артикулы, размеры, цвета."""
     import fitz
-    import re
 
     doc = fitz.open(pdf_path)
     raw_items: list[dict] = []
@@ -1931,7 +1922,6 @@ async def api_generate_spec(file: UploadFile = File(...)):
     path = save_upload(file)
 
     try:
-        import re
 
         source_type = "dxf" if fname_lower.endswith(".dxf") else "pdf"
 
@@ -2190,7 +2180,7 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
         text = extract_text_from_pdf(str(path))
 
         # Parse dimensions (WxH patterns)
-        dim_pattern = _re.compile(
+        dim_pattern = re.compile(
             r"(\d{3,5})\s*[xXхХ*×]\s*(\d{3,5})"
         )
         dims_found = dim_pattern.findall(text)
@@ -2225,11 +2215,11 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
             has_impost = True
 
         # Check for створка (opening sash)
-        stvorka_count = len(_re.findall(r"створк", text_lower))
-        gluhoe_count = len(_re.findall(r"глух", text_lower))
+        stvorka_count = len(re.findall(r"створк", text_lower))
+        gluhoe_count = len(re.findall(r"глух", text_lower))
 
         # Detect handle height
-        handle_pattern = _re.compile(r"руч\w*\s*[:=]?\s*(\d{3,4})")
+        handle_pattern = re.compile(r"руч\w*\s*[:=]?\s*(\d{3,4})")
         handle_match = handle_pattern.search(text_lower)
         handle_height = int(handle_match.group(1)) if handle_match else 1050
 
@@ -2261,7 +2251,7 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
 
         # Parse glass formula
         glass_formula = "4-16-4-16-4"
-        glass_pattern = _re.compile(r"(\d{1,2}[-/]\d{1,2}[-/]\d{1,2}(?:[-/]\d{1,2})*)")
+        glass_pattern = re.compile(r"(\d{1,2}[-/]\d{1,2}[-/]\d{1,2}(?:[-/]\d{1,2})*)")
         glass_match = glass_pattern.search(text)
         if glass_match:
             candidate = glass_match.group(1).replace("/", "-")
@@ -2304,10 +2294,6 @@ async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
 
 
 # ============== ОПТИМИЗАЦИЯ РАСКРОЯ ПРОФИЛЕЙ ==============
-
-import math
-from pydantic import BaseModel
-from typing import List
 
 
 class CutItem(BaseModel):
@@ -2508,11 +2494,11 @@ async def api_optimize_cutting_from_pdf(
         text = extract_text_from_pdf(str(path))
 
         # Find all 7-digit articles
-        articles_found = _re.findall(r'\b(\d{7})\b', text)
+        articles_found = re.findall(r'\b(\d{7})\b', text)
         unique_articles = sorted(set(articles_found))
 
         # Find dimensions: numbers 100-6500 followed by mm
-        dimensions = _re.findall(r'\b(\d{3,4})\s*(?:мм|mm)\b', text, _re.IGNORECASE)
+        dimensions = re.findall(r'\b(\d{3,4})\s*(?:мм|mm)\b', text, re.IGNORECASE)
         dim_values = [int(d) for d in dimensions if 50 <= int(d) <= 6500]
 
         # Build cuts list by pairing articles with dimensions
@@ -2520,11 +2506,11 @@ async def api_optimize_cutting_from_pdf(
 
         if unique_articles and dim_values:
             for art in unique_articles:
-                art_positions = [m.start() for m in _re.finditer(r'\b' + art + r'\b', text)]
+                art_positions = [m.start() for m in re.finditer(r'\b' + art + r'\b', text)]
                 nearby_dims = set()
                 for apos in art_positions:
                     snippet = text[apos:apos + 300]
-                    dims_in_snippet = _re.findall(r'\b(\d{3,4})\s*(?:мм|mm)?\b', snippet)
+                    dims_in_snippet = re.findall(r'\b(\d{3,4})\s*(?:мм|mm)?\b', snippet)
                     for d in dims_in_snippet:
                         dv = int(d)
                         if 100 <= dv <= 6500 and dv != int(art):
@@ -2535,9 +2521,9 @@ async def api_optimize_cutting_from_pdf(
                         qty = 1
                         for apos in art_positions:
                             snippet = text[max(0, apos - 100):apos + 300]
-                            q_match = _re.findall(
+                            q_match = re.findall(
                                 r'(?:Количество|Кол[\-\.]?\s*во|qty|кол)\s*[:\s]\s*(\d+)',
-                                snippet, _re.IGNORECASE,
+                                snippet, re.IGNORECASE,
                             )
                             if q_match:
                                 qty = int(q_match[0])
@@ -3151,8 +3137,6 @@ async def api_recommend_profile(data: dict):
 
 # ============== F8. ТЕПЛОТЕХНИЧЕСКИЙ КАЛЬКУЛЯТОР ==============
 
-import math as _math
-
 
 @app.post("/api/calc-thermal")
 async def api_calc_thermal(data: dict):
@@ -3177,7 +3161,7 @@ async def api_calc_thermal(data: dict):
         t_indoor = 20.0
         rh = 50.0
         a_m, b_m = 17.27, 237.7
-        gamma = (a_m * t_indoor) / (b_m + t_indoor) + _math.log(rh / 100.0)
+        gamma = (a_m * t_indoor) / (b_m + t_indoor) + math.log(rh / 100.0)
         dew_point = round((b_m * gamma) / (a_m - gamma), 1)
 
         # Classification per GOST 23166-2021
@@ -3330,20 +3314,20 @@ async def api_calc_wind(data: dict):
 
 def _parse_glass_formula(formula: str) -> dict:
     """Парсинг формулы стеклопакета, напр. '4-16Ar-4-16Ar-4'."""
-    parts = _re.split(r'[-]', formula.strip())
+    parts = re.split(r'[-]', formula.strip())
     glass_thicknesses = []
     total_thickness_mm = 0
     for p in parts:
         p = p.strip()
         # Check if it's a glass layer (pure number or number + letter like 4M1)
-        m = _re.match(r'^(\d+(?:\.\d+)?)\s*(?:M\d*|ESG|VSG|TVG)?$', p, _re.IGNORECASE)
+        m = re.match(r'^(\d+(?:\.\d+)?)\s*(?:M\d*|ESG|VSG|TVG)?$', p, re.IGNORECASE)
         if m:
             t = float(m.group(1))
             glass_thicknesses.append(t)
             total_thickness_mm += t
         else:
             # It's a spacer/gap (e.g., 16Ar, 20, 16Kr)
-            m2 = _re.match(r'^(\d+(?:\.\d+)?)', p)
+            m2 = re.match(r'^(\d+(?:\.\d+)?)', p)
             if m2:
                 total_thickness_mm += float(m2.group(1))
     return {
@@ -3495,7 +3479,7 @@ async def api_calc_glass(data: dict):
 
             # 3. Wind resistance by thickness (20 pts)
             # Thicker glass = better wind resistance
-            total_glass = sum(float(x) for x in _re.findall(r'(?:^|-)(\d+)(?:\.\d+)?(?:$|-)', g["formula"]))
+            total_glass = sum(float(x) for x in re.findall(r'(?:^|-)(\d+)(?:\.\d+)?(?:$|-)', g["formula"]))
             if wind_pressure_pa <= 600:
                 wind_score = 20 if total_glass >= 8 else 15 if total_glass >= 6 else 10
             elif wind_pressure_pa <= 1000:
@@ -3605,9 +3589,9 @@ async def api_calc_fasteners(data: dict):
         # Max spacing 700mm per GOST 30971
         max_spacing_mm = 700
         # Min anchors = perimeter / max_spacing, but also min 2 per side
-        n_from_spacing = _math.ceil(perimeter_mm / max_spacing_mm)
+        n_from_spacing = math.ceil(perimeter_mm / max_spacing_mm)
         # At least 2 per side (corner anchors at 150-200mm from corner)
-        n_min_sides = 2 * 2 + 2 * max(2, _math.ceil(frame_width_mm / max_spacing_mm))
+        n_min_sides = 2 * 2 + 2 * max(2, math.ceil(frame_width_mm / max_spacing_mm))
         total_anchors = max(n_from_spacing, n_min_sides, 4)
 
         actual_spacing = round(perimeter_mm / total_anchors, 0)
@@ -3621,7 +3605,7 @@ async def api_calc_fasteners(data: dict):
         safety_factor = 1.5
 
         # Total design force (vector sum approximation)
-        total_force_n = _math.sqrt(wind_force_n ** 2 + gravity_force_n ** 2) * safety_factor
+        total_force_n = math.sqrt(wind_force_n ** 2 + gravity_force_n ** 2) * safety_factor
         force_per_anchor_n = round(total_force_n / total_anchors, 1)
 
         # Anchor capacity
@@ -3844,7 +3828,7 @@ async def api_ai_gost(payload: dict):
         ]
         norms = set()
         for pat in norm_patterns:
-            for m in _re.finditer(pat, answer):
+            for m in re.finditer(pat, answer):
                 norms.add(m.group())
 
         log_activity("ai_gost", "question", f"AI ГОСТ: {question[:50]}")
@@ -3902,7 +3886,7 @@ async def api_ai_hardware(payload: dict):
 
         # Try to extract JSON array from the response
         recommendations = []
-        json_match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+        json_match = re.search(r'\[.*?\]', raw, re.DOTALL)
         if json_match:
             try:
                 recommendations = json.loads(json_match.group())
@@ -4341,7 +4325,6 @@ async def api_generate_requisition(file: UploadFile = File(...)):
     import fitz
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    import re
 
     path = save_upload(file)
     try:
