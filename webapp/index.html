@@ -378,12 +378,12 @@
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
                             <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Modules</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">15</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">23</p>
                         </div>
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
                             <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Endpoints</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">17</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">30</p>
                         </div>
                     </div>
                 </div>
@@ -419,6 +419,14 @@
                     {id: 'aicompare', label: 'AI Сравнение'},
                     {id: 'aigenkmd', label: 'AI КМД'},
                     {id: 'aitranslate', label: 'AI Перевод'},
+                    {id: 'versioning', label: 'Версии'},
+                    {id: 'requisition', label: 'Заявка'},
+                    {id: 'projects', label: 'Проекты'},
+                    {id: 'actgen', label: 'Акты'},
+                    {id: 'cnc', label: 'ЧПУ'},
+                    {id: 'qrlabels', label: 'Маркировка'},
+                    {id: 'photoreport', label: 'Фотоотчёт'},
+                    {id: 'nodeslibrary', label: 'Узлы'},
                     {id: 'dashboard', label: 'Дашборд'},
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
@@ -2775,6 +2783,436 @@
             </div>
         </section>
 
+        <!-- ===== TAB: VERSIONING ===== -->
+        <section x-show="activeTab === 'versioning'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F13 / Versioning</p><h2 class="section-title">Версионирование КМД</h2><p class="section-subtitle">Загружайте версии документов, отслеживайте изменения, сравнивайте редакции.</p></div>
+
+            <div class="grid grid-cols-2 gap-8 fade-up">
+                <!-- Upload new version -->
+                <div class="section-panel">
+                    <h3 class="section-label mb-4">Загрузить версию</h3>
+                    <div class="drop-zone p-8 text-center mb-4"
+                         :class="{ 'dragover': dragVer, 'loaded': fileVer }"
+                         @dragover.prevent="dragVer = true" @dragleave="dragVer = false"
+                         @drop.prevent="dragVer = false; fileVer = $event.dataTransfer.files[0]"
+                         @click="$refs.inputVer.click()">
+                        <input type="file" x-ref="inputVer" accept=".pdf" class="hidden" @change="fileVer = $event.target.files[0]">
+                        <template x-if="!fileVer"><div><p class="font-body font-medium text-sm text-carbon-700">PDF документ</p><p class="text-xs text-carbon-400 mt-1">Перетащите или нажмите</p></div></template>
+                        <template x-if="fileVer"><div><p class="font-mono text-xs text-brass font-semibold" x-text="fileVer.name"></p></div></template>
+                    </div>
+                    <button @click="runVersionUpload()" :disabled="!fileVer" class="btn-primary w-full justify-center" :class="!fileVer ? 'opacity-50 cursor-not-allowed' : ''">Загрузить версию</button>
+                </div>
+
+                <!-- History -->
+                <div class="section-panel">
+                    <h3 class="section-label mb-4">История версий</h3>
+                    <button @click="loadVersionHistory()" class="btn-secondary mb-4">Обновить историю</button>
+                    <div x-show="versionHistory && versionHistory.files" class="space-y-3 max-h-[400px] overflow-y-auto">
+                        <template x-for="(f, fi) in (versionHistory?.files || [])" :key="fi">
+                            <div class="bg-white/60 rounded-lg p-3 border border-carbon-100">
+                                <p class="font-mono text-xs font-semibold text-carbon-800" x-text="f.filename"></p>
+                                <p class="text-xs text-carbon-400 mt-1" x-text="f.versions_count + ' версий'"></p>
+                                <div class="mt-2 space-y-1">
+                                    <template x-for="(v, vi) in f.versions" :key="vi">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="font-mono text-brass" x-text="'v' + v.version"></span>
+                                            <span class="text-carbon-400" x-text="v.date"></span>
+                                            <span class="text-carbon-500" x-text="v.page_count + ' стр.'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div x-show="f.versions_count >= 2" class="mt-3 flex gap-2">
+                                    <button @click="runVersionDiff(f.filename, f.versions[f.versions.length-2].version, f.versions[f.versions.length-1].version)" class="btn-secondary text-xs">Сравнить последние 2</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <p x-show="!versionHistory || (versionHistory.files || []).length === 0" class="text-sm text-carbon-400">Нет загруженных версий.</p>
+                </div>
+            </div>
+
+            <div x-show="loading && activeTab === 'versioning'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Обработка версии...</p></div>
+
+            <!-- Diff result -->
+            <div x-show="versionDiff" class="mt-8 section-panel fade-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-display text-xl text-carbon-900">Сравнение версий</h3>
+                    <button @click="versionDiff = null" class="btn-secondary text-xs">Закрыть</button>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="metric-card"><p class="section-label mb-1">Добавлено строк</p><p class="font-display text-2xl text-status-ok" x-text="versionDiff?.lines_added || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Удалено строк</p><p class="font-display text-2xl text-status-fail" x-text="versionDiff?.lines_removed || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Идентичны</p><p class="font-display text-2xl" :class="versionDiff?.identical ? 'text-status-ok' : 'text-status-warn'" x-text="versionDiff?.identical ? 'Да' : 'Нет'"></p></div>
+                </div>
+                <div class="bg-carbon-900 rounded-lg p-5 font-mono text-xs text-green-300 max-h-[400px] overflow-auto" style="white-space:pre-wrap;" x-text="versionDiff?.diff_text || 'Нет различий'"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: REQUISITION ===== -->
+        <section x-show="activeTab === 'requisition'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F14 / Requisition</p><h2 class="section-title">Заявка на материалы</h2><p class="section-subtitle">Загрузите КМД в PDF. Система извлечёт артикулы и сформирует заявку в Excel.</p></div>
+
+            <div x-show="!reqResult && !loading" class="fade-up">
+                <div class="drop-zone p-10 text-center max-w-xl mx-auto mb-6"
+                     :class="{ 'dragover': dragReq, 'loaded': fileReq }"
+                     @dragover.prevent="dragReq = true" @dragleave="dragReq = false"
+                     @drop.prevent="dragReq = false; fileReq = $event.dataTransfer.files[0]"
+                     @click="$refs.inputReq.click()">
+                    <input type="file" x-ref="inputReq" accept=".pdf" class="hidden" @change="fileReq = $event.target.files[0]">
+                    <template x-if="!fileReq"><div><p class="font-body font-medium text-sm text-carbon-700">КМД документ (PDF)</p><p class="text-xs text-carbon-400 mt-1">Перетащите или нажмите</p></div></template>
+                    <template x-if="fileReq"><div><p class="font-mono text-xs text-brass font-semibold" x-text="fileReq.name"></p></div></template>
+                </div>
+                <div class="text-center"><button @click="runRequisition()" :disabled="!fileReq" class="btn-primary" :class="!fileReq ? 'opacity-50 cursor-not-allowed' : ''">Сформировать заявку</button></div>
+            </div>
+
+            <div x-show="loading && activeTab === 'requisition'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Извлечение артикулов...</p></div>
+
+            <div x-show="reqResult" class="fade-up">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="metric-card accent-left"><p class="section-label mb-1">Артикулов</p><p class="font-display text-3xl text-carbon-900" x-text="reqResult?.articles_count || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Общее кол-во</p><p class="font-display text-3xl text-carbon-900" x-text="reqResult?.total_quantity?.toFixed(0) || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Скачать</p><a :href="reqResult?.download" class="btn-primary text-xs mt-2">XLSX</a></div>
+                </div>
+                <div class="section-panel overflow-hidden">
+                    <table class="data-table">
+                        <thead><tr><th>Артикул</th><th>Наименование</th><th>Длина мм</th><th>Кол-во</th><th>Ед.изм.</th></tr></thead>
+                        <tbody>
+                            <template x-for="(a, i) in (reqResult?.articles || [])" :key="i">
+                                <tr>
+                                    <td class="font-mono font-semibold" x-text="a.article"></td>
+                                    <td x-text="a.description"></td>
+                                    <td class="font-mono" x-text="a.length_mm || '-'"></td>
+                                    <td class="font-mono" x-text="a.quantity"></td>
+                                    <td x-text="a.unit"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4"><button @click="reqResult = null; fileReq = null" class="btn-secondary">Новая заявка</button></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: PROJECTS ===== -->
+        <section x-show="activeTab === 'projects'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'projects') loadProjects(); })">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F15 / Projects</p><h2 class="section-title">Трекер проектов</h2><p class="section-subtitle">Создавайте проекты и отслеживайте их статус от замера до сдачи.</p></div>
+
+            <div class="grid grid-cols-3 gap-8 fade-up">
+                <!-- Create project form -->
+                <div class="section-panel col-span-1">
+                    <h3 class="section-label mb-4">Новый проект</h3>
+                    <div class="space-y-3">
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Название</label><input x-model="projForm.name" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="ЖК Солнечный"></div>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Заказчик</label><input x-model="projForm.customer" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="ООО Строй"></div>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Адрес</label><input x-model="projForm.address" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="г. Москва, ул. ..."></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Позиций</label><input x-model.number="projForm.positions_count" type="number" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass"></div>
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Дедлайн</label><input x-model="projForm.deadline" type="date" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass"></div>
+                        </div>
+                        <button @click="createProject()" class="btn-primary w-full justify-center mt-2">Создать проект</button>
+                    </div>
+                </div>
+
+                <!-- Projects list -->
+                <div class="col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="section-label">Проекты</h3>
+                        <button @click="loadProjects()" class="btn-secondary text-xs">Обновить</button>
+                    </div>
+                    <div class="space-y-3 max-h-[500px] overflow-y-auto">
+                        <template x-for="(p, pi) in (projectsList || [])" :key="pi">
+                            <div class="bg-white/60 rounded-xl border border-carbon-100 p-4">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div>
+                                        <p class="font-body font-semibold text-carbon-900" x-text="p.name"></p>
+                                        <p class="text-xs text-carbon-400" x-text="p.customer + ' | ' + p.address"></p>
+                                    </div>
+                                    <span class="badge bg-brass-pale text-brass-dark" x-text="p.status"></span>
+                                </div>
+                                <!-- Status pipeline -->
+                                <div class="flex items-center gap-1 mb-3">
+                                    <template x-for="(stage, si) in projectStages" :key="si">
+                                        <div class="flex items-center gap-1">
+                                            <div class="w-16 h-1.5 rounded-full" :class="si <= p.status_index ? 'bg-brass' : 'bg-carbon-200'"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <p class="font-mono text-[10px] text-carbon-400" x-text="'Позиций: ' + p.positions_count + ' | Дедлайн: ' + p.deadline"></p>
+                                    <button x-show="p.status_index < 5" @click="advanceProject(p.id)" class="btn-secondary text-xs">Далее &rarr;</button>
+                                    <span x-show="p.status_index >= 5" class="badge bg-status-ok/10 text-status-ok">Завершён</span>
+                                </div>
+                            </div>
+                        </template>
+                        <p x-show="!projectsList || projectsList.length === 0" class="text-sm text-carbon-400 text-center py-8">Проектов пока нет.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: ACT GENERATOR ===== -->
+        <section x-show="activeTab === 'actgen'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F16 / Act Generator</p><h2 class="section-title">Генератор актов КС-2</h2><p class="section-subtitle">Заполните данные и сформируйте акт о приёмке выполненных работ в формате DOCX.</p></div>
+
+            <div x-show="!actResult && !loading" class="fade-up">
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div class="section-panel space-y-3">
+                        <h3 class="section-label mb-2">Данные проекта</h3>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Название объекта</label><input x-model="actForm.project_name" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="ЖК Солнечный"></div>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Заказчик</label><input x-model="actForm.customer" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="ООО Строй"></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">No договора</label><input x-model="actForm.contract_number" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="123/24"></div>
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Дата договора</label><input x-model="actForm.contract_date" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="01.01.2025"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Исполнитель</label><input x-model="actForm.executor_name" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="Иванов И.И."></div>
+                            <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Должность</label><input x-model="actForm.executor_position" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="Прораб"></div>
+                        </div>
+                    </div>
+
+                    <div class="section-panel">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="section-label">Работы</h3>
+                            <button @click="actForm.works.push({name:'', unit:'шт.', quantity:1, price:0})" class="btn-secondary text-xs">+ Добавить</button>
+                        </div>
+                        <div class="space-y-2 max-h-[300px] overflow-y-auto">
+                            <template x-for="(w, wi) in actForm.works" :key="wi">
+                                <div class="flex items-center gap-2 bg-canvas-dark rounded-lg p-2">
+                                    <input x-model="w.name" placeholder="Наименование" class="flex-1 bg-transparent border-b border-carbon-200 px-1 py-1 font-body text-xs focus:outline-none focus:border-brass">
+                                    <input x-model="w.unit" placeholder="Ед." class="w-12 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                    <input x-model.number="w.quantity" type="number" placeholder="Кол" class="w-14 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                    <input x-model.number="w.price" type="number" placeholder="Цена" class="w-20 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                    <button @click="actForm.works.splice(wi, 1)" class="text-carbon-400 hover:text-status-fail text-xs">&times;</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center"><button @click="runGenerateAct()" class="btn-primary">Сформировать акт</button></div>
+            </div>
+
+            <div x-show="loading && activeTab === 'actgen'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Формирование акта...</p></div>
+
+            <div x-show="actResult" class="fade-up">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="metric-card accent-left"><p class="section-label mb-1">Работ</p><p class="font-display text-3xl text-carbon-900" x-text="actResult?.works_count || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Итого, руб.</p><p class="font-display text-3xl text-brass" x-text="actResult?.total_sum?.toLocaleString('ru-RU', {minimumFractionDigits:2}) || '0'"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Скачать DOCX</p><a :href="actResult?.download" class="btn-primary text-xs mt-2">Скачать</a></div>
+                </div>
+                <div class="section-panel"><pre class="font-mono text-xs text-carbon-700 max-h-[400px] overflow-auto" style="white-space:pre-wrap;" x-text="actResult?.act_text"></pre></div>
+                <div class="mt-4"><button @click="actResult = null" class="btn-secondary">Новый акт</button></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: CNC ===== -->
+        <section x-show="activeTab === 'cnc'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F17 / CNC</p><h2 class="section-title">Генератор ЧПУ программ</h2><p class="section-subtitle">Задайте нарезки и операции. Система сгенерирует программу для торцевой пилы или фрезерного ЧПУ станка.</p></div>
+
+            <div x-show="!cncResult && !loading" class="fade-up">
+                <div class="section-panel mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="section-label">Тип станка</h3>
+                        <div class="flex gap-2">
+                            <button @click="cncForm.machine_type = 'miter_saw'" :class="cncForm.machine_type === 'miter_saw' ? 'bg-brass text-white' : 'bg-canvas-dark text-carbon-600 border border-carbon-200'" class="px-4 py-2 rounded-lg font-mono text-xs tracking-wider transition-all">Торцевая пила</button>
+                            <button @click="cncForm.machine_type = 'cnc_router'" :class="cncForm.machine_type === 'cnc_router' ? 'bg-brass text-white' : 'bg-canvas-dark text-carbon-600 border border-carbon-200'" class="px-4 py-2 rounded-lg font-mono text-xs tracking-wider transition-all">Фрезерный ЧПУ</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="section-label">Нарезки</h3>
+                        <button @click="cncForm.cuts.push({article:'', length_mm:0, quantity:1, operations:['cut']})" class="btn-secondary text-xs">+ Добавить</button>
+                    </div>
+                    <div class="space-y-2 max-h-[300px] overflow-y-auto">
+                        <template x-for="(c, ci) in cncForm.cuts" :key="ci">
+                            <div class="flex items-center gap-2 bg-canvas-dark rounded-lg p-2">
+                                <input x-model="c.article" placeholder="Артикул" class="w-28 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs focus:outline-none focus:border-brass">
+                                <input x-model.number="c.length_mm" type="number" placeholder="Длина мм" class="w-24 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                <input x-model.number="c.quantity" type="number" placeholder="Кол" class="w-14 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                <label class="flex items-center gap-1 text-xs text-carbon-500"><input type="checkbox" :checked="c.operations.includes('cut')" @change="toggleOp(c, 'cut')"> Рез</label>
+                                <label class="flex items-center gap-1 text-xs text-carbon-500"><input type="checkbox" :checked="c.operations.includes('drill')" @change="toggleOp(c, 'drill')"> Сверл</label>
+                                <label class="flex items-center gap-1 text-xs text-carbon-500"><input type="checkbox" :checked="c.operations.includes('mill')" @change="toggleOp(c, 'mill')"> Фрез</label>
+                                <button @click="cncForm.cuts.splice(ci, 1)" class="text-carbon-400 hover:text-status-fail text-xs">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="text-center"><button @click="runGenerateCnc()" class="btn-primary">Сгенерировать программу</button></div>
+            </div>
+
+            <div x-show="loading && activeTab === 'cnc'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Генерация ЧПУ программы...</p></div>
+
+            <div x-show="cncResult" class="fade-up">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="metric-card accent-left"><p class="section-label mb-1">Операций</p><p class="font-display text-3xl text-carbon-900" x-text="cncResult?.total_operations || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="cncResult?.positions || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Скачать .nc</p><a :href="cncResult?.download" class="btn-primary text-xs mt-2">Скачать</a></div>
+                </div>
+                <div class="section-panel"><pre class="font-mono text-xs text-green-700 bg-carbon-900 text-green-300 rounded-lg p-5 max-h-[400px] overflow-auto" x-text="cncResult?.program_text"></pre></div>
+                <div class="mt-4"><button @click="cncResult = null" class="btn-secondary">Новая программа</button></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: QR LABELS ===== -->
+        <section x-show="activeTab === 'qrlabels'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F18 / Labels</p><h2 class="section-title">Маркировка позиций</h2><p class="section-subtitle">Добавьте позиции и сгенерируйте печатные этикетки с данными для маркировки изделий.</p></div>
+
+            <div x-show="!qrResult && !loading" class="fade-up">
+                <div class="section-panel mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="section-label">Позиции</h3>
+                        <button @click="qrPositions.push({id:'П-'+(qrPositions.length+1), description:'', article:'', quantity:1})" class="btn-secondary text-xs">+ Добавить</button>
+                    </div>
+                    <div class="space-y-2 max-h-[300px] overflow-y-auto">
+                        <template x-for="(p, pi) in qrPositions" :key="pi">
+                            <div class="flex items-center gap-2 bg-canvas-dark rounded-lg p-2">
+                                <input x-model="p.id" placeholder="ID" class="w-16 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-brass">
+                                <input x-model="p.description" placeholder="Описание" class="flex-1 bg-transparent border-b border-carbon-200 px-1 py-1 font-body text-xs focus:outline-none focus:border-brass">
+                                <input x-model="p.article" placeholder="Артикул" class="w-24 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs focus:outline-none focus:border-brass">
+                                <input x-model.number="p.quantity" type="number" placeholder="Кол" class="w-14 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs text-center focus:outline-none focus:border-brass">
+                                <button @click="qrPositions.splice(pi, 1)" class="text-carbon-400 hover:text-status-fail text-xs">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="text-center"><button @click="runGenerateQr()" class="btn-primary">Сгенерировать этикетки</button></div>
+            </div>
+
+            <div x-show="loading && activeTab === 'qrlabels'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Генерация этикеток...</p></div>
+
+            <div x-show="qrResult" class="fade-up">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="metric-card accent-left inline-block"><p class="section-label mb-1">Этикеток</p><p class="font-display text-3xl text-carbon-900" x-text="qrResult?.labels_count || 0"></p></div>
+                    <div class="flex gap-2">
+                        <button @click="printLabels()" class="btn-primary">Печать</button>
+                        <button @click="qrResult = null" class="btn-secondary">Назад</button>
+                    </div>
+                </div>
+                <div class="section-panel"><div id="qr-labels-container" class="bg-white rounded-lg p-4" x-html="qrResult?.labels_html"></div></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: PHOTO REPORT ===== -->
+        <section x-show="activeTab === 'photoreport'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F19 / Photo Report</p><h2 class="section-title">Шаблон фотоотчёта</h2><p class="section-subtitle">Заполните данные проекта и позиции. Система сгенерирует шаблон фотоотчёта в Excel.</p></div>
+
+            <div x-show="!photoResult && !loading" class="fade-up">
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div class="section-panel space-y-3">
+                        <h3 class="section-label mb-2">Данные проекта</h3>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Название проекта</label><input x-model="photoForm.project_name" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass" placeholder="ЖК Солнечный"></div>
+                        <div><label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-1">Дата</label><input x-model="photoForm.date" type="date" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-3 py-2 font-body text-sm focus:outline-none focus:border-brass"></div>
+                    </div>
+
+                    <div class="section-panel">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="section-label">Позиции</h3>
+                            <button @click="photoForm.positions.push({id:'П-'+(photoForm.positions.length+1), description:'', status:'не начато'})" class="btn-secondary text-xs">+ Добавить</button>
+                        </div>
+                        <div class="space-y-2 max-h-[250px] overflow-y-auto">
+                            <template x-for="(p, pi) in photoForm.positions" :key="pi">
+                                <div class="flex items-center gap-2 bg-canvas-dark rounded-lg p-2">
+                                    <input x-model="p.id" placeholder="ID" class="w-16 bg-transparent border-b border-carbon-200 px-1 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-brass">
+                                    <input x-model="p.description" placeholder="Описание" class="flex-1 bg-transparent border-b border-carbon-200 px-1 py-1 font-body text-xs focus:outline-none focus:border-brass">
+                                    <select x-model="p.status" class="bg-transparent border-b border-carbon-200 px-1 py-1 font-body text-xs focus:outline-none focus:border-brass">
+                                        <option value="установлено">Установлено</option>
+                                        <option value="в процессе">В процессе</option>
+                                        <option value="не начато">Не начато</option>
+                                    </select>
+                                    <button @click="photoForm.positions.splice(pi, 1)" class="text-carbon-400 hover:text-status-fail text-xs">&times;</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center"><button @click="runPhotoReport()" class="btn-primary">Сгенерировать шаблон</button></div>
+            </div>
+
+            <div x-show="loading && activeTab === 'photoreport'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Формирование шаблона...</p></div>
+
+            <div x-show="photoResult" class="fade-up">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="metric-card accent-left"><p class="section-label mb-1">Позиций</p><p class="font-display text-3xl text-carbon-900" x-text="photoResult?.positions_count || 0"></p></div>
+                    <div class="metric-card"><p class="section-label mb-1">Скачать XLSX</p><a :href="photoResult?.download" class="btn-primary text-xs mt-2">Скачать</a></div>
+                </div>
+                <div class="mt-4"><button @click="photoResult = null" class="btn-secondary">Новый отчёт</button></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: NODES LIBRARY ===== -->
+        <section x-show="activeTab === 'nodeslibrary'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'nodeslibrary') loadNodesLibrary(); })">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F20 / Standard Nodes</p><h2 class="section-title">Библиотека типовых узлов</h2><p class="section-subtitle">Справочник стандартных узлов алюминиевых конструкций с материалами, инструкциями и схемами.</p></div>
+
+            <div x-show="!selectedNode" class="fade-up">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <template x-for="(n, ni) in (nodesList || [])" :key="ni">
+                        <div @click="loadNodeDetail(n.id)" class="metric-card cursor-pointer hover:border-brass group">
+                            <p class="font-body font-semibold text-sm text-carbon-800 group-hover:text-brass transition-colors" x-text="n.name"></p>
+                            <p class="text-xs text-carbon-400 mt-2 line-clamp-2" x-text="n.description"></p>
+                            <div class="flex items-center gap-3 mt-3">
+                                <span class="font-mono text-[10px] text-carbon-400" x-text="n.materials_count + ' материалов'"></span>
+                                <span class="font-mono text-[10px] text-carbon-400" x-text="n.steps_count + ' шагов'"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <p x-show="!nodesList || nodesList.length === 0" class="text-center text-sm text-carbon-400 py-8">Загрузка...</p>
+            </div>
+
+            <!-- Node detail -->
+            <div x-show="selectedNode" class="fade-up">
+                <button @click="selectedNode = null" class="btn-secondary mb-6">&larr; Назад к списку</button>
+
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Schematic -->
+                    <div class="section-panel col-span-1">
+                        <h3 class="section-label mb-3">Схема узла</h3>
+                        <div class="bg-white rounded-lg p-4 border border-carbon-100" x-html="selectedNode?.svg_schematic"></div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="col-span-2 space-y-4">
+                        <div class="section-panel">
+                            <h2 class="font-display text-2xl text-carbon-900 mb-2" x-text="selectedNode?.name"></h2>
+                            <p class="text-sm text-carbon-600 leading-relaxed" x-text="selectedNode?.description"></p>
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                <template x-for="(sys, si) in (selectedNode?.applicable_systems || [])" :key="si">
+                                    <span class="badge bg-brass-pale text-brass-dark" x-text="sys"></span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="section-panel">
+                                <h3 class="section-label mb-3">Материалы</h3>
+                                <ul class="space-y-1.5">
+                                    <template x-for="(m, mi) in (selectedNode?.materials || [])" :key="mi">
+                                        <li class="flex items-start gap-2 text-xs text-carbon-600"><span class="text-brass mt-0.5">&#9679;</span><span x-text="m"></span></li>
+                                    </template>
+                                </ul>
+                            </div>
+                            <div class="section-panel">
+                                <h3 class="section-label mb-3">Порядок монтажа</h3>
+                                <ol class="space-y-1.5">
+                                    <template x-for="(s, si) in (selectedNode?.installation_steps || [])" :key="si">
+                                        <li class="flex items-start gap-2 text-xs text-carbon-600"><span class="font-mono text-brass font-semibold" x-text="(si+1) + '.'"></span><span x-text="s"></span></li>
+                                    </template>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="section-panel" style="border-color:rgba(161,66,66,0.2);background:rgba(161,66,66,0.04);">
+                            <h3 class="section-label mb-3" style="color:#A14242">Предупреждения</h3>
+                            <ul class="space-y-1.5">
+                                <template x-for="(w, wi) in (selectedNode?.warnings || [])" :key="wi">
+                                    <li class="flex items-start gap-2 text-xs text-carbon-700"><span style="color:#A14242" class="mt-0.5">&#9888;</span><span x-text="w"></span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===== TAB 9: DASHBOARD ===== -->
         <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
             <div class="mb-10 fade-up"><p class="section-label mb-3">18 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
@@ -2974,6 +3412,50 @@ function app() {
         translateDirection: 'gost_to_en',
         translateText: '',
         translateResult: null,
+
+        // Versioning state (F13)
+        fileVer: null, dragVer: false,
+        versionHistory: null,
+        versionDiff: null,
+
+        // Requisition state (F14)
+        fileReq: null, dragReq: false,
+        reqResult: null,
+
+        // Projects state (F15)
+        projForm: { name: '', customer: '', address: '', positions_count: 10, deadline: '' },
+        projectsList: [],
+        projectStages: ['замер', 'КМД', 'производство', 'доставка', 'монтаж', 'сдано'],
+
+        // Act generator state (F16)
+        actForm: {
+            project_name: '', customer: '', contract_number: '', contract_date: '',
+            executor_name: '', executor_position: '',
+            works: [{name: 'Монтаж оконных блоков', unit: 'шт.', quantity: 10, price: 5000}]
+        },
+        actResult: null,
+
+        // CNC state (F17)
+        cncForm: {
+            machine_type: 'miter_saw',
+            cuts: [{article: '4080102', length_mm: 1200, quantity: 5, operations: ['cut']}]
+        },
+        cncResult: null,
+
+        // QR Labels state (F18)
+        qrPositions: [{id: 'О-1', description: 'Окно 1500x2100', article: '4080102', quantity: 38}],
+        qrResult: null,
+
+        // Photo Report state (F19)
+        photoForm: {
+            project_name: '', date: '',
+            positions: [{id: 'П-1', description: 'Окно 1-го этажа', status: 'не начато'}]
+        },
+        photoResult: null,
+
+        // Nodes Library state (F20)
+        nodesList: [],
+        selectedNode: null,
 
         addKmdPosition() {
             const n = this.kmdGenParams.positions.length + 1;
@@ -3316,6 +3798,179 @@ function app() {
             a.download = (this.kmdGenParams.object_name || 'KMD') + '_draft.txt';
             a.click();
             URL.revokeObjectURL(url);
+        },
+
+        // ===== Sprint 7 Methods =====
+
+        toggleOp(cut, op) {
+            const idx = cut.operations.indexOf(op);
+            if (idx >= 0) cut.operations.splice(idx, 1);
+            else cut.operations.push(op);
+        },
+
+        async runVersionUpload() {
+            if (!this.fileVer) return;
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileVer);
+            try {
+                const res = await fetch('/api/versioning/upload', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                const data = await res.json();
+                this.fileVer = null;
+                await this.loadVersionHistory();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async loadVersionHistory() {
+            try {
+                const res = await fetch('/api/versioning/history');
+                if (!res.ok) throw new Error('Failed to load history');
+                this.versionHistory = await res.json();
+            } catch (e) { this.error = e.message; }
+        },
+
+        async runVersionDiff(filename, v1, v2) {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch(`/api/versioning/diff/${v1}/${v2}?filename=${encodeURIComponent(filename)}`);
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.versionDiff = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runRequisition() {
+            if (!this.fileReq) return;
+            this.loading = true; this.error = null;
+            const fd = new FormData(); fd.append('file', this.fileReq);
+            try {
+                const res = await fetch('/api/generate-requisition', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.reqResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async createProject() {
+            const f = this.projForm;
+            if (!f.name || !f.customer) { this.error = 'Укажите название и заказчика'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/projects/create', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(f),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.projForm = { name: '', customer: '', address: '', positions_count: 10, deadline: '' };
+                await this.loadProjects();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async loadProjects() {
+            try {
+                const res = await fetch('/api/projects/list');
+                if (!res.ok) throw new Error('Failed to load projects');
+                const data = await res.json();
+                this.projectsList = data.projects || [];
+                this.projectStages = data.stages || this.projectStages;
+            } catch (e) { this.error = e.message; }
+        },
+
+        async advanceProject(id) {
+            try {
+                const res = await fetch(`/api/projects/${id}/update-status`, { method: 'POST' });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                await this.loadProjects();
+            } catch (e) { this.error = e.message; }
+        },
+
+        async runGenerateAct() {
+            const f = this.actForm;
+            if (!f.project_name || !f.customer || f.works.length === 0) { this.error = 'Заполните данные проекта и добавьте работы'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/generate-act', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(f),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.actResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runGenerateCnc() {
+            const validCuts = this.cncForm.cuts.filter(c => c.article && Number(c.length_mm) > 0);
+            if (validCuts.length === 0) { this.error = 'Добавьте хотя бы одну нарезку с артикулом и длиной'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/generate-cnc', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ cuts: validCuts, machine_type: this.cncForm.machine_type }),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.cncResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runGenerateQr() {
+            const valid = this.qrPositions.filter(p => p.id);
+            if (valid.length === 0) { this.error = 'Добавьте хотя бы одну позицию'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/generate-qr', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ positions: valid }),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.qrResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        printLabels() {
+            const html = this.qrResult?.labels_html;
+            if (!html) return;
+            const w = window.open('', '_blank');
+            w.document.write(html);
+            w.document.close();
+            w.print();
+        },
+
+        async runPhotoReport() {
+            const f = this.photoForm;
+            if (!f.project_name || f.positions.length === 0) { this.error = 'Укажите название проекта и добавьте позиции'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/generate-photo-report', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(f),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.photoResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async loadNodesLibrary() {
+            try {
+                const res = await fetch('/api/nodes-library');
+                if (!res.ok) throw new Error('Failed to load nodes');
+                const data = await res.json();
+                this.nodesList = data.nodes || [];
+            } catch (e) { this.error = e.message; }
+        },
+
+        async loadNodeDetail(nodeId) {
+            try {
+                const res = await fetch(`/api/nodes-library/${nodeId}`);
+                if (!res.ok) throw new Error('Failed to load node');
+                const data = await res.json();
+                this.selectedNode = data.node;
+            } catch (e) { this.error = e.message; }
         },
 
         // ===== 3D Preview Methods =====

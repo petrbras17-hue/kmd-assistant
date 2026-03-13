@@ -12,6 +12,8 @@ import zipfile
 import tempfile
 import re as _re
 import base64
+import hashlib
+import difflib
 from pathlib import Path
 from datetime import datetime
 
@@ -42,8 +44,11 @@ app = FastAPI(title="KMD Assistant", version="1.0")
 
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
+VERSIONS_DIR = Path(__file__).parent / "versions"
+VERSIONS_JSON = Path(__file__).parent / "versions.json"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
+VERSIONS_DIR.mkdir(exist_ok=True)
 
 # ============== IN-MEMORY ACTIVITY LOG ==============
 
@@ -74,7 +79,18 @@ counters = {
     "ai_compare": 0,
     "ai_generate_kmd": 0,
     "ai_translate": 0,
+    "versioning": 0,
+    "requisition": 0,
+    "projects": 0,
+    "act_gen": 0,
+    "cnc": 0,
+    "qr_labels": 0,
+    "photo_report": 0,
 }
+
+# ============== IN-MEMORY PROJECT TRACKER ==============
+projects_list: list[dict] = []
+PROJECT_STAGES = ["замер", "КМД", "производство", "доставка", "монтаж", "сдано"]
 
 
 def log_activity(op_type: str, filename: str, summary: str):
@@ -4157,6 +4173,1200 @@ async def api_ai_translate(payload: dict):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F13. KMD VERSIONING ==============
+
+def _load_versions_db() -> dict:
+    """Load versions metadata from JSON file."""
+    if VERSIONS_JSON.exists():
+        return json.loads(VERSIONS_JSON.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_versions_db(db: dict):
+    """Save versions metadata to JSON file."""
+    VERSIONS_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@app.post("/api/versioning/upload")
+async def api_versioning_upload(file: UploadFile = File(...)):
+    """Upload a new version of a KMD document."""
+    import fitz
+
+    path = save_upload(file)
+    try:
+        original_name = Path(file.filename).name
+        doc = fitz.open(str(path))
+        page_count = len(doc)
+        full_text = ""
+        for page in doc:
+            full_text += page.get_text()
+        doc.close()
+
+        text_hash = hashlib.sha256(full_text.encode("utf-8")).hexdigest()[:16]
+
+        db = _load_versions_db()
+        versions = db.get(original_name, [])
+        version_num = len(versions) + 1
+
+        versioned_filename = f"v{version_num}_{uuid.uuid4().hex[:6]}_{original_name}"
+        dest = VERSIONS_DIR / versioned_filename
+        shutil.copy2(str(path), str(dest))
+
+        version_entry = {
+            "version": version_num,
+            "filename": original_name,
+            "stored_as": versioned_filename,
+            "date": datetime.now().isoformat(timespec="seconds"),
+            "text_hash": text_hash,
+            "page_count": page_count,
+            "text_length": len(full_text),
+        }
+        versions.append(version_entry)
+        db[original_name] = versions
+        _save_versions_db(db)
+
+        log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
+
+        return {"status": "ok", "version": version_num, "entry": version_entry}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+@app.get("/api/versioning/history")
+async def api_versioning_history(filename: str = ""):
+    """Return version history for a file or all files."""
+    db = _load_versions_db()
+    if filename:
+        versions = db.get(filename, [])
+        return {"status": "ok", "filename": filename, "versions": versions}
+    # Return all files with their versions
+    result = []
+    for fname, versions in db.items():
+        result.append({"filename": fname, "versions_count": len(versions), "versions": versions})
+    return {"status": "ok", "files": result}
+
+
+@app.get("/api/versioning/diff/{v1}/{v2}")
+async def api_versioning_diff(v1: str, v2: str, filename: str = ""):
+    """Compare text of two versions. v1 and v2 are version numbers."""
+    import fitz
+
+    db = _load_versions_db()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Укажите filename параметр")
+
+    versions = db.get(filename, [])
+    v1_num, v2_num = int(v1), int(v2)
+
+    entry1 = next((v for v in versions if v["version"] == v1_num), None)
+    entry2 = next((v for v in versions if v["version"] == v2_num), None)
+
+    if not entry1 or not entry2:
+        raise HTTPException(status_code=404, detail="Версия не найдена")
+
+    def extract_text(stored_as):
+        fp = VERSIONS_DIR / stored_as
+        if not fp.exists():
+            raise HTTPException(status_code=404, detail=f"Файл {stored_as} не найден")
+        doc = fitz.open(str(fp))
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+        return text
+
+    text1 = extract_text(entry1["stored_as"])
+    text2 = extract_text(entry2["stored_as"])
+
+    lines1 = text1.splitlines(keepends=True)
+    lines2 = text2.splitlines(keepends=True)
+
+    diff = list(difflib.unified_diff(lines1, lines2,
+                                      fromfile=f"v{v1_num} ({entry1['date']})",
+                                      tofile=f"v{v2_num} ({entry2['date']})",
+                                      lineterm=""))
+
+    added = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in diff if l.startswith("-") and not l.startswith("---"))
+
+    return {
+        "status": "ok",
+        "v1": v1_num, "v2": v2_num, "filename": filename,
+        "diff_text": "\n".join(diff),
+        "lines_added": added,
+        "lines_removed": removed,
+        "hash_v1": entry1["text_hash"],
+        "hash_v2": entry2["text_hash"],
+        "identical": entry1["text_hash"] == entry2["text_hash"],
+    }
+
+
+# ============== F14. AUTO MATERIAL REQUISITION ==============
+
+@app.post("/api/generate-requisition")
+async def api_generate_requisition(file: UploadFile = File(...)):
+    """Extract articles from KMD PDF and generate material requisition XLSX."""
+    import fitz
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    import re
+
+    path = save_upload(file)
+    try:
+        doc = fitz.open(str(path))
+        full_text = ""
+        for page in doc:
+            full_text += page.get_text() + "\n"
+        doc.close()
+
+        # Extract articles and quantities from the KMD text
+        articles = []
+        seen = {}
+
+        # Pattern: article number (digits, possibly with dots/dashes), optional description, quantity
+        patterns = [
+            re.compile(r'(?:арт(?:икул)?\.?\s*[:\s]?\s*)(\d[\d\.\-]{3,})\s+(.{5,60}?)\s+(\d+(?:[.,]\d+)?)\s*(?:шт|м\.?п\.?|м\.?|пог|компл)', re.IGNORECASE),
+            re.compile(r'(\d{5,})\s+(.{5,60}?)\s+(\d+(?:[.,]\d+)?)\s*(?:шт|м\.?п\.?|м\.?|пог|компл)', re.IGNORECASE),
+            re.compile(r'(\d{5,})\s+(.{5,60}?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)', re.IGNORECASE),
+        ]
+
+        for pat in patterns:
+            for m in pat.finditer(full_text):
+                art_num = m.group(1).strip()
+                if art_num in seen:
+                    continue
+                desc = m.group(2).strip()
+                qty_str = m.group(3).replace(",", ".")
+                qty = float(qty_str)
+                seen[art_num] = True
+
+                # Try to detect length from description
+                length_match = re.search(r'(\d{3,5})\s*мм', desc)
+                length_mm = int(length_match.group(1)) if length_match else 0
+
+                # Detect unit
+                unit = "шт."
+                if re.search(r'м\.?п\.?|пог', m.group(0), re.IGNORECASE):
+                    unit = "м.п."
+
+                articles.append({
+                    "article": art_num,
+                    "description": desc[:50],
+                    "length_mm": length_mm,
+                    "quantity": qty,
+                    "unit": unit,
+                    "note": "",
+                })
+
+        # If no articles found via regex, try simpler extraction
+        if not articles:
+            for line in full_text.split("\n"):
+                m = re.match(r'^\s*(\d{4,})\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*$', line.strip())
+                if m:
+                    art_num = m.group(1)
+                    if art_num not in seen:
+                        seen[art_num] = True
+                        articles.append({
+                            "article": art_num,
+                            "description": m.group(2).strip()[:50],
+                            "length_mm": 0,
+                            "quantity": float(m.group(3).replace(",", ".")),
+                            "unit": "шт.",
+                            "note": "",
+                        })
+
+        # Generate XLSX
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Заявка на материалы"
+
+        # Header styling
+        header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="2A2A22", end_color="2A2A22", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style="thin"), right=Side(style="thin"),
+            top=Side(style="thin"), bottom=Side(style="thin"),
+        )
+
+        # Title row
+        ws.merge_cells("A1:G1")
+        ws["A1"] = f"Заявка на материалы — {file.filename}"
+        ws["A1"].font = Font(name="Arial", size=14, bold=True)
+        ws["A1"].alignment = Alignment(horizontal="center")
+
+        ws.merge_cells("A2:G2")
+        ws["A2"] = f"Дата: {datetime.now().strftime('%d.%m.%Y')}"
+        ws["A2"].font = Font(name="Arial", size=10, italic=True)
+        ws["A2"].alignment = Alignment(horizontal="center")
+
+        # Headers
+        headers = ["No п/п", "Артикул", "Наименование", "Длина мм", "Количество", "Ед.изм.", "Примечание"]
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # Data rows
+        total_qty = 0
+        for i, art in enumerate(articles, 1):
+            row = i + 4
+            ws.cell(row=row, column=1, value=i).border = thin_border
+            ws.cell(row=row, column=2, value=art["article"]).border = thin_border
+            ws.cell(row=row, column=2).font = Font(name="Arial", size=10, bold=True)
+            ws.cell(row=row, column=3, value=art["description"]).border = thin_border
+            ws.cell(row=row, column=4, value=art["length_mm"] if art["length_mm"] > 0 else "").border = thin_border
+            ws.cell(row=row, column=5, value=art["quantity"]).border = thin_border
+            ws.cell(row=row, column=6, value=art["unit"]).border = thin_border
+            ws.cell(row=row, column=7, value=art["note"]).border = thin_border
+            total_qty += art["quantity"]
+
+        # Summary row
+        summary_row = len(articles) + 5
+        ws.merge_cells(f"A{summary_row}:C{summary_row}")
+        ws.cell(row=summary_row, column=1, value="ИТОГО:").font = Font(name="Arial", size=11, bold=True)
+        ws.cell(row=summary_row, column=1).border = thin_border
+        ws.cell(row=summary_row, column=4).border = thin_border
+        ws.cell(row=summary_row, column=5, value=total_qty).font = Font(name="Arial", size=11, bold=True)
+        ws.cell(row=summary_row, column=5).border = thin_border
+        ws.cell(row=summary_row, column=6).border = thin_border
+        ws.cell(row=summary_row, column=7).border = thin_border
+
+        # Auto-width
+        col_widths = [8, 15, 40, 12, 12, 10, 20]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[chr(64 + i)].width = w
+
+        result_name = f"requisition_{uuid.uuid4().hex[:8]}.xlsx"
+        result_path = RESULTS_DIR / result_name
+        wb.save(str(result_path))
+
+        log_activity("requisition", file.filename, f"Найдено {len(articles)} артикулов")
+
+        return {
+            "status": "ok",
+            "articles_count": len(articles),
+            "articles": articles,
+            "total_quantity": total_qty,
+            "download": f"/api/download/{result_name}",
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== F15. PROJECT TRACKER ==============
+
+@app.post("/api/projects/create")
+async def api_project_create(data: dict):
+    """Create a new project."""
+    required = ["name", "customer", "address", "positions_count", "deadline"]
+    for field in required:
+        if field not in data:
+            raise HTTPException(status_code=400, detail=f"Поле '{field}' обязательно")
+
+    project = {
+        "id": str(uuid.uuid4().hex[:8]),
+        "name": data["name"],
+        "customer": data["customer"],
+        "address": data["address"],
+        "positions_count": int(data["positions_count"]),
+        "deadline": data["deadline"],
+        "status": PROJECT_STAGES[0],
+        "status_index": 0,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "status_history": [
+            {"stage": PROJECT_STAGES[0], "timestamp": datetime.now().isoformat(timespec="seconds")}
+        ],
+    }
+    projects_list.insert(0, project)
+    log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
+    return {"status": "ok", "project": project}
+
+
+@app.get("/api/projects/list")
+async def api_projects_list():
+    """Return all projects with statuses."""
+    return {"status": "ok", "projects": projects_list, "stages": PROJECT_STAGES}
+
+
+@app.post("/api/projects/{project_id}/update-status")
+async def api_project_update_status(project_id: str):
+    """Move project to next stage."""
+    project = next((p for p in projects_list if p["id"] == project_id), None)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    current_idx = project["status_index"]
+    if current_idx >= len(PROJECT_STAGES) - 1:
+        return {"status": "ok", "message": "Проект уже завершён", "project": project}
+
+    next_idx = current_idx + 1
+    project["status"] = PROJECT_STAGES[next_idx]
+    project["status_index"] = next_idx
+    project["status_history"].append({
+        "stage": PROJECT_STAGES[next_idx],
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+    })
+
+    log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
+    return {"status": "ok", "project": project}
+
+
+# ============== F16. ACT GENERATOR (KC-2) ==============
+
+@app.post("/api/generate-act")
+async def api_generate_act(data: dict):
+    """Generate KS-2 style act document."""
+    from docx import Document
+    from docx.shared import Pt, Cm, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+
+    required = ["project_name", "customer", "contract_number", "contract_date", "works", "executor_name", "executor_position"]
+    for field in required:
+        if field not in data:
+            raise HTTPException(status_code=400, detail=f"Поле '{field}' обязательно")
+
+    works = data["works"]
+    if not works or len(works) == 0:
+        raise HTTPException(status_code=400, detail="Добавьте хотя бы одну работу")
+
+    # Generate act text
+    total_sum = sum(w.get("quantity", 0) * w.get("price", 0) for w in works)
+
+    act_lines = []
+    act_lines.append(f"АКТ о приемке выполненных работ (КС-2)")
+    act_lines.append(f"")
+    act_lines.append(f"Объект: {data['project_name']}")
+    act_lines.append(f"Заказчик: {data['customer']}")
+    act_lines.append(f"Договор No {data['contract_number']} от {data['contract_date']}")
+    act_lines.append(f"Дата составления: {datetime.now().strftime('%d.%m.%Y')}")
+    act_lines.append(f"")
+    act_lines.append(f"{'No':<5} {'Наименование работ':<40} {'Ед.изм.':<10} {'Кол-во':<10} {'Цена':<12} {'Сумма':<12}")
+    act_lines.append("-" * 89)
+
+    for i, w in enumerate(works, 1):
+        name = w.get("name", "")[:38]
+        unit = w.get("unit", "шт.")
+        qty = w.get("quantity", 0)
+        price = w.get("price", 0)
+        total = qty * price
+        act_lines.append(f"{i:<5} {name:<40} {unit:<10} {qty:<10.2f} {price:<12.2f} {total:<12.2f}")
+
+    act_lines.append("-" * 89)
+    act_lines.append(f"{'ИТОГО:':<67} {total_sum:>12.2f} руб.")
+    act_lines.append(f"")
+    act_lines.append(f"Сдал: {data['executor_position']} {data['executor_name']}")
+    act_lines.append(f"Принял: _____________________ / _____________________")
+
+    act_text = "\n".join(act_lines)
+
+    # Generate DOCX
+    doc = Document()
+
+    # Title
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title.add_run("АКТ\nо приемке выполненных работ")
+    run.font.size = Pt(16)
+    run.bold = True
+
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run("(форма КС-2)")
+    run.font.size = Pt(11)
+    run.italic = True
+
+    # Details
+    doc.add_paragraph(f"Объект: {data['project_name']}")
+    doc.add_paragraph(f"Заказчик: {data['customer']}")
+    doc.add_paragraph(f"Договор No {data['contract_number']} от {data['contract_date']}")
+    doc.add_paragraph(f"Дата составления: {datetime.now().strftime('%d.%m.%Y')}")
+    doc.add_paragraph("")
+
+    # Table
+    table = doc.add_table(rows=1, cols=6)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    hdr_cells = table.rows[0].cells
+    headers = ["No", "Наименование работ", "Ед.изм.", "Кол-во", "Цена, руб.", "Сумма, руб."]
+    for i, h in enumerate(headers):
+        hdr_cells[i].text = h
+        for p in hdr_cells[i].paragraphs:
+            for r in p.runs:
+                r.bold = True
+                r.font.size = Pt(9)
+
+    for i, w in enumerate(works, 1):
+        row_cells = table.add_row().cells
+        qty = w.get("quantity", 0)
+        price = w.get("price", 0)
+        row_cells[0].text = str(i)
+        row_cells[1].text = w.get("name", "")
+        row_cells[2].text = w.get("unit", "шт.")
+        row_cells[3].text = f"{qty:.2f}"
+        row_cells[4].text = f"{price:.2f}"
+        row_cells[5].text = f"{qty * price:.2f}"
+
+    # Total row
+    total_row = table.add_row().cells
+    total_row[0].text = ""
+    total_row[1].text = "ИТОГО:"
+    for p in total_row[1].paragraphs:
+        for r in p.runs:
+            r.bold = True
+    total_row[5].text = f"{total_sum:.2f}"
+    for p in total_row[5].paragraphs:
+        for r in p.runs:
+            r.bold = True
+
+    doc.add_paragraph("")
+    doc.add_paragraph(f"Сдал: {data['executor_position']} _________________ {data['executor_name']}")
+    doc.add_paragraph("")
+    doc.add_paragraph("Принял: _____________________ / _____________________")
+
+    result_name = f"act_ks2_{uuid.uuid4().hex[:8]}.docx"
+    result_path = RESULTS_DIR / result_name
+    doc.save(str(result_path))
+
+    log_activity("act_gen", data["project_name"], f"Акт КС-2: {len(works)} работ, {total_sum:.2f} руб.")
+
+    return {
+        "status": "ok",
+        "act_text": act_text,
+        "works_count": len(works),
+        "total_sum": total_sum,
+        "download": f"/api/download-act/{result_name}",
+    }
+
+
+@app.get("/api/download-act/{filename}")
+async def download_act(filename: str):
+    safe_name = Path(filename).name
+    path = (RESULTS_DIR / safe_name).resolve()
+    if not path.is_relative_to(RESULTS_DIR.resolve()) or not path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(path, filename=safe_name,
+                       media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ============== F17. CNC PROGRAM GENERATOR ==============
+
+@app.post("/api/generate-cnc")
+async def api_generate_cnc(data: dict):
+    """Generate CNC program for aluminum cutting."""
+    cuts = data.get("cuts", [])
+    machine_type = data.get("machine_type", "miter_saw")
+
+    if not cuts:
+        raise HTTPException(status_code=400, detail="Добавьте хотя бы одну нарезку")
+
+    program_lines = []
+    total_operations = 0
+
+    if machine_type == "miter_saw":
+        program_lines.append("; === ПРОГРАММА ТОРЦЕВОЙ ПИЛЫ ===")
+        program_lines.append(f"; Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        program_lines.append(f"; Кол-во позиций: {len(cuts)}")
+        program_lines.append(";")
+        program_lines.append("; ФОРМАТ: ПОЗИЦИЯ | АРТИКУЛ | ДЛИНА | ОПЕРАЦИИ")
+        program_lines.append("; ========================================")
+        program_lines.append("")
+
+        pos = 0
+        for cut in cuts:
+            article = cut.get("article", "N/A")
+            length_mm = int(cut.get("length_mm", 0))
+            quantity = int(cut.get("quantity", 1))
+            operations = cut.get("operations", ["cut"])
+
+            for q in range(quantity):
+                pos += 1
+                program_lines.append(f"; --- Деталь {pos}: {article} x {length_mm}мм ---")
+
+                if "cut" in operations:
+                    program_lines.append(f"M03 S3000        ; Пуск шпинделя")
+                    program_lines.append(f"G01 X{length_mm:.1f} F500  ; Установить упор на {length_mm}мм")
+                    program_lines.append(f"G01 Z-60 F200     ; Рез вниз")
+                    program_lines.append(f"G00 Z10           ; Возврат")
+                    total_operations += 1
+
+                if "drill" in operations:
+                    program_lines.append(f"M06 T02           ; Смена на сверло")
+                    program_lines.append(f"G81 X{length_mm/2:.1f} Y0 Z-15 R5 F150 ; Сверление по центру")
+                    program_lines.append(f"G80                ; Отмена цикла")
+                    total_operations += 1
+
+                if "mill" in operations:
+                    program_lines.append(f"M06 T03           ; Смена на фрезу")
+                    program_lines.append(f"G01 X10 Y-5 F300  ; Фрезеровка паз")
+                    program_lines.append(f"G01 X{length_mm - 10:.1f} Y-5")
+                    program_lines.append(f"G00 Y0 Z10        ; Возврат")
+                    total_operations += 1
+
+                program_lines.append("")
+
+        program_lines.append("M05               ; Стоп шпинделя")
+        program_lines.append("M30               ; Конец программы")
+
+    else:  # cnc_router
+        program_lines.append("%")
+        program_lines.append(f"O0001 (CNC ROUTER PROGRAM)")
+        program_lines.append(f"(DATE: {datetime.now().strftime('%d.%m.%Y %H:%M')})")
+        program_lines.append(f"(POSITIONS: {len(cuts)})")
+        program_lines.append("")
+        program_lines.append("G90 G21           (Absolute, Metric)")
+        program_lines.append("G17               (XY Plane)")
+        program_lines.append("")
+
+        pos = 0
+        y_offset = 0
+        for cut in cuts:
+            article = cut.get("article", "N/A")
+            length_mm = int(cut.get("length_mm", 0))
+            quantity = int(cut.get("quantity", 1))
+            operations = cut.get("operations", ["cut"])
+
+            for q in range(quantity):
+                pos += 1
+                program_lines.append(f"(PART {pos}: {article} L={length_mm})")
+
+                # Safe height
+                program_lines.append(f"G00 Z25.0")
+
+                if "cut" in operations:
+                    program_lines.append(f"G00 X0 Y{y_offset:.1f}")
+                    program_lines.append(f"M03 S12000")
+                    program_lines.append(f"G00 Z5.0")
+                    program_lines.append(f"G01 Z-3.0 F1000")
+                    program_lines.append(f"G01 X{length_mm:.1f} F2000")
+                    program_lines.append(f"G00 Z25.0")
+                    total_operations += 1
+
+                if "drill" in operations:
+                    drill_positions = [length_mm * 0.25, length_mm * 0.5, length_mm * 0.75]
+                    for dx in drill_positions:
+                        program_lines.append(f"G00 X{dx:.1f} Y{y_offset + 20:.1f}")
+                        program_lines.append(f"G81 Z-12.0 R5.0 F500")
+                        program_lines.append(f"G80")
+                        total_operations += 1
+
+                if "mill" in operations:
+                    program_lines.append(f"M06 T02 (End mill)")
+                    program_lines.append(f"M03 S10000")
+                    program_lines.append(f"G00 X5.0 Y{y_offset + 10:.1f}")
+                    program_lines.append(f"G01 Z-2.0 F800")
+                    program_lines.append(f"G01 X{length_mm - 5:.1f} F1500")
+                    program_lines.append(f"G01 Y{y_offset + 30:.1f}")
+                    program_lines.append(f"G01 X5.0")
+                    program_lines.append(f"G00 Z25.0")
+                    total_operations += 1
+
+                program_lines.append("")
+                y_offset += 60
+
+        program_lines.append("M05")
+        program_lines.append("G00 X0 Y0 Z50.0")
+        program_lines.append("M30")
+        program_lines.append("%")
+
+    program_text = "\n".join(program_lines)
+
+    # Save as .nc file
+    result_name = f"cnc_program_{uuid.uuid4().hex[:8]}.nc"
+    result_path = RESULTS_DIR / result_name
+    result_path.write_text(program_text, encoding="utf-8")
+
+    log_activity("cnc", f"{len(cuts)} позиций", f"ЧПУ программа: {total_operations} операций, {machine_type}")
+
+    return {
+        "status": "ok",
+        "program_text": program_text,
+        "total_operations": total_operations,
+        "machine_type": machine_type,
+        "positions": len(cuts),
+        "download": f"/api/download-nc/{result_name}",
+    }
+
+
+@app.get("/api/download-nc/{filename}")
+async def download_nc(filename: str):
+    safe_name = Path(filename).name
+    path = (RESULTS_DIR / safe_name).resolve()
+    if not path.is_relative_to(RESULTS_DIR.resolve()) or not path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(path, filename=safe_name, media_type="application/octet-stream")
+
+
+# ============== F18. QR / LABEL GENERATOR ==============
+
+@app.post("/api/generate-qr")
+async def api_generate_qr(data: dict):
+    """Generate printable labels with position data."""
+    positions = data.get("positions", [])
+    if not positions:
+        raise HTTPException(status_code=400, detail="Добавьте хотя бы одну позицию")
+
+    # Generate HTML labels for printing
+    labels_html = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+    @media print { body { margin: 0; } .label { page-break-inside: avoid; } }
+    body { font-family: Arial, sans-serif; padding: 10mm; }
+    .labels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+    .label {
+        border: 1px solid #333; border-radius: 4px; padding: 4mm;
+        text-align: center; min-height: 35mm;
+    }
+    .label-id { font-size: 18pt; font-weight: bold; margin-bottom: 2mm; }
+    .label-desc { font-size: 8pt; color: #555; margin-bottom: 2mm; }
+    .label-article { font-size: 10pt; font-family: monospace; margin-bottom: 2mm; }
+    .label-qty { font-size: 9pt; }
+    .label-barcode {
+        font-family: monospace; font-size: 14pt; letter-spacing: 3px;
+        border-top: 1px solid #ccc; padding-top: 2mm; margin-top: 2mm;
+    }
+    .label-data { font-size: 6pt; color: #999; margin-top: 1mm; word-break: break-all; }
+</style>
+</head><body>
+<div class="labels-grid">
+"""
+
+    for pos in positions:
+        pos_id = pos.get("id", "N/A")
+        desc = pos.get("description", "")
+        article = pos.get("article", "")
+        qty = pos.get("quantity", 1)
+        data_str = json.dumps({"id": pos_id, "art": article, "qty": qty}, ensure_ascii=False)
+        # Simple barcode-style representation using article digits
+        barcode_repr = "".join(f"{'|' if int(c) % 2 == 0 else ':'}" for c in article if c.isdigit()) if article else "|||::|||"
+
+        labels_html += f"""<div class="label">
+    <div class="label-id">{pos_id}</div>
+    <div class="label-desc">{desc}</div>
+    <div class="label-article">Арт. {article}</div>
+    <div class="label-qty">Кол-во: {qty} шт.</div>
+    <div class="label-barcode">{barcode_repr}</div>
+    <div class="label-data">{data_str}</div>
+</div>
+"""
+
+    labels_html += "</div></body></html>"
+
+    log_activity("qr_labels", f"{len(positions)} позиций", f"Маркировка: {len(positions)} этикеток")
+
+    return {
+        "status": "ok",
+        "labels_count": len(positions),
+        "labels_html": labels_html,
+    }
+
+
+# ============== F19. PHOTO REPORT TEMPLATE ==============
+
+@app.post("/api/generate-photo-report")
+async def api_generate_photo_report(data: dict):
+    """Generate photo report template as XLSX."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    project_name = data.get("project_name", "Проект")
+    report_date = data.get("date", datetime.now().strftime("%d.%m.%Y"))
+    positions = data.get("positions", [])
+
+    if not positions:
+        raise HTTPException(status_code=400, detail="Добавьте хотя бы одну позицию")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Фотоотчёт"
+
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    # Title
+    ws.merge_cells("A1:F1")
+    ws["A1"] = f"ФОТООТЧЁТ — {project_name}"
+    ws["A1"].font = Font(name="Arial", size=16, bold=True)
+    ws["A1"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells("A2:F2")
+    ws["A2"] = f"Дата: {report_date}"
+    ws["A2"].font = Font(name="Arial", size=11)
+    ws["A2"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells("A3:F3")
+    ws["A3"] = "Инспектор: _________________________"
+    ws["A3"].font = Font(name="Arial", size=10, italic=True)
+
+    # Headers
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="2A2A22", end_color="2A2A22", fill_type="solid")
+    headers = ["Позиция", "Описание", "Статус", "Фото (вставить)", "Замечания", "Подпись"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=5, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+
+    # Status colors
+    status_fills = {
+        "установлено": PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"),
+        "в процессе": PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid"),
+        "не начато": PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"),
+    }
+
+    for i, pos in enumerate(positions):
+        row = i + 6
+        ws.row_dimensions[row].height = 80  # Space for photo
+
+        ws.cell(row=row, column=1, value=pos.get("id", f"П-{i+1}")).border = thin_border
+        ws.cell(row=row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+        ws.cell(row=row, column=1).font = Font(name="Arial", size=11, bold=True)
+
+        ws.cell(row=row, column=2, value=pos.get("description", "")).border = thin_border
+        ws.cell(row=row, column=2).alignment = Alignment(vertical="center", wrap_text=True)
+
+        status = pos.get("status", "не начато")
+        status_cell = ws.cell(row=row, column=3, value=status)
+        status_cell.border = thin_border
+        status_cell.alignment = Alignment(horizontal="center", vertical="center")
+        if status in status_fills:
+            status_cell.fill = status_fills[status]
+
+        ws.cell(row=row, column=4, value="[Вставить фото]").border = thin_border
+        ws.cell(row=row, column=4).alignment = Alignment(horizontal="center", vertical="center")
+        ws.cell(row=row, column=4).font = Font(name="Arial", size=9, italic=True, color="999999")
+
+        ws.cell(row=row, column=5, value="").border = thin_border
+        ws.cell(row=row, column=6, value="").border = thin_border
+
+    # Column widths
+    col_widths = {"A": 12, "B": 30, "C": 15, "D": 25, "E": 20, "F": 15}
+    for col, w in col_widths.items():
+        ws.column_dimensions[col].width = w
+
+    result_name = f"photo_report_{uuid.uuid4().hex[:8]}.xlsx"
+    result_path = RESULTS_DIR / result_name
+    wb.save(str(result_path))
+
+    log_activity("photo_report", project_name, f"Фотоотчёт: {len(positions)} позиций")
+
+    return {
+        "status": "ok",
+        "positions_count": len(positions),
+        "download": f"/api/download/{result_name}",
+    }
+
+
+# ============== F20. STANDARD NODES LIBRARY ==============
+
+NODES_LIBRARY = {
+    "top_connection": {
+        "id": "top_connection",
+        "name": "Узел верхнего примыкания",
+        "description": "Узел крепления алюминиевой конструкции к верхнему перекрытию. Обеспечивает компенсацию прогиба перекрытия и герметичность.",
+        "materials": [
+            "Кронштейн Г-образный 120x80x4мм",
+            "Анкер забивной М10x60",
+            "Винт самонарезающий 6.3x19",
+            "EPDM уплотнитель 20x5мм",
+            "Утеплитель минвата 50мм",
+            "Пароизоляционная лента",
+            "Герметик силиконовый нейтральный",
+        ],
+        "installation_steps": [
+            "Разметить линию крепления по проекту",
+            "Установить кронштейны с шагом 400мм на анкеры",
+            "Закрепить верхний профиль рамы к кронштейнам",
+            "Оставить зазор 15-20мм для компенсации прогиба",
+            "Заполнить зазор утеплителем",
+            "Наклеить пароизоляционную ленту изнутри",
+            "Нанести герметик по наружному контуру",
+        ],
+        "warnings": [
+            "Зазор для компенсации прогиба обязателен (мин. 15мм)",
+            "Не допускать жёсткого защемления конструкции",
+            "Пароизоляция только с внутренней стороны",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50", "Alutech ALT F50", "Vidnal V-FW50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="300" height="30" fill="#C0C0C0" stroke="#666" stroke-width="1"/>
+  <text x="150" y="20" text-anchor="middle" font-size="10" fill="#444">Перекрытие</text>
+  <rect x="80" y="30" width="8" height="40" fill="#888" stroke="#444" stroke-width="0.5"/>
+  <rect x="212" y="30" width="8" height="40" fill="#888" stroke="#444" stroke-width="0.5"/>
+  <text x="60" y="55" text-anchor="end" font-size="8" fill="#666">Кронштейн</text>
+  <line x1="62" y1="53" x2="78" y2="50" stroke="#666" stroke-width="0.5"/>
+  <rect x="70" y="70" width="160" height="12" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="150" y="80" text-anchor="middle" font-size="8" fill="white">Рама (верх)</text>
+  <path d="M 70 30 L 70 70" stroke="#E8A030" stroke-width="2" stroke-dasharray="3,2"/>
+  <text x="55" y="52" text-anchor="end" font-size="7" fill="#E8A030">Зазор</text>
+  <rect x="85" y="35" width="130" height="32" fill="#FFE0A0" opacity="0.5" stroke="none"/>
+  <text x="150" y="55" text-anchor="middle" font-size="7" fill="#996600">Утеплитель</text>
+  <rect x="70" y="82" width="160" height="50" fill="#B0D4F1" opacity="0.3" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="150" y="110" text-anchor="middle" font-size="8" fill="#4A6FA5">Стеклопакет</text>
+  <circle cx="84" cy="40" r="3" fill="#A14242"/>
+  <circle cx="216" cy="40" r="3" fill="#A14242"/>
+  <text x="250" y="42" font-size="7" fill="#A14242">Анкер</text>
+</svg>""",
+    },
+    "bottom_connection": {
+        "id": "bottom_connection",
+        "name": "Узел нижнего примыкания",
+        "description": "Узел крепления конструкции к нижнему основанию (плита, парапет). Включает гидроизоляцию и отвод воды.",
+        "materials": [
+            "Подставочный профиль 30x40мм",
+            "Анкер клиновой М10x80",
+            "Гидроизоляционная мембрана",
+            "Подоконный отлив оцинкованный",
+            "ПСУЛ 20x30",
+            "Монтажная пена",
+            "Герметик бутиловый",
+        ],
+        "installation_steps": [
+            "Подготовить основание, выровнять плоскость",
+            "Уложить гидроизоляционную мембрану",
+            "Установить подставочный профиль на анкеры",
+            "Закрепить раму к подставочному профилю",
+            "Установить наружный отлив с уклоном",
+            "Запенить монтажный шов",
+            "Загерметизировать стыки",
+        ],
+        "warnings": [
+            "Обязателен уклон отлива от фасада (мин. 3°)",
+            "Гидроизоляция должна заходить под конструкцию мин. 50мм",
+            "Монтажная пена — только изнутри помещения",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50", "Alutech ALT F50", "Vidnal V-FW50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="140" width="300" height="60" fill="#C0C0C0" stroke="#666" stroke-width="1"/>
+  <text x="150" y="175" text-anchor="middle" font-size="10" fill="#444">Основание / Плита</text>
+  <rect x="70" y="120" width="160" height="20" fill="#8B7355" stroke="#444" stroke-width="1"/>
+  <text x="150" y="134" text-anchor="middle" font-size="8" fill="white">Подставочный профиль</text>
+  <rect x="70" y="60" width="160" height="60" fill="#B0D4F1" opacity="0.3" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="150" y="95" text-anchor="middle" font-size="8" fill="#4A6FA5">Стеклопакет</text>
+  <rect x="68" y="55" width="164" height="12" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="150" y="65" text-anchor="middle" font-size="8" fill="white">Рама (низ)</text>
+  <path d="M 40 138 L 70 138 L 70 125 L 30 125 L 25 140 Z" fill="#999" stroke="#666" stroke-width="0.5"/>
+  <text x="35" y="120" font-size="7" fill="#666">Отлив</text>
+  <line x1="70" y1="140" x2="230" y2="140" stroke="#2196F3" stroke-width="2"/>
+  <text x="260" y="143" font-size="7" fill="#2196F3">Гидроизол.</text>
+  <circle cx="100" cy="135" r="3" fill="#A14242"/>
+  <circle cx="200" cy="135" r="3" fill="#A14242"/>
+</svg>""",
+    },
+    "side_connection": {
+        "id": "side_connection",
+        "name": "Узел бокового примыкания",
+        "description": "Узел крепления боковой стойки к откосу или стене. Обеспечивает герметичность и теплоизоляцию бокового шва.",
+        "materials": [
+            "Анкерная пластина 150x30x2мм",
+            "Анкер рамный 10x132",
+            "ПСУЛ 20x40",
+            "Пароизоляционная лента ВС",
+            "Монтажная пена профессиональная",
+            "Герметик нейтральный",
+            "Нащельник 40мм",
+        ],
+        "installation_steps": [
+            "Установить анкерные пластины на раму с шагом 400мм",
+            "Выставить раму в проёме по уровню",
+            "Закрепить анкерные пластины к стене",
+            "Наклеить ПСУЛ по наружному контуру",
+            "Запенить монтажный шов послойно",
+            "Установить пароизоляционную ленту изнутри",
+            "Установить нащельник снаружи",
+        ],
+        "warnings": [
+            "Монтажный зазор: 15-20мм с каждой стороны",
+            "Пена наносить послойно (макс. 30мм за проход)",
+            "ПСУЛ устанавливать до запенивания",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50", "Alutech ALT F50", "Vidnal V-FW50", "СИАЛ КП 50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60" height="200" fill="#C0C0C0" stroke="#666" stroke-width="1"/>
+  <text x="30" y="100" text-anchor="middle" font-size="9" fill="#444" transform="rotate(-90,30,100)">Стена / Откос</text>
+  <rect x="60" y="30" width="12" height="140" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="66" y="105" text-anchor="middle" font-size="7" fill="white" transform="rotate(-90,66,105)">Стойка рамы</text>
+  <rect x="72" y="30" width="80" height="140" fill="#B0D4F1" opacity="0.3" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="112" y="105" text-anchor="middle" font-size="8" fill="#4A6FA5">Стеклопакет</text>
+  <rect x="55" y="50" width="18" height="6" fill="#E8A030" stroke="#996600" stroke-width="0.5"/>
+  <rect x="55" y="100" width="18" height="6" fill="#E8A030" stroke="#996600" stroke-width="0.5"/>
+  <rect x="55" y="145" width="18" height="6" fill="#E8A030" stroke="#996600" stroke-width="0.5"/>
+  <text x="40" y="55" text-anchor="end" font-size="6" fill="#996600">Пластина</text>
+  <path d="M 56 60 C 58 70, 58 90, 56 95" fill="#FFD700" opacity="0.4" stroke="#E8A030" stroke-width="0.5"/>
+  <text x="42" y="80" text-anchor="end" font-size="6" fill="#E8A030">Пена</text>
+  <circle cx="50" cy="53" r="2.5" fill="#A14242"/>
+  <circle cx="50" cy="103" r="2.5" fill="#A14242"/>
+  <circle cx="50" cy="148" r="2.5" fill="#A14242"/>
+</svg>""",
+    },
+    "mullion_transom": {
+        "id": "mullion_transom",
+        "name": "Узел стойка-ригель",
+        "description": "Соединение вертикальной стойки с горизонтальным ригелем в фасадной системе. Ключевой несущий узел.",
+        "materials": [
+            "Соединитель стойка-ригель (комплект)",
+            "Прижимная планка",
+            "Уплотнитель EPDM наружный",
+            "Уплотнитель EPDM внутренний",
+            "Винт самонарезающий 6.3x25",
+            "Декоративная крышка ригеля",
+            "Термовкладыш полиамидный",
+        ],
+        "installation_steps": [
+            "Подготовить стойку: вырезать паз под ригель",
+            "Установить термовкладыш в стойку",
+            "Вставить соединитель в ригель",
+            "Закрепить ригель к стойке через соединитель",
+            "Установить уплотнители (наружный и внутренний)",
+            "Закрепить прижимную планку",
+            "Установить декоративную крышку",
+        ],
+        "warnings": [
+            "Соединитель должен соответствовать серии профилей",
+            "Обязательно использовать термовкладыш для терморазрыва",
+            "Момент затяжки по рекомендации производителя",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50+", "Alutech ALT F50", "Hueck L50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="130" y="0" width="40" height="200" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="150" y="15" text-anchor="middle" font-size="8" fill="white">Стойка</text>
+  <rect x="0" y="85" width="130" height="30" fill="#5A8FB5" stroke="#333" stroke-width="1"/>
+  <rect x="170" y="85" width="130" height="30" fill="#5A8FB5" stroke="#333" stroke-width="1"/>
+  <text x="65" y="104" text-anchor="middle" font-size="8" fill="white">Ригель</text>
+  <text x="235" y="104" text-anchor="middle" font-size="8" fill="white">Ригель</text>
+  <rect x="135" y="88" width="30" height="24" fill="#E8A030" stroke="#996600" stroke-width="0.5" rx="2"/>
+  <text x="150" y="103" text-anchor="middle" font-size="6" fill="#663300">Соединитель</text>
+  <rect x="125" y="80" width="50" height="4" fill="#4A7C59" opacity="0.7"/>
+  <rect x="125" y="116" width="50" height="4" fill="#4A7C59" opacity="0.7"/>
+  <text x="100" y="80" text-anchor="end" font-size="6" fill="#4A7C59">Уплотнитель</text>
+  <rect x="0" y="30" width="128" height="50" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <rect x="172" y="30" width="128" height="50" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <rect x="0" y="120" width="128" height="50" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <rect x="172" y="120" width="128" height="50" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="64" y="58" text-anchor="middle" font-size="7" fill="#4A6FA5">Стекло</text>
+</svg>""",
+    },
+    "corner_joint": {
+        "id": "corner_joint",
+        "name": "Угловое соединение",
+        "description": "Соединение двух стоек фасадной системы под углом (90° или произвольный). Обеспечивает герметичность угла.",
+        "materials": [
+            "Угловой соединитель 90°",
+            "Угловая стойка специальная",
+            "Угловой уплотнитель EPDM",
+            "Герметик силиконовый структурный",
+            "Винт самонарезающий 6.3x19",
+            "Угловая декоративная крышка",
+            "Термовкладыш угловой",
+        ],
+        "installation_steps": [
+            "Подготовить угловую стойку по размерам",
+            "Установить термовкладыш",
+            "Закрепить стойки к угловому соединителю",
+            "Установить угловые уплотнители",
+            "Нанести структурный герметик в угловой шов",
+            "Установить стеклопакеты в угловые ячейки",
+            "Смонтировать декоративные крышки",
+        ],
+        "warnings": [
+            "Угловой стеклопакет требует специального заказа",
+            "Структурный герметик — только сертифицированный",
+            "Для углов отличных от 90° — специальные профили",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50", "Alutech ALT F50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="130" y="0" width="15" height="200" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <rect x="145" y="85" width="155" height="15" fill="#4A6FA5" stroke="#333" stroke-width="1" transform="rotate(0)"/>
+  <rect x="138" y="80" width="25" height="25" fill="#E8A030" stroke="#996600" stroke-width="1" rx="3"/>
+  <text x="150" y="96" text-anchor="middle" font-size="6" fill="#663300">Угл.</text>
+  <rect x="10" y="10" width="118" height="70" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <rect x="10" y="105" width="118" height="85" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <rect x="165" y="105" width="125" height="85" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="70" y="50" text-anchor="middle" font-size="8" fill="#4A6FA5">Стекло</text>
+  <text x="150" y="30" text-anchor="middle" font-size="8" fill="white" transform="rotate(-90,143,30)">Стойка</text>
+  <text x="220" y="95" text-anchor="middle" font-size="8" fill="white">Стойка</text>
+  <path d="M 130 80 Q 140 85, 145 85" fill="none" stroke="#4A7C59" stroke-width="2"/>
+  <text x="120" y="78" text-anchor="end" font-size="6" fill="#4A7C59">90°</text>
+</svg>""",
+    },
+    "expansion_joint": {
+        "id": "expansion_joint",
+        "name": "Деформационный шов",
+        "description": "Узел компенсации температурных и осадочных деформаций между секциями фасада. Критически важен для длинных фасадов.",
+        "materials": [
+            "Деформационный профиль (компенсатор)",
+            "Уплотнитель деформационного шва",
+            "Герметик полиуретановый эластичный",
+            "Утеплитель вспененный (Вилатерм)",
+            "Нащельник деформационный 80мм",
+            "Крепёж нержавеющий",
+        ],
+        "installation_steps": [
+            "Разметить деформационный шов по проекту",
+            "Установить деформационные профили с зазором",
+            "Заложить утеплитель Вилатерм в шов",
+            "Нанести полиуретановый герметик",
+            "Установить наружный нащельник",
+            "Проверить свободу перемещения",
+        ],
+        "warnings": [
+            "Шов располагать через каждые 6-8м фасада",
+            "Минимальная ширина шва: 20мм",
+            "Запрещено заполнять жёстким герметиком",
+            "Учитывать температурное расширение алюминия: 0.024мм/м/°C",
+        ],
+        "applicable_systems": ["Reynaers CW 50", "Schuco FWS 50", "Alutech ALT F50", "Vidnal V-FW50", "СИАЛ КП 50"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="20" width="120" height="160" fill="#4A6FA5" opacity="0.3" stroke="#333" stroke-width="1"/>
+  <rect x="180" y="20" width="120" height="160" fill="#4A6FA5" opacity="0.3" stroke="#333" stroke-width="1"/>
+  <text x="60" y="105" text-anchor="middle" font-size="9" fill="#4A6FA5">Секция A</text>
+  <text x="240" y="105" text-anchor="middle" font-size="9" fill="#4A6FA5">Секция B</text>
+  <rect x="120" y="20" width="10" height="160" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <rect x="170" y="20" width="10" height="160" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <rect x="133" y="25" width="34" height="150" fill="#FFE0A0" opacity="0.5"/>
+  <text x="150" y="100" text-anchor="middle" font-size="7" fill="#996600" transform="rotate(-90,150,100)">Утеплитель</text>
+  <line x1="150" y1="20" x2="150" y2="180" stroke="#A14242" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="150" y="190" text-anchor="middle" font-size="7" fill="#A14242">Ось деф. шва</text>
+  <path d="M 130 30 L 133 30" stroke="#E8A030" stroke-width="2"/>
+  <path d="M 167 30 L 170 30" stroke="#E8A030" stroke-width="2"/>
+  <text x="150" y="15" text-anchor="middle" font-size="7" fill="#E8A030">20-40мм</text>
+  <line x1="130" y1="10" x2="130" y2="18" stroke="#E8A030" stroke-width="0.5"/>
+  <line x1="170" y1="10" x2="170" y2="18" stroke="#E8A030" stroke-width="0.5"/>
+  <line x1="130" y1="12" x2="170" y2="12" stroke="#E8A030" stroke-width="0.5" marker-start="url(#arrowL)" marker-end="url(#arrowR)"/>
+</svg>""",
+    },
+    "sill_connection": {
+        "id": "sill_connection",
+        "name": "Узел подоконника",
+        "description": "Узел установки внутреннего подоконника и его примыкания к раме конструкции. Включает теплоизоляцию подоконного пространства.",
+        "materials": [
+            "Подоконник ПВХ/камень/дерево",
+            "Подставочный профиль",
+            "Монтажная пена",
+            "Герметик акриловый",
+            "Заглушки торцевые",
+            "Крепёжные клипсы",
+        ],
+        "installation_steps": [
+            "Проверить установку подставочного профиля",
+            "Подготовить подоконник по размерам (выступ 30-50мм)",
+            "Установить подоконник с уклоном внутрь помещения (2-3°)",
+            "Запенить пространство под подоконником",
+            "Загерметизировать примыкание к раме",
+            "Установить торцевые заглушки",
+        ],
+        "warnings": [
+            "Подоконник не должен перекрывать радиатор более чем на 50%",
+            "Обязателен уклон от окна (2-3°)",
+            "Герметик наносить после полной полимеризации пены",
+        ],
+        "applicable_systems": ["Все оконные системы", "Reynaers MasterLine 8", "Schuco AWS 75", "Alutech ALT W72"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="120" width="300" height="80" fill="#C0C0C0" stroke="#666" stroke-width="1"/>
+  <text x="150" y="165" text-anchor="middle" font-size="9" fill="#444">Стена</text>
+  <rect x="100" y="70" width="15" height="50" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="107" y="100" text-anchor="middle" font-size="6" fill="white" transform="rotate(-90,107,100)">Рама</text>
+  <rect x="100" y="108" width="15" height="14" fill="#8B7355" stroke="#444" stroke-width="0.5"/>
+  <text x="107" y="118" text-anchor="middle" font-size="5" fill="white">ПП</text>
+  <rect x="30" y="105" width="85" height="15" fill="#DEB887" stroke="#8B7355" stroke-width="1"/>
+  <text x="72" y="116" text-anchor="middle" font-size="8" fill="#5C4033">Подоконник</text>
+  <line x1="30" y1="105" x2="115" y2="103" stroke="#8B7355" stroke-width="0.5" stroke-dasharray="3,2"/>
+  <text x="20" y="100" font-size="6" fill="#8B7355">2-3°</text>
+  <rect x="35" y="120" width="75" height="20" fill="#FFE0A0" opacity="0.4"/>
+  <text x="72" y="133" text-anchor="middle" font-size="6" fill="#996600">Пена</text>
+  <rect x="115" y="70" width="50" height="35" fill="#B0D4F1" opacity="0.3" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="140" y="92" text-anchor="middle" font-size="7" fill="#4A6FA5">Стекло</text>
+</svg>""",
+    },
+    "threshold": {
+        "id": "threshold",
+        "name": "Узел порога",
+        "description": "Узел нижнего примыкания дверной конструкции с порогом. Обеспечивает теплоизоляцию, водоотведение и доступность.",
+        "materials": [
+            "Порог алюминиевый с терморазрывом",
+            "Уплотнитель порога щёточный",
+            "Гидроизоляционная мембрана",
+            "Дренажные отверстия (заглушки)",
+            "Анкер рамный 10x132",
+            "Герметик полиуретановый",
+            "Противоскользящая накладка",
+        ],
+        "installation_steps": [
+            "Подготовить основание с уклоном наружу",
+            "Уложить гидроизоляционную мембрану",
+            "Установить порог на анкеры",
+            "Проверить дренажные отверстия",
+            "Установить щёточный уплотнитель",
+            "Загерметизировать боковые примыкания",
+            "Установить противоскользящую накладку",
+        ],
+        "warnings": [
+            "Дренажные отверстия не должны быть перекрыты",
+            "Для маломобильных групп: высота порога макс. 20мм",
+            "Обязательна гидроизоляция под порогом",
+        ],
+        "applicable_systems": ["Reynaers CP 155", "Schuco ASS 77 PD", "Alutech ALT SL160", "Vidnal V-SD60"],
+        "svg_schematic": """<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="150" width="300" height="50" fill="#C0C0C0" stroke="#666" stroke-width="1"/>
+  <text x="150" y="180" text-anchor="middle" font-size="9" fill="#444">Основание</text>
+  <rect x="60" y="130" width="180" height="20" fill="#B8963B" stroke="#8A7030" stroke-width="1"/>
+  <text x="150" y="144" text-anchor="middle" font-size="8" fill="white">Порог алюминиевый</text>
+  <rect x="60" y="0" width="12" height="130" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <rect x="228" y="0" width="12" height="130" fill="#4A6FA5" stroke="#333" stroke-width="1"/>
+  <text x="66" y="70" text-anchor="middle" font-size="7" fill="white" transform="rotate(-90,66,70)">Стойка</text>
+  <text x="234" y="70" text-anchor="middle" font-size="7" fill="white" transform="rotate(-90,234,70)">Стойка</text>
+  <rect x="72" y="10" width="156" height="110" fill="#B0D4F1" opacity="0.2" stroke="#4A6FA5" stroke-width="0.5" stroke-dasharray="2,2"/>
+  <text x="150" y="70" text-anchor="middle" font-size="9" fill="#4A6FA5">Дверное полотно</text>
+  <line x1="60" y1="148" x2="240" y2="148" stroke="#2196F3" stroke-width="2"/>
+  <text x="30" y="148" text-anchor="end" font-size="6" fill="#2196F3">Гидроизол.</text>
+  <rect x="140" y="135" width="4" height="10" fill="#333"/>
+  <rect x="155" y="135" width="4" height="10" fill="#333"/>
+  <text x="150" y="128" text-anchor="middle" font-size="6" fill="#333">Дренаж</text>
+  <path d="M 60 126 L 58 130 L 62 130 Z" fill="#4A7C59"/>
+  <path d="M 240 126 L 238 130 L 242 130 Z" fill="#4A7C59"/>
+  <text x="55" y="122" text-anchor="end" font-size="6" fill="#4A7C59">Уплотн.</text>
+</svg>""",
+    },
+}
+
+
+@app.get("/api/nodes-library")
+async def api_nodes_library():
+    """Return list of all standard nodes."""
+    nodes_list = []
+    for node_id, node in NODES_LIBRARY.items():
+        nodes_list.append({
+            "id": node["id"],
+            "name": node["name"],
+            "description": node["description"],
+            "materials_count": len(node["materials"]),
+            "steps_count": len(node["installation_steps"]),
+            "applicable_systems": node["applicable_systems"],
+        })
+    return {"status": "ok", "nodes": nodes_list}
+
+
+@app.get("/api/nodes-library/{node_type}")
+async def api_node_detail(node_type: str):
+    """Return detailed info about a specific node."""
+    node = NODES_LIBRARY.get(node_type)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"Узел '{node_type}' не найден")
+    return {"status": "ok", "node": node}
 
 
 # ============== 13. СТАТИСТИКА / ДАШБОРД ==============
