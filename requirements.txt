@@ -45,5 +45,8 @@ aiosqlite>=0.19
 # === Cache ===
 redis[hiredis]>=5.0
 
+# === Monitoring ===
+sentry-sdk[fastapi]>=1.40
+
 # === Utilities ===
 chardet>=5.2.0

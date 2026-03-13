@@ -43,6 +43,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
+
+# Sentry error tracking
+import sentry_sdk
+_sentry_dsn = os.getenv("SENTRY_DSN", "")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        environment=os.getenv("RAILWAY_ENVIRONMENT", "development"),
+    )
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_LLM_MODEL = "google/gemini-2.0-flash-001"
@@ -205,8 +217,63 @@ app.openapi = _custom_openapi
 
 @app.get("/api/health", tags=["Auth"], summary="Health check")
 async def api_health():
-    """Health check endpoint — no auth required."""
-    return {"status": "ok"}
+    """Comprehensive health check — DB, Pinecone, OpenRouter."""
+    checks = {}
+    overall = "ok"
+
+    # Check database
+    try:
+        async with async_session() as session:
+            await session.execute(select(1))
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {str(e)[:100]}"
+        overall = "degraded"
+
+    # Check Pinecone (quick describe index stats)
+    try:
+        pinecone_key = os.getenv("PINECONE_API_KEY", "")
+        if pinecone_key:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(
+                    "https://kmd-knowledge-b0hkvr1.svc.aped-4627-b74a.pinecone.io/describe_index_stats",
+                    headers={"Api-Key": pinecone_key},
+                )
+                if resp.status_code == 200:
+                    checks["pinecone"] = "ok"
+                else:
+                    checks["pinecone"] = f"error: HTTP {resp.status_code}"
+                    overall = "degraded"
+        else:
+            checks["pinecone"] = "not_configured"
+    except Exception as e:
+        checks["pinecone"] = f"error: {str(e)[:100]}"
+        overall = "degraded"
+
+    # Check OpenRouter (just verify API key is set)
+    if os.getenv("OPENROUTER_API_KEY", ""):
+        checks["openrouter"] = "configured"
+    else:
+        checks["openrouter"] = "not_configured"
+        overall = "degraded"
+
+    # Check Redis
+    try:
+        from webapp.cache import get_redis
+        r = await get_redis()
+        if r:
+            await r.ping()
+            checks["redis"] = "ok"
+        else:
+            checks["redis"] = "not_configured"
+    except Exception as e:
+        checks["redis"] = f"error: {str(e)[:100]}"
+
+    return {
+        "status": overall,
+        "checks": checks,
+        "version": "1.0.0",
+    }
 
 
 @app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
