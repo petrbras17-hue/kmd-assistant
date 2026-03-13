@@ -8,8 +8,10 @@ import re
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tools.rag_indexer import (
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_here))
+sys.path.insert(0, _here)
+from rag_indexer import (
     index_real_kmd, index_text_document, index_kmd_rules,
     NS_REAL_KMD, NS_KMD_RULES, NS_ARTICLES_REYNAERS,
     upsert_records, make_id, get_index_stats,

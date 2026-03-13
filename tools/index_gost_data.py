@@ -10,9 +10,10 @@ import os
 import time
 
 # Ensure project root on path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tools.rag_indexer import index_gost_standard, index_kmd_rules, get_index_stats
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_here))
+sys.path.insert(0, _here)
+from rag_indexer import index_gost_standard, index_kmd_rules, get_index_stats
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STANDARD TEXTS — each is a multi-section document with real technical data

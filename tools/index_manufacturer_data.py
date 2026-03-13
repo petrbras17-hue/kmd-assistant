@@ -8,9 +8,10 @@ import os
 import time
 
 # Allow running from project root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tools.rag_indexer import (
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_here))
+sys.path.insert(0, _here)
+from rag_indexer import (
     index_article_catalog,
     index_text_document,
     NS_ARTICLES_REYNAERS,

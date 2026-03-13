@@ -8,7 +8,9 @@ Namespaces:
   - seals-gaskets        : EPDM, TPE, silicone, butyl, polysulfide/PU
 """
 
-from tools.rag_indexer import (
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from rag_indexer import (
     index_text_document,
     index_hardware,
     upsert_records,
