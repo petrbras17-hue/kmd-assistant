@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KMD Assistant">
+    <meta name="theme-color" content="#1A1A14">
+    <meta name="msapplication-TileColor" content="#1A1A14">
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <!-- Open Graph -->
+    <meta property="og:title" content="KMD Assistant — ALDMEGA LAB">
+    <meta property="og:description" content="Инженерная платформа для проверки КМД документации, расчётов и управления проектами">
+    <meta property="og:image" content="/icons/icon-512x512.png">
+    <meta property="og:type" content="website">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="KMD Assistant — ALDMEGA LAB">
+    <meta name="twitter:description" content="Инженерная платформа для проверки КМД документации, расчётов и управления проектами">
+    <meta name="twitter:image" content="/icons/icon-512x512.png">
     <title>KMD Assistant — ALDMEGA LAB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -6318,6 +6336,351 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     mo.observe(document.body, { childList: true, subtree: true });
 });
+</script>
+
+<!-- ============================================================
+     PWA COMPONENTS — CSS
+     ============================================================ -->
+<style>
+/* PWA Install Banner */
+:root {
+    --pwa-canvas: #F5F2EC;
+    --pwa-carbon: #1A1A14;
+    --pwa-carbon-800: #2A2A22;
+    --pwa-brass: #B8963B;
+    --pwa-brass-light: #D4B66A;
+    --pwa-brass-pale: #F0E8D0;
+    --pwa-font-display: 'Playfair Display', serif;
+    --pwa-font-body: 'Instrument Sans', sans-serif;
+    --pwa-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --pwa-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+}
+
+.pwa-install-banner {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 10000;
+    transform: translateY(100%); opacity: 0;
+    transition: transform 0.5s var(--pwa-ease-out), opacity 0.4s ease;
+    pointer-events: none;
+}
+.pwa-install-banner.is-visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.pwa-install-banner.is-dismissing { transform: translateY(110%); opacity: 0; transition: transform 0.35s var(--pwa-ease-in), opacity 0.25s ease; }
+
+.pwa-install-banner__inner {
+    position: relative; background: var(--pwa-carbon); color: var(--pwa-canvas);
+    padding: 0; overflow: hidden;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+.pwa-install-banner__accent {
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, var(--pwa-brass) 15%, var(--pwa-brass-light) 50%, var(--pwa-brass) 85%, transparent 100%);
+}
+.pwa-install-banner__inner::before, .pwa-install-banner__inner::after {
+    content: ''; position: absolute; width: 24px; height: 24px;
+    border-color: var(--pwa-brass); opacity: 0.3; pointer-events: none;
+}
+.pwa-install-banner__inner::before { top: 12px; left: 16px; border-top: 1px solid; border-left: 1px solid; }
+.pwa-install-banner__inner::after { bottom: 12px; right: 16px; border-bottom: 1px solid; border-right: 1px solid; }
+.pwa-install-banner__content { display: flex; align-items: center; gap: 16px; padding: 20px 24px; max-width: 640px; margin: 0 auto; }
+.pwa-install-banner__icon {
+    flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--pwa-brass) 0%, var(--pwa-brass-light) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 12px rgba(184, 150, 59, 0.25);
+}
+.pwa-install-banner__icon svg { width: 28px; height: 28px; color: var(--pwa-carbon); }
+.pwa-install-banner__text { flex: 1; min-width: 0; }
+.pwa-install-banner__title { font-family: var(--pwa-font-display); font-size: 1.05rem; font-weight: 600; line-height: 1.3; color: var(--pwa-canvas); margin: 0 0 2px; }
+.pwa-install-banner__desc { font-family: var(--pwa-font-body); font-size: 0.82rem; color: rgba(245,242,236,0.55); margin: 0; }
+.pwa-install-banner__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pwa-install-banner__btn-install {
+    font-family: var(--pwa-font-body); font-size: 0.82rem; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 22px;
+    border: none; border-radius: 6px; cursor: pointer;
+    background: linear-gradient(135deg, var(--pwa-brass) 0%, var(--pwa-brass-light) 100%);
+    color: var(--pwa-carbon); transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(184, 150, 59, 0.3); white-space: nowrap;
+}
+.pwa-install-banner__btn-install:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(184, 150, 59, 0.4); }
+.pwa-install-banner__btn-dismiss {
+    font-family: var(--pwa-font-body); font-size: 0.82rem; font-weight: 500;
+    padding: 10px 16px; border: 1px solid rgba(245,242,236,0.15); border-radius: 6px;
+    cursor: pointer; background: transparent; color: rgba(245,242,236,0.6);
+    transition: border-color 0.2s ease, color 0.2s ease; white-space: nowrap;
+}
+.pwa-install-banner__btn-dismiss:hover { border-color: rgba(245,242,236,0.3); color: rgba(245,242,236,0.85); }
+
+@media (max-width: 480px) {
+    .pwa-install-banner__content { flex-wrap: wrap; padding: 16px 20px; gap: 12px; }
+    .pwa-install-banner__text { flex: 1 1 calc(100% - 68px); }
+    .pwa-install-banner__actions { width: 100%; }
+    .pwa-install-banner__btn-install { flex: 1; text-align: center; }
+}
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .pwa-install-banner__inner { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Offline Indicator */
+.offline-indicator {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10001;
+    transform: translateY(-100%); opacity: 0;
+    transition: transform 0.45s var(--pwa-ease-out), opacity 0.35s ease;
+    pointer-events: none;
+}
+.offline-indicator.is-visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.offline-indicator__bar {
+    background: linear-gradient(90deg, var(--pwa-brass) 0%, var(--pwa-brass-light) 40%, var(--pwa-brass) 100%);
+    padding: 8px 20px; display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 2px 12px rgba(184, 150, 59, 0.2);
+}
+.offline-indicator__dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--pwa-carbon);
+    flex-shrink: 0; animation: offlinePulse 1.8s ease-in-out infinite;
+}
+@keyframes offlinePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.75); } }
+.offline-indicator__text {
+    font-family: var(--pwa-font-body); font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--pwa-carbon);
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+    .offline-indicator__bar { padding-top: calc(8px + env(safe-area-inset-top)); }
+}
+
+/* SW Update Toast */
+.sw-update-toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 10002;
+    transform: translateY(20px) scale(0.95); opacity: 0;
+    transition: transform 0.45s var(--pwa-ease-out), opacity 0.35s ease;
+    pointer-events: none;
+}
+.sw-update-toast.is-visible { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
+.sw-update-toast__inner {
+    position: relative; background: var(--pwa-carbon); color: var(--pwa-canvas);
+    border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 8px 32px rgba(26,26,20,0.25), 0 2px 8px rgba(26,26,20,0.15);
+    overflow: hidden; max-width: 360px;
+}
+.sw-update-toast__inner::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--pwa-brass-light) 0%, var(--pwa-brass) 100%);
+}
+.sw-update-toast__icon {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px;
+    background: rgba(184,150,59,0.12); display: flex; align-items: center; justify-content: center;
+}
+.sw-update-toast__icon svg { width: 20px; height: 20px; color: var(--pwa-brass-light); }
+.sw-update-toast__body { flex: 1; min-width: 0; }
+.sw-update-toast__title { font-family: var(--pwa-font-body); font-size: 0.88rem; font-weight: 600; color: var(--pwa-canvas); margin: 0 0 2px; }
+.sw-update-toast__desc { font-family: var(--pwa-font-body); font-size: 0.76rem; color: rgba(245,242,236,0.5); margin: 0; }
+.sw-update-toast__btn {
+    font-family: var(--pwa-font-body); font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.03em; text-transform: uppercase; padding: 8px 16px;
+    border: none; border-radius: 5px; cursor: pointer;
+    background: linear-gradient(135deg, var(--pwa-brass) 0%, var(--pwa-brass-light) 100%);
+    color: var(--pwa-carbon); transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(184,150,59,0.25); white-space: nowrap; flex-shrink: 0;
+}
+.sw-update-toast__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(184,150,59,0.35); }
+@media (max-width: 480px) {
+    .sw-update-toast { bottom: 16px; right: 16px; left: 16px; }
+    .sw-update-toast__inner { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pwa-install-banner, .offline-indicator, .sw-update-toast { transition-duration: 0.01ms !important; }
+    .offline-indicator__dot { animation: none; opacity: 0.6; }
+}
+</style>
+
+<!-- ============================================================
+     PWA COMPONENTS — HTML MARKUP
+     ============================================================ -->
+
+<!-- PWA Install Banner -->
+<div class="pwa-install-banner" id="pwaInstallBanner" role="dialog" aria-label="Установить приложение" aria-hidden="true">
+    <div class="pwa-install-banner__inner">
+        <div class="pwa-install-banner__accent"></div>
+        <div class="pwa-install-banner__content">
+            <div class="pwa-install-banner__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+            </div>
+            <div class="pwa-install-banner__text">
+                <p class="pwa-install-banner__title">Установить KMD Assistant</p>
+                <p class="pwa-install-banner__desc">Быстрый доступ без браузера</p>
+            </div>
+            <div class="pwa-install-banner__actions">
+                <button class="pwa-install-banner__btn-install" id="pwaInstallBtn" type="button">Установить</button>
+                <button class="pwa-install-banner__btn-dismiss" id="pwaInstallDismiss" type="button">Позже</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Offline Indicator -->
+<div class="offline-indicator" id="offlineIndicator" role="status" aria-live="polite" aria-hidden="true">
+    <div class="offline-indicator__bar">
+        <span class="offline-indicator__dot" aria-hidden="true"></span>
+        <span class="offline-indicator__text">Офлайн-режим — данные из кеша</span>
+    </div>
+</div>
+
+<!-- SW Update Toast -->
+<div class="sw-update-toast" id="swUpdateToast" role="alert" aria-live="assertive" aria-hidden="true">
+    <div class="sw-update-toast__inner">
+        <div class="sw-update-toast__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+            </svg>
+        </div>
+        <div class="sw-update-toast__body">
+            <p class="sw-update-toast__title">Доступно обновление</p>
+            <p class="sw-update-toast__desc">Новая версия готова к использованию</p>
+        </div>
+        <button class="sw-update-toast__btn" id="swUpdateBtn" type="button">Обновить</button>
+    </div>
+</div>
+
+<!-- ============================================================
+     PWA — Service Worker Registration & Install Logic
+     ============================================================ -->
+<script>
+(function() {
+    'use strict';
+
+    // --- Service Worker Registration ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(function(reg) {
+                    console.log('[PWA] SW registered, scope:', reg.scope);
+
+                    // Check for updates every 60 minutes
+                    setInterval(function() { reg.update(); }, 60 * 60 * 1000);
+
+                    // Listen for new SW waiting
+                    reg.addEventListener('updatefound', function() {
+                        var newWorker = reg.installing;
+                        if (!newWorker) return;
+                        newWorker.addEventListener('statechange', function() {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                showUpdateToast(reg);
+                            }
+                        });
+                    });
+                })
+                .catch(function(err) {
+                    console.warn('[PWA] SW registration failed:', err);
+                });
+
+            // Reload on controller change (after skipWaiting)
+            var refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+        });
+    }
+
+    // --- SW Update Toast ---
+    function showUpdateToast(registration) {
+        var toast = document.getElementById('swUpdateToast');
+        if (!toast) return;
+        toast.classList.add('is-visible');
+        toast.setAttribute('aria-hidden', 'false');
+
+        document.getElementById('swUpdateBtn').addEventListener('click', function() {
+            if (registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            toast.classList.remove('is-visible');
+            toast.classList.add('is-hiding');
+        }, { once: true });
+    }
+
+    // --- PWA Install Prompt ---
+    var deferredPrompt = null;
+    var DISMISS_KEY = 'kmd-pwa-dismiss';
+    var DISMISS_DAYS = 7;
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        // Check if user dismissed recently
+        var dismissed = localStorage.getItem(DISMISS_KEY);
+        if (dismissed && (Date.now() - Number(dismissed)) < DISMISS_DAYS * 86400000) return;
+
+        // Show install banner after short delay
+        setTimeout(function() {
+            var banner = document.getElementById('pwaInstallBanner');
+            if (!banner) return;
+            banner.classList.add('is-visible');
+            banner.setAttribute('aria-hidden', 'false');
+        }, 3000);
+    });
+
+    // Install button
+    var installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+        installBtn.addEventListener('click', function() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(result) {
+                console.log('[PWA] Install choice:', result.outcome);
+                deferredPrompt = null;
+                hideBanner();
+            });
+        });
+    }
+
+    // Dismiss button
+    var dismissBtn = document.getElementById('pwaInstallDismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            localStorage.setItem(DISMISS_KEY, Date.now().toString());
+            hideBanner();
+        });
+    }
+
+    function hideBanner() {
+        var banner = document.getElementById('pwaInstallBanner');
+        if (!banner) return;
+        banner.classList.add('is-dismissing');
+        banner.setAttribute('aria-hidden', 'true');
+        setTimeout(function() {
+            banner.classList.remove('is-visible', 'is-dismissing');
+        }, 400);
+    }
+
+    // --- Offline Indicator ---
+    function updateOfflineStatus() {
+        var indicator = document.getElementById('offlineIndicator');
+        if (!indicator) return;
+        if (!navigator.onLine) {
+            indicator.classList.add('is-visible');
+            indicator.classList.remove('is-hiding');
+            indicator.setAttribute('aria-hidden', 'false');
+        } else {
+            indicator.classList.add('is-hiding');
+            indicator.setAttribute('aria-hidden', 'true');
+            setTimeout(function() {
+                indicator.classList.remove('is-visible', 'is-hiding');
+            }, 600);
+        }
+    }
+
+    window.addEventListener('online', updateOfflineStatus);
+    window.addEventListener('offline', updateOfflineStatus);
+    // Check initial state
+    if (!navigator.onLine) updateOfflineStatus();
+})();
 </script>
 
 </body>

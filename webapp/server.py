@@ -152,6 +152,57 @@ async def index():
     return html_path.read_text(encoding="utf-8")
 
 
+# ============== PWA ASSETS ==============
+
+@app.get("/manifest.json")
+async def pwa_manifest():
+    manifest_path = Path(__file__).parent / "manifest.json"
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail="manifest.json not found")
+    return FileResponse(
+        manifest_path,
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/sw.js")
+async def pwa_service_worker():
+    sw_path = Path(__file__).parent / "sw.js"
+    if not sw_path.exists():
+        raise HTTPException(status_code=404, detail="sw.js not found")
+    return FileResponse(
+        sw_path,
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-cache",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
+
+@app.get("/offline.html")
+async def pwa_offline():
+    offline_path = Path(__file__).parent / "offline.html"
+    if not offline_path.exists():
+        raise HTTPException(status_code=404, detail="offline.html not found")
+    return FileResponse(offline_path, media_type="text/html")
+
+
+@app.get("/icons/{filename:path}")
+async def pwa_icons(filename: str):
+    icons_dir = Path(__file__).parent / "icons"
+    file_path = (icons_dir / filename).resolve()
+    if not str(file_path).startswith(str(icons_dir.resolve())):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Icon not found")
+    return FileResponse(
+        file_path,
+        headers={"Cache-Control": "public, max-age=2592000, immutable"},
+    )
+
+
 # ============== 1. СРАВНЕНИЕ СПЕЦИФИКАЦИЙ ==============
 
 @app.post("/api/compare", tags=["Documentation"], summary="Compare two order specifications")
