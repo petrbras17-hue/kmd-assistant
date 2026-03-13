@@ -16,16 +16,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-canvas">
-    <!-- Sidebar overlay (mobile) -->
-    <Transition name="fade">
-      <div
-        v-if="store.sidebarOpen"
-        class="sidebar-overlay lg:hidden"
-        @click="store.sidebarOpen = false"
-      />
-    </Transition>
-
-    <!-- Sidebar -->
+    <!-- Sidebar (includes its own overlay) -->
     <AppSidebar />
 
     <!-- Main content -->

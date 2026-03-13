@@ -35,7 +35,8 @@ function toggleAiChat() {
 
 <template>
   <header
-    class="glass-nav fixed top-0 right-0 left-0 lg:left-[290px] z-50 h-14 flex items-center justify-between px-4 lg:px-6"
+    class="glass-nav fixed top-0 right-0 left-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 transition-all duration-500"
+    :class="store.sidebarOpen ? 'lg:left-[290px]' : 'lg:left-0'"
   >
     <!-- Left: hamburger + breadcrumb -->
     <div class="flex items-center gap-3">

@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 /* ===== BASE ===== */
-[v-cloak] { display: none !important; }
 * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body { font-family: 'DM Sans', sans-serif; background: #FAF9F7; color: #2D3436; }
 
