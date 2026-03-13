@@ -1577,6 +1577,62 @@ def validate_kmd_pdf(pdf_path: str) -> dict:
     return validate_kmd_full(parsed)
 
 
+def format_report_ru(result: dict) -> str:
+    """Возвращает читаемый текстовый отчёт валидации на русском."""
+    lines = []
+    status_icons = {"ok": "OK", "warning": "ВНИМАНИЕ", "critical": "КРИТИЧНО"}
+    status_label = status_icons.get(result["status"], result["status"])
+
+    lines.append("=" * 60)
+    lines.append(f"  ОТЧЁТ ВАЛИДАЦИИ КМД")
+    lines.append(f"  Статус: {status_label}  |  Оценка: {result['score']}/100")
+    lines.append(f"  Проверок пройдено: {result['checks_passed']}/{result['checks_total']}")
+    lines.append("=" * 60)
+
+    summary = result.get("summary", {})
+    if summary.get("critical"):
+        lines.append(f"  Критических ошибок: {summary['critical']}")
+    if summary.get("warning"):
+        lines.append(f"  Предупреждений: {summary['warning']}")
+    if summary.get("info"):
+        lines.append(f"  Информационных: {summary['info']}")
+    lines.append("")
+
+    errors_by_cat: dict[str, list[dict]] = {}
+    for err in result.get("errors", []):
+        cat = err.get("category", "other")
+        errors_by_cat.setdefault(cat, []).append(err)
+
+    cat_names = {
+        "articles": "АРТИКУЛЫ / ПРОФИЛЬНАЯ СИСТЕМА",
+        "dimensions": "РАЗМЕРЫ / ГАБАРИТЫ",
+        "glass": "СТЕКЛОПАКЕТЫ",
+        "hardware": "ФУРНИТУРА",
+        "completeness": "КОМПЛЕКТНОСТЬ ДОКУМЕНТАЦИИ",
+        "cross-validation": "ПЕРЕКРЁСТНАЯ ПРОВЕРКА",
+    }
+
+    for cat, errs in errors_by_cat.items():
+        lines.append(f"--- {cat_names.get(cat, cat.upper())} ---")
+        for err in errs:
+            sev = err["severity"].upper()
+            code = err["code"]
+            pos_str = f" [{err['position']}]" if err.get("position") else ""
+            page_str = f" (стр. {err['page']})" if err.get("page") else ""
+            lines.append(f"  [{sev}] {code}{pos_str}{page_str}: {err['message']}")
+            if err.get("details"):
+                details = err["details"]
+                if len(details) > 120:
+                    details = details[:117] + "..."
+                lines.append(f"         {details}")
+        lines.append("")
+
+    lines.append("=" * 60)
+    lines.append(f"  Валидаторы: {', '.join(result.get('validators_run', []))}")
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
 def print_validation_report(result: dict) -> None:
     """Печатает читаемый отчёт валидации в консоль."""
     status_icons = {"ok": "OK", "warning": "ВНИМАНИЕ", "critical": "КРИТИЧНО"}

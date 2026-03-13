@@ -55,8 +55,17 @@ from rag_engine import (
     get_gost_context, get_kmd_formatting_rules, find_similar_kmd,
     validate_kmd_document,
 )
-from kmd_rules_engine import validate_kmd_full, format_report_ru
-from multi_validator import validate_with_agents
+try:
+    from kmd_rules_engine import validate_kmd_full, format_report_ru
+    _RULES_ENGINE_AVAILABLE = True
+except Exception:
+    _RULES_ENGINE_AVAILABLE = False
+
+try:
+    from multi_validator import validate_with_agents
+    _MULTI_VALIDATOR_AVAILABLE = True
+except Exception:
+    _MULTI_VALIDATOR_AVAILABLE = False
 
 tags_metadata = [
     {"name": "Documentation", "description": "KMD document parsing, comparison, validation, checklists, and cross-validation."},
@@ -1266,6 +1275,8 @@ async def api_rules_validate(file: UploadFile = File(...)):
     - Комплектность документации
     - Перекрёстная валидация данных
     """
+    if not _RULES_ENGINE_AVAILABLE:
+        raise HTTPException(503, "Rules engine unavailable")
     suffix = Path(file.filename or "doc.pdf").suffix.lower()
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
@@ -1295,6 +1306,8 @@ async def api_multi_validate(file: UploadFile = File(...)):
 
     Результат принимается только при согласии ≥3 из 5 агентов.
     """
+    if not _MULTI_VALIDATOR_AVAILABLE:
+        raise HTTPException(503, "Multi-validator unavailable")
     suffix = Path(file.filename or "doc.pdf").suffix.lower()
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
@@ -1341,13 +1354,18 @@ async def api_full_validate(file: UploadFile = File(...)):
             pass
 
         # Уровень 2: Экспертные правила
-        rules_result = validate_kmd_full(parsed)
+        if _RULES_ENGINE_AVAILABLE:
+            rules_result = validate_kmd_full(parsed)
+        else:
+            rules_result = {"status": "unavailable", "score": 0, "errors": []}
 
         # Уровень 3: AI агенты (параллельно с RAG)
         import asyncio
-        agents_task = asyncio.create_task(
-            validate_with_agents(parsed, raw_text=raw_text[:10000])
-        )
+        agents_task = None
+        if _MULTI_VALIDATOR_AVAILABLE:
+            agents_task = asyncio.create_task(
+                validate_with_agents(parsed, raw_text=raw_text[:10000])
+            )
 
         # RAG валидация артикулов
         rag_articles = []
@@ -1357,7 +1375,10 @@ async def api_full_validate(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-        agents_result = await agents_task
+        if agents_task:
+            agents_result = await agents_task
+        else:
+            agents_result = {"status": "unavailable", "confidence": 0}
 
         # Объединяем результаты
         combined_score = (
@@ -1389,7 +1410,7 @@ async def api_full_validate(file: UploadFile = File(...)):
                 "critical": rules_result.get("errors_by_severity", {}).get("critical", 0),
                 "warnings": rules_result.get("errors_by_severity", {}).get("warning", 0),
                 "errors": rules_result.get("errors", [])[:20],
-                "report": format_report_ru(rules_result),
+                "report": format_report_ru(rules_result) if _RULES_ENGINE_AVAILABLE else "",
             },
             "level_3_agents": {
                 "status": agents_result.get("status"),
