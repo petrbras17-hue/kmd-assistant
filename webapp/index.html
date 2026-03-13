@@ -1407,11 +1407,27 @@
             text-transform: uppercase;
             color: #C4C4B8;
         }
+
+        /* ===== Keyboard Shortcuts Overlay ===== */
+        .shortcuts-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(26,26,20,0.85); backdrop-filter: blur(12px); }
+        .shortcuts-panel { background: linear-gradient(145deg, #2A2A22, #1E1E1A); border: 1px solid rgba(184,150,59,0.25); border-radius: 1rem; padding: 2.5rem 3rem; max-width: 640px; width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
+        .shortcuts-panel h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 600; color: #F5F2EC; margin-bottom: 0.25rem; }
+        .shortcuts-panel .shortcuts-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #717164; margin-bottom: 2rem; }
+        .shortcuts-group { margin-bottom: 1.75rem; }
+        .shortcuts-group-title { font-family: 'Playfair Display', serif; font-size: 0.85rem; font-weight: 600; color: #B8963B; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(184,150,59,0.15); }
+        .shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; }
+        .shortcut-row + .shortcut-row { border-top: 1px solid rgba(255,255,255,0.04); }
+        .shortcut-keys { display: flex; align-items: center; gap: 0.35rem; }
+        .shortcut-key { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; height: 1.75rem; padding: 0 0.5rem; background: rgba(184,150,59,0.1); border: 1px solid rgba(184,150,59,0.3); border-radius: 0.375rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 500; color: #D4B66A; }
+        .shortcut-key-sep { color: #565648; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; }
+        .shortcut-desc { font-family: 'Instrument Sans', sans-serif; font-size: 0.8rem; color: #C4C4B8; }
+        .shortcuts-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(184,150,59,0.12); text-align: center; }
+        .shortcuts-footer span { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #565648; letter-spacing: 0.1em; }
     </style>
 </head>
 <body class="min-h-screen arch-grid grain">
 
-<div x-data="app()" x-cloak @keydown.window="if((e=$event).ctrlKey && e.key==='k'){e.preventDefault();sidebarOpen=true;$nextTick(()=>$refs.navSearchInput&&$refs.navSearchInput.focus())}">
+<div x-data="app()" x-cloak @keydown.window="handleKeyboardShortcut($event)">
 
     <!-- ===== SIDEBAR NAVIGATION ===== -->
     <div x-show="sidebarOpen" @click="sidebarOpen = false" class="sidebar-overlay" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="lg:hidden"></div>
@@ -4600,6 +4616,35 @@
         </div>
     </div>
 
+    <!-- Keyboard Shortcuts Overlay -->
+    <div x-show="showShortcutsHelp" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click.self="showShortcutsHelp=false" class="shortcuts-overlay">
+        <div class="shortcuts-panel">
+            <h2>Горячие клавиши</h2>
+            <p class="shortcuts-subtitle">Keyboard Shortcuts</p>
+            <div class="shortcuts-group">
+                <div class="shortcuts-group-title">Навигация</div>
+                <div class="shortcut-row"><span class="shortcut-desc">Открыть поиск модулей</span><div class="shortcut-keys"><span class="shortcut-key">Ctrl</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">K</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Назад / закрыть</span><div class="shortcut-keys"><span class="shortcut-key">Esc</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Документация</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">1</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Калькуляторы</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">2</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">3D и оптимизация</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">3</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">AI инструменты</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">4</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Производство</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">5</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Аналитика</span><div class="shortcut-keys"><span class="shortcut-key">Alt</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">6</span></div></div>
+            </div>
+            <div class="shortcuts-group">
+                <div class="shortcuts-group-title">Действия</div>
+                <div class="shortcut-row"><span class="shortcut-desc">Выполнить операцию</span><div class="shortcut-keys"><span class="shortcut-key">Ctrl</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">Enter</span></div></div>
+                <div class="shortcut-row"><span class="shortcut-desc">Скачать результат</span><div class="shortcut-keys"><span class="shortcut-key">Ctrl</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">S</span></div></div>
+            </div>
+            <div class="shortcuts-group" style="margin-bottom:0">
+                <div class="shortcuts-group-title">Справка</div>
+                <div class="shortcut-row"><span class="shortcut-desc">Показать эту справку</span><div class="shortcut-keys"><span class="shortcut-key">?</span><span class="shortcut-key-sep">или</span><span class="shortcut-key">Ctrl</span><span class="shortcut-key-sep">+</span><span class="shortcut-key">/</span></div></div>
+            </div>
+            <div class="shortcuts-footer"><span>Нажмите Esc для закрытия</span></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -4610,6 +4655,7 @@ function app() {
         loading: false,
         error: null,
         aiProgress: { active: false, percent: 0, currentStage: 0, currentLabel: '', stages: [], timers: [] },
+        showShortcutsHelp: false,
         _STORAGE_KEY: 'kmd_app_state',
         _STORAGE_VERSION: 1,
         _saveTimer: null,
@@ -4919,6 +4965,35 @@ function app() {
         pgSetSize(t, v) { this.pg(t).perPage=parseInt(v); this.pg(t).page=1; },
         pgRangeText(items, t) { if (!items||!items.length) return '0'; const s=this.pg(t); if (s.perPage===0) return `1-${items.length} / ${items.length}`; const st=(s.page-1)*s.perPage+1; return `${st}-${Math.min(s.page*s.perPage, items.length)} / ${items.length}`; },
         pgTrack(items, t) { this._pgLastItems[t]=items||[]; const s=this.pg(t); const tp=this.totalPages(items,t); if (s.page>tp) s.page=Math.max(1,tp); return items; },
+
+        // === Keyboard Shortcuts ===
+        handleKeyboardShortcut(e) {
+            if ((e.key==='?'&&!e.ctrlKey&&!e.altKey)||(e.key==='/'&&e.ctrlKey)) {
+                const tag=e.target.tagName; if (e.key==='?'&&(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')) return;
+                e.preventDefault(); this.showShortcutsHelp=!this.showShortcutsHelp; return;
+            }
+            if (e.key==='Escape') {
+                if (this.showShortcutsHelp){this.showShortcutsHelp=false;return;}
+                if (this.showAiChat){this.showAiChat=false;return;}
+                if (this.sidebarOpen){this.sidebarOpen=false;return;}
+                if (!this.showLanding){this.goToLanding();return;}
+                return;
+            }
+            if (e.ctrlKey&&e.key==='k') { e.preventDefault(); this.sidebarOpen=true; this.$nextTick(()=>this.$refs.navSearchInput&&this.$refs.navSearchInput.focus()); return; }
+            if (e.ctrlKey&&e.key==='Enter') {
+                e.preventDefault(); if (this.loading) return;
+                const map={compare:'runCompare',check:'runCheckPdf',parse:'runParseKmd',crossval:'runCrossValidate',comparepdf:'runComparePdf',genspec:'runGenerateSpec',batch:'runBatch',checklist:'runChecklist',thermal:'runCalcThermal',wind:'runCalcWind',sashweight:'runCalcSashWeight',glass:'runCalcGlass',fasteners:'runCalcFasteners',preview3d:'runPreview3d',cutting:'runCuttingOptimize',profileai:'runProfileRecommend',aireview:'runAiReview',ainote:'runAiNote',aigost:'runAiGost',aihardware:'runAiHardware',aicompare:'runAiCompare',aigenkmd:'runAiGenerateKmd',aitranslate:'runAiTranslate'};
+                const m=map[this.activeTab]; if (m&&typeof this[m]==='function') this[m](); return;
+            }
+            if (e.ctrlKey&&e.key==='s') {
+                e.preventDefault();
+                const dl={compare:()=>this.compareResult?.download,genspec:()=>this.specResult?.download,requisition:()=>this.reqResult?.download};
+                const fn=dl[this.activeTab]; if(fn){const u=fn();if(u){window.open(u,'_blank');return;}}
+                if(this.activeTab==='aigenkmd'&&typeof this.downloadKmdAsTxt==='function') this.downloadKmdAsTxt();
+                return;
+            }
+            if (e.altKey&&e.key>='1'&&e.key<='6') { e.preventDefault(); const i=parseInt(e.key)-1; if(i<this.navCategories.length&&this.navCategories[i].items.length) this.switchTab(this.navCategories[i].items[0].id); return; }
+        },
 
         switchTab(tabId) {
             if (this.activeTab === tabId && !this.showLanding) return;
