@@ -14,7 +14,7 @@ import re as _re
 from pathlib import Path
 from datetime import datetime
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -51,6 +51,9 @@ counters = {
     "compare_pdf": 0,
     "batch": 0,
     "generate_spec": 0,
+    "recommend_profile": 0,
+    "optimize_cutting": 0,
+    "preview_3d": 0,
 }
 
 
@@ -2010,7 +2013,1100 @@ async def api_generate_spec(file: UploadFile = File(...)):
         path.unlink(missing_ok=True)
 
 
-# ============== 12. СТАТИСТИКА / ДАШБОРД ==============
+# ============== 3D PREVIEW ==============
+
+
+def _build_scene(params: dict) -> dict:
+    """Build a 3D scene description from construction parameters."""
+    w = params.get("width_mm", 1500)
+    h = params.get("height_mm", 2100)
+    depth = params.get("frame_depth_mm", 72)
+    profile_w = 65
+    sections = params.get("sections", [])
+    has_impost = params.get("has_impost", False)
+    glass_formula = params.get("glass_formula", "4-16-4-16-4")
+    color_outside = params.get("color_outside", "#7B7B7B")
+    color_inside = params.get("color_inside", "#FFFFFF")
+
+    # Parse glass thickness
+    glass_parts = [int(p) for p in glass_formula.split("-") if p.strip().isdigit()]
+    glass_thickness = sum(glass_parts) if glass_parts else 24
+
+    # Build sections data
+    scene_sections = []
+    glass_panels = []
+    handles = []
+    impost_data = None
+
+    if not sections:
+        # Single section default
+        sections = [{"type": "fixed", "x": 0, "y": 0, "w": w, "h": h}]
+
+    # Auto-compute x offsets if not specified
+    cur_x = 0
+    for i, sec in enumerate(sections):
+        sx = sec.get("x", cur_x)
+        sy = sec.get("y", 0)
+        sw = sec.get("w", w // len(sections))
+        sh = sec.get("h", h)
+        stype = sec.get("type", "fixed")
+
+        scene_sections.append({
+            "index": i,
+            "type": stype,
+            "x": sx,
+            "y": sy,
+            "width": sw,
+            "height": sh,
+            "label": {
+                "fixed": "Глухое",
+                "tilt_turn": "ПО",
+                "tilt": "П",
+                "turn": "О",
+                "sliding": "Раздв.",
+            }.get(stype, stype),
+        })
+
+        # Glass panel for this section (inset by profile width)
+        glass_panels.append({
+            "index": i,
+            "x": sx + profile_w,
+            "y": sy + profile_w,
+            "width": sw - 2 * profile_w,
+            "height": sh - 2 * profile_w,
+            "thickness": glass_thickness,
+        })
+
+        # Handle for opening sections
+        if stype in ("tilt_turn", "tilt", "turn"):
+            handle_h = sec.get("handle_height_mm") or sec.get("handle_height") or sh // 2
+            handles.append({
+                "section_index": i,
+                "x": sx + sw - profile_w - 10,
+                "y": handle_h,
+                "side": "right",
+                "opening_type": stype,
+            })
+
+        cur_x = sx + sw
+
+    # Impost between sections
+    if has_impost and len(sections) >= 2:
+        impost_x = sections[0].get("x", 0) + sections[0].get("w", w // 2)
+        impost_data = {
+            "x": impost_x,
+            "orientation": "vertical",
+            "width": 45,
+            "height": h,
+            "depth": depth,
+        }
+
+    return {
+        "frame": {
+            "width": w,
+            "height": h,
+            "depth": depth,
+            "profile_width": profile_w,
+        },
+        "sections": scene_sections,
+        "impost": impost_data,
+        "glass_panels": glass_panels,
+        "handles": handles,
+        "glass_formula": glass_formula,
+        "glass_thickness": glass_thickness,
+        "color_outside": color_outside,
+        "color_inside": color_inside,
+    }
+
+
+@app.post("/api/preview-3d")
+async def api_preview_3d(params: dict):
+    """Build 3D scene data from manual construction parameters."""
+    try:
+        counters["preview_3d"] += 1
+        scene = _build_scene(params)
+        ctype = params.get("construction_type", "окно")
+        log_activity(
+            "preview_3d", f"{ctype}",
+            f"{scene['frame']['width']}x{scene['frame']['height']} мм, "
+            f"секций: {len(scene['sections'])}",
+        )
+        return {"status": "ok", "scene": scene}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/preview-3d-from-pdf")
+async def api_preview_3d_from_pdf(file: UploadFile = File(...)):
+    """Extract construction data from a KMD PDF and return 3D scene."""
+    path = UPLOAD_DIR / f"{uuid.uuid4().hex}_{file.filename}"
+    try:
+        data = await file.read()
+        path.write_bytes(data)
+
+        text = extract_text_from_pdf(str(path))
+
+        # Parse dimensions (WxH patterns)
+        dim_pattern = _re.compile(
+            r"(\d{3,5})\s*[xXхХ*×]\s*(\d{3,5})"
+        )
+        dims_found = dim_pattern.findall(text)
+
+        width_mm = 1500
+        height_mm = 2100
+        if dims_found:
+            # Take first reasonable match
+            for dw, dh in dims_found:
+                dw_i, dh_i = int(dw), int(dh)
+                if 200 <= dw_i <= 10000 and 200 <= dh_i <= 10000:
+                    width_mm = dw_i
+                    height_mm = dh_i
+                    break
+
+        # Detect construction type
+        construction_type = "окно"
+        text_lower = text.lower()
+        if "витраж" in text_lower:
+            construction_type = "витраж"
+        elif "дверь" in text_lower or "дверной" in text_lower:
+            construction_type = "дверь"
+        elif "фасад" in text_lower:
+            construction_type = "фасад"
+
+        # Detect sections
+        sections = []
+        has_impost = False
+
+        # Check for impost
+        if "импост" in text_lower:
+            has_impost = True
+
+        # Check for створка (opening sash)
+        stvorka_count = len(_re.findall(r"створк", text_lower))
+        gluhoe_count = len(_re.findall(r"глух", text_lower))
+
+        # Detect handle height
+        handle_pattern = _re.compile(r"руч\w*\s*[:=]?\s*(\d{3,4})")
+        handle_match = handle_pattern.search(text_lower)
+        handle_height = int(handle_match.group(1)) if handle_match else 1050
+
+        if has_impost or stvorka_count > 0:
+            # Two-section window
+            half_w = width_mm // 2
+            sections = [
+                {"type": "fixed", "x": 0, "y": 0, "w": half_w, "h": height_mm},
+                {
+                    "type": "tilt_turn", "x": half_w, "y": 0,
+                    "w": width_mm - half_w, "h": height_mm,
+                    "handle_height_mm": handle_height,
+                },
+            ]
+            has_impost = True
+        elif gluhoe_count > 0 and stvorka_count == 0:
+            sections = [
+                {"type": "fixed", "x": 0, "y": 0, "w": width_mm, "h": height_mm},
+            ]
+        else:
+            # Default: single tilt-turn
+            sections = [
+                {
+                    "type": "tilt_turn", "x": 0, "y": 0,
+                    "w": width_mm, "h": height_mm,
+                    "handle_height_mm": handle_height,
+                },
+            ]
+
+        # Parse glass formula
+        glass_formula = "4-16-4-16-4"
+        glass_pattern = _re.compile(r"(\d{1,2}[-/]\d{1,2}[-/]\d{1,2}(?:[-/]\d{1,2})*)")
+        glass_match = glass_pattern.search(text)
+        if glass_match:
+            candidate = glass_match.group(1).replace("/", "-")
+            parts = candidate.split("-")
+            if len(parts) >= 3 and all(1 <= int(p) <= 50 for p in parts if p.isdigit()):
+                glass_formula = candidate
+
+        params = {
+            "construction_type": construction_type,
+            "width_mm": width_mm,
+            "height_mm": height_mm,
+            "frame_depth_mm": 72,
+            "sections": sections,
+            "glass_formula": glass_formula,
+            "has_impost": has_impost,
+            "color_outside": "#7B7B7B",
+            "color_inside": "#FFFFFF",
+        }
+
+        scene = _build_scene(params)
+
+        counters["preview_3d"] += 1
+        log_activity(
+            "preview_3d", file.filename,
+            f"PDF -> {construction_type} {width_mm}x{height_mm} мм, "
+            f"секций: {len(sections)}",
+        )
+
+        return {
+            "status": "ok",
+            "source_file": file.filename,
+            "extracted_params": params,
+            "scene": scene,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== ОПТИМИЗАЦИЯ РАСКРОЯ ПРОФИЛЕЙ ==============
+
+import math
+from pydantic import BaseModel
+from typing import List
+
+
+class CutItem(BaseModel):
+    article: str
+    length_mm: int
+    quantity: int
+
+
+class CuttingRequest(BaseModel):
+    stock_length_mm: int = 6500
+    cuts: List[CutItem]
+    blade_width_mm: int = 5
+    min_remnant_mm: int = 50
+
+
+def _optimize_cutting(req: CuttingRequest) -> dict:
+    """
+    1D bin-packing: First Fit Decreasing (FFD) + improvement pass.
+    """
+    stock = req.stock_length_mm
+    blade = req.blade_width_mm
+
+    # Expand all cuts into individual items
+    items = []
+    for c in req.cuts:
+        for _ in range(c.quantity):
+            items.append({"article": c.article, "length_mm": c.length_mm})
+
+    if not items:
+        return {
+            "status": "ok",
+            "stock_length_mm": stock,
+            "blade_width_mm": blade,
+            "total_bars_needed": 0,
+            "total_stock_length_mm": 0,
+            "total_used_mm": 0,
+            "total_waste_mm": 0,
+            "waste_percent": 0.0,
+            "savings_vs_naive": 0.0,
+            "cutting_plan": [],
+            "summary_by_article": [],
+        }
+
+    # Sort descending by length (FFD)
+    items.sort(key=lambda x: x["length_mm"], reverse=True)
+
+    # Bars: each bar tracks cuts and remaining space
+    bars: list[dict] = []
+
+    def _space_needed(bar_cuts_count: int, cut_len: int) -> int:
+        """Space needed to add a cut to a bar with bar_cuts_count existing cuts."""
+        if bar_cuts_count == 0:
+            return cut_len
+        return blade + cut_len
+
+    # FFD pass
+    for item in items:
+        placed = False
+        for bar in bars:
+            needed = _space_needed(len(bar["cuts"]), item["length_mm"])
+            if needed <= bar["remaining_mm"]:
+                bar["cuts"].append(item)
+                bar["remaining_mm"] -= needed
+                placed = True
+                break
+        if not placed:
+            new_bar = {"cuts": [item], "remaining_mm": stock - item["length_mm"]}
+            bars.append(new_bar)
+
+    # Improvement pass: try to move cuts from high-waste bars to others
+    improved = True
+    max_iters = 50
+    iteration = 0
+    while improved and iteration < max_iters:
+        improved = False
+        iteration += 1
+        bars.sort(key=lambda b: b["remaining_mm"], reverse=True)
+        for i in range(len(bars)):
+            if not bars[i]["cuts"]:
+                continue
+            for ci in range(len(bars[i]["cuts"]) - 1, -1, -1):
+                cut = bars[i]["cuts"][ci]
+                for j in range(len(bars)):
+                    if i == j:
+                        continue
+                    needed = _space_needed(len(bars[j]["cuts"]), cut["length_mm"])
+                    if needed <= bars[j]["remaining_mm"]:
+                        bars[i]["cuts"].pop(ci)
+                        used_i = sum(c["length_mm"] for c in bars[i]["cuts"])
+                        if bars[i]["cuts"]:
+                            used_i += blade * (len(bars[i]["cuts"]) - 1)
+                        bars[i]["remaining_mm"] = stock - used_i
+                        bars[j]["cuts"].append(cut)
+                        bars[j]["remaining_mm"] -= needed
+                        improved = True
+                        break
+                if improved:
+                    break
+            if improved:
+                break
+
+    # Remove empty bars
+    bars = [b for b in bars if b["cuts"]]
+
+    # Calculate naive baseline: sequential placement without optimization
+    naive_bars_seq = 0
+    naive_remaining = 0
+    for item in items:
+        if naive_remaining >= item["length_mm"] + (blade if naive_bars_seq > 0 and naive_remaining < stock else 0):
+            if naive_remaining == stock:
+                naive_remaining -= item["length_mm"]
+            else:
+                naive_remaining -= (item["length_mm"] + blade)
+        else:
+            naive_bars_seq += 1
+            naive_remaining = stock - item["length_mm"]
+    total_cut_length = sum(item["length_mm"] for item in items)
+    naive_bars_theoretical = math.ceil(total_cut_length / stock) if stock > 0 else len(bars)
+    naive_bars = max(naive_bars_theoretical, naive_bars_seq)
+
+    total_bars = len(bars)
+    total_stock = total_bars * stock
+    total_used = 0
+    cutting_plan = []
+
+    for idx, bar in enumerate(bars, 1):
+        bar_used = sum(c["length_mm"] for c in bar["cuts"])
+        if len(bar["cuts"]) > 1:
+            bar_used += blade * (len(bar["cuts"]) - 1)
+        bar_waste = stock - bar_used
+        utilization = round(bar_used / stock * 100, 1) if stock > 0 else 0
+        total_used += bar_used
+
+        cutting_plan.append({
+            "bar_number": idx,
+            "cuts": [{"article": c["article"], "length_mm": c["length_mm"]} for c in bar["cuts"]],
+            "used_mm": bar_used,
+            "waste_mm": bar_waste,
+            "utilization_percent": utilization,
+        })
+
+    total_waste = total_stock - total_used
+    waste_pct = round(total_waste / total_stock * 100, 1) if total_stock > 0 else 0
+
+    if naive_bars > 0 and naive_bars > total_bars:
+        savings = round((1 - total_bars / naive_bars) * 100, 1)
+    else:
+        savings = 0.0
+
+    # Summary by article
+    article_summary: dict[str, dict] = {}
+    for item in items:
+        art = item["article"]
+        if art not in article_summary:
+            article_summary[art] = {"article": art, "total_cuts": 0, "total_length_mm": 0}
+        article_summary[art]["total_cuts"] += 1
+        article_summary[art]["total_length_mm"] += item["length_mm"]
+
+    return {
+        "status": "ok",
+        "stock_length_mm": stock,
+        "blade_width_mm": blade,
+        "total_bars_needed": total_bars,
+        "total_stock_length_mm": total_stock,
+        "total_used_mm": total_used,
+        "total_waste_mm": total_waste,
+        "waste_percent": waste_pct,
+        "savings_vs_naive": savings,
+        "cutting_plan": cutting_plan,
+        "summary_by_article": sorted(article_summary.values(), key=lambda x: x["article"]),
+    }
+
+
+@app.post("/api/optimize-cutting")
+async def api_optimize_cutting(req: CuttingRequest):
+    """Оптимизировать раскрой профилей (ручной ввод)."""
+    try:
+        result = _optimize_cutting(req)
+        log_activity(
+            "optimize_cutting", "manual",
+            f"Хлыстов: {result['total_bars_needed']}, отходы: {result['waste_percent']}%",
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/optimize-cutting-from-pdf")
+async def api_optimize_cutting_from_pdf(
+    file: UploadFile = File(...),
+    stock_length_mm: int = Form(6500),
+    blade_width_mm: int = Form(5),
+    min_remnant_mm: int = Form(50),
+):
+    """Извлечь профили из PDF КМД и оптимизировать раскрой."""
+    path = save_upload(file)
+    try:
+        text = extract_text_from_pdf(str(path))
+
+        # Find all 7-digit articles
+        articles_found = _re.findall(r'\b(\d{7})\b', text)
+        unique_articles = sorted(set(articles_found))
+
+        # Find dimensions: numbers 100-6500 followed by mm
+        dimensions = _re.findall(r'\b(\d{3,4})\s*(?:мм|mm)\b', text, _re.IGNORECASE)
+        dim_values = [int(d) for d in dimensions if 50 <= int(d) <= 6500]
+
+        # Build cuts list by pairing articles with dimensions
+        cuts_list: list[dict] = []
+
+        if unique_articles and dim_values:
+            for art in unique_articles:
+                art_positions = [m.start() for m in _re.finditer(r'\b' + art + r'\b', text)]
+                nearby_dims = set()
+                for apos in art_positions:
+                    snippet = text[apos:apos + 300]
+                    dims_in_snippet = _re.findall(r'\b(\d{3,4})\s*(?:мм|mm)?\b', snippet)
+                    for d in dims_in_snippet:
+                        dv = int(d)
+                        if 100 <= dv <= 6500 and dv != int(art):
+                            nearby_dims.add(dv)
+
+                if nearby_dims:
+                    for dim in sorted(nearby_dims):
+                        qty = 1
+                        for apos in art_positions:
+                            snippet = text[max(0, apos - 100):apos + 300]
+                            q_match = _re.findall(
+                                r'(?:Количество|Кол[\-\.]?\s*во|qty|кол)\s*[:\s]\s*(\d+)',
+                                snippet, _re.IGNORECASE,
+                            )
+                            if q_match:
+                                qty = int(q_match[0])
+                                break
+                        cuts_list.append({
+                            "article": art,
+                            "length_mm": dim,
+                            "quantity": qty,
+                        })
+                else:
+                    if dim_values:
+                        cuts_list.append({
+                            "article": art,
+                            "length_mm": dim_values[0],
+                            "quantity": 1,
+                        })
+
+        if not cuts_list:
+            raise HTTPException(
+                status_code=400,
+                detail="Не удалось извлечь артикулы и размеры из PDF. "
+                       "Убедитесь, что документ содержит 7-значные артикулы и размеры в мм.",
+            )
+
+        cut_items = [CutItem(**c) for c in cuts_list]
+        req = CuttingRequest(
+            stock_length_mm=stock_length_mm,
+            cuts=cut_items,
+            blade_width_mm=blade_width_mm,
+            min_remnant_mm=min_remnant_mm,
+        )
+        result = _optimize_cutting(req)
+
+        result["extracted_articles"] = unique_articles
+        result["extracted_cuts"] = cuts_list
+
+        log_activity(
+            "optimize_cutting", file.filename,
+            f"Артикулов: {len(unique_articles)}, хлыстов: {result['total_bars_needed']}, "
+            f"отходы: {result['waste_percent']}%",
+        )
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ============== 12. AI ПОДБОР ПРОФИЛЬНОЙ СИСТЕМЫ ==============
+
+PROFILE_SYSTEMS = [
+    # --- Reynaers ---
+    {
+        "system": "Reynaers MasterLine 8",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "MasterLine 8",
+        "types": ["окна"],
+        "thermal_uf_min": 1.3, "thermal_uf_max": 1.5,
+        "max_sash_weight_kg": 160,
+        "max_height_mm": 2800, "max_width_mm": 1400,
+        "glass_max_mm": 52,
+        "wind_resistance_pa": 2400,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 45,
+        "pros": ["Высокая теплоизоляция", "Скрытая фурнитура", "Большие створки"],
+        "cons": ["Высокая стоимость профиля"],
+        "norms": ["ГОСТ 21519-2022", "СП 426.1325800.2018"],
+        "articles_example": ["4580102", "4580183"],
+    },
+    {
+        "system": "Reynaers MasterLine 8 HI",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "MasterLine 8 HI",
+        "types": ["окна"],
+        "thermal_uf_min": 0.9, "thermal_uf_max": 1.1,
+        "max_sash_weight_kg": 150,
+        "max_height_mm": 2600, "max_width_mm": 1300,
+        "glass_max_mm": 56,
+        "wind_resistance_pa": 2200,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 48,
+        "pros": ["Лучшая теплоизоляция в классе", "Тройное уплотнение", "Пассивный дом"],
+        "cons": ["Высокая цена", "Увеличенная монтажная глубина"],
+        "norms": ["ГОСТ 21519-2022", "СП 50.13330.2012"],
+        "articles_example": ["4580202", "4580283"],
+    },
+    {
+        "system": "Reynaers ConceptWall 50",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "CW 50",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 1.5, "thermal_uf_max": 2.0,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 6000, "max_width_mm": 3000,
+        "glass_max_mm": 44,
+        "wind_resistance_pa": 3000,
+        "fire_resistant": False,
+        "budget": "стандарт",
+        "sound_db": 42,
+        "pros": ["Узкие профили 50мм", "Высокие пролёты", "Стоечно-ригельная система"],
+        "cons": ["Средняя теплоизоляция", "Требует расчёта несущей способности"],
+        "norms": ["ГОСТ 33079-2014", "СП 426.1325800.2018"],
+        "articles_example": ["CW50-01", "CW50-02"],
+    },
+    {
+        "system": "Reynaers ConceptWall 60",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "CW 60",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 0.8, "thermal_uf_max": 1.2,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 6000, "max_width_mm": 3000,
+        "glass_max_mm": 54,
+        "wind_resistance_pa": 3500,
+        "fire_resistant": True,
+        "budget": "премиум",
+        "sound_db": 48,
+        "pros": ["Отличная теплоизоляция", "Большие пролёты", "Противопожарное исполнение"],
+        "cons": ["Высокая стоимость", "Увеличенная видимая ширина"],
+        "norms": ["ГОСТ 33079-2014", "СП 426.1325800.2018", "ГОСТ 53308-2009"],
+        "articles_example": ["CW60-01", "CW60-02"],
+    },
+    {
+        "system": "Reynaers Hi-Finity",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "Hi-Finity",
+        "types": ["раздвижные"],
+        "thermal_uf_min": 1.4, "thermal_uf_max": 1.8,
+        "max_sash_weight_kg": 400,
+        "max_height_mm": 3500, "max_width_mm": 3000,
+        "glass_max_mm": 52,
+        "wind_resistance_pa": 2000,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 40,
+        "pros": ["Минимальные рамки", "Панорамное остекление", "Створки до 400кг"],
+        "cons": ["Высокая стоимость", "Сложный монтаж"],
+        "norms": ["ГОСТ 21519-2022", "СП 426.1325800.2018"],
+        "articles_example": ["HF-01", "HF-02"],
+    },
+    {
+        "system": "Reynaers CS 86-HI",
+        "manufacturer": "Reynaers Aluminium",
+        "series": "CS 86-HI",
+        "types": ["двери"],
+        "thermal_uf_min": 1.0, "thermal_uf_max": 1.3,
+        "max_sash_weight_kg": 200,
+        "max_height_mm": 3000, "max_width_mm": 1400,
+        "glass_max_mm": 52,
+        "wind_resistance_pa": 2500,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 44,
+        "pros": ["Высокая теплоизоляция", "Тяжёлые створки до 200кг", "Скрытые петли"],
+        "cons": ["Высокая стоимость профиля"],
+        "norms": ["ГОСТ 23747-2015", "СП 426.1325800.2018"],
+        "articles_example": ["CS86-01", "CS86-02"],
+    },
+    # --- Schuco ---
+    {
+        "system": "Schüco AWS 75.SI+",
+        "manufacturer": "Schüco",
+        "series": "AWS 75.SI+",
+        "types": ["окна"],
+        "thermal_uf_min": 1.2, "thermal_uf_max": 1.6,
+        "max_sash_weight_kg": 150,
+        "max_height_mm": 2600, "max_width_mm": 1400,
+        "glass_max_mm": 50,
+        "wind_resistance_pa": 2400,
+        "fire_resistant": False,
+        "budget": "стандарт",
+        "sound_db": 45,
+        "pros": ["Оптимальное соотношение цена/качество", "Широкая линейка фурнитуры", "Проверенная система"],
+        "cons": ["Стандартный дизайн"],
+        "norms": ["ГОСТ 21519-2022", "СП 426.1325800.2018"],
+        "articles_example": ["242480", "242485"],
+    },
+    {
+        "system": "Schüco AWS 90.SI+",
+        "manufacturer": "Schüco",
+        "series": "AWS 90.SI+",
+        "types": ["окна"],
+        "thermal_uf_min": 0.8, "thermal_uf_max": 1.0,
+        "max_sash_weight_kg": 160,
+        "max_height_mm": 2700, "max_width_mm": 1400,
+        "glass_max_mm": 56,
+        "wind_resistance_pa": 2600,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 50,
+        "pros": ["Лучшая теплоизоляция Schüco", "Пассивный дом", "Тройное уплотнение"],
+        "cons": ["Высокая стоимость", "Монтажная глубина 90мм"],
+        "norms": ["ГОСТ 21519-2022", "СП 50.13330.2012"],
+        "articles_example": ["288900", "288905"],
+    },
+    {
+        "system": "Schüco FWS 50+.SI",
+        "manufacturer": "Schüco",
+        "series": "FWS 50+.SI",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 1.0, "thermal_uf_max": 1.5,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 6000, "max_width_mm": 3000,
+        "glass_max_mm": 50,
+        "wind_resistance_pa": 3200,
+        "fire_resistant": False,
+        "budget": "стандарт",
+        "sound_db": 44,
+        "pros": ["Узкие видимые профили", "Высокая ветровая стойкость", "Совместимость с AWS"],
+        "cons": ["Требует расчёта несущей способности"],
+        "norms": ["ГОСТ 33079-2014", "СП 426.1325800.2018"],
+        "articles_example": ["FWS50-01", "FWS50-02"],
+    },
+    {
+        "system": "Schüco FWS 60+.SI",
+        "manufacturer": "Schüco",
+        "series": "FWS 60+.SI",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 0.7, "thermal_uf_max": 1.0,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 6000, "max_width_mm": 3500,
+        "glass_max_mm": 58,
+        "wind_resistance_pa": 3800,
+        "fire_resistant": True,
+        "budget": "премиум",
+        "sound_db": 50,
+        "pros": ["Лучшая теплоизоляция фасадов", "Противопожарное исполнение EI30/EI60", "Максимальные пролёты"],
+        "cons": ["Высокая стоимость", "Увеличенная монтажная глубина"],
+        "norms": ["ГОСТ 33079-2014", "СП 426.1325800.2018", "ГОСТ 53308-2009"],
+        "articles_example": ["FWS60-01", "FWS60-02"],
+    },
+    {
+        "system": "Schüco ASS 77 PD.HI",
+        "manufacturer": "Schüco",
+        "series": "ASS 77 PD.HI",
+        "types": ["раздвижные"],
+        "thermal_uf_min": 1.2, "thermal_uf_max": 1.5,
+        "max_sash_weight_kg": 300,
+        "max_height_mm": 3200, "max_width_mm": 3000,
+        "glass_max_mm": 50,
+        "wind_resistance_pa": 2200,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 42,
+        "pros": ["Параллельно-сдвижная система", "Тяжёлые створки", "Хорошая теплоизоляция"],
+        "cons": ["Высокая стоимость", "Требует ровного проёма"],
+        "norms": ["ГОСТ 21519-2022", "СП 426.1325800.2018"],
+        "articles_example": ["ASS77-01", "ASS77-02"],
+    },
+    {
+        "system": "Schüco ADS 90.SI",
+        "manufacturer": "Schüco",
+        "series": "ADS 90.SI",
+        "types": ["двери"],
+        "thermal_uf_min": 0.9, "thermal_uf_max": 1.2,
+        "max_sash_weight_kg": 200,
+        "max_height_mm": 3000, "max_width_mm": 1400,
+        "glass_max_mm": 54,
+        "wind_resistance_pa": 2600,
+        "fire_resistant": False,
+        "budget": "премиум",
+        "sound_db": 46,
+        "pros": ["Высокая теплоизоляция", "Створки до 200кг", "Три контура уплотнения"],
+        "cons": ["Высокая стоимость", "Монтажная глубина 90мм"],
+        "norms": ["ГОСТ 23747-2015", "СП 426.1325800.2018"],
+        "articles_example": ["ADS90-01", "ADS90-02"],
+    },
+    # --- Alutech ---
+    {
+        "system": "Alutech ALT W72",
+        "manufacturer": "Alutech",
+        "series": "ALT W72",
+        "types": ["окна"],
+        "thermal_uf_min": 1.4, "thermal_uf_max": 1.8,
+        "max_sash_weight_kg": 120,
+        "max_height_mm": 2400, "max_width_mm": 1200,
+        "glass_max_mm": 44,
+        "wind_resistance_pa": 2000,
+        "fire_resistant": False,
+        "budget": "эконом",
+        "sound_db": 38,
+        "pros": ["Доступная цена", "Наличие на складе", "Производство в РБ/РФ"],
+        "cons": ["Ограничения по размерам створок", "Меньший выбор фурнитуры"],
+        "norms": ["ГОСТ 21519-2022", "СП 426.1325800.2018"],
+        "articles_example": ["ALT-W72-01", "ALT-W72-02"],
+    },
+    {
+        "system": "Alutech ALT F50",
+        "manufacturer": "Alutech",
+        "series": "ALT F50",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 1.7, "thermal_uf_max": 2.2,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 5000, "max_width_mm": 2500,
+        "glass_max_mm": 40,
+        "wind_resistance_pa": 2400,
+        "fire_resistant": False,
+        "budget": "эконом",
+        "sound_db": 38,
+        "pros": ["Доступная цена", "Быстрая поставка", "Простой монтаж"],
+        "cons": ["Средняя теплоизоляция", "Ограничения по высоте"],
+        "norms": ["ГОСТ 33079-2014"],
+        "articles_example": ["ALT-F50-01", "ALT-F50-02"],
+    },
+    {
+        "system": "Alutech ALT F50 NL",
+        "manufacturer": "Alutech",
+        "series": "ALT F50 NL",
+        "types": ["витражи", "фасады"],
+        "thermal_uf_min": 1.5, "thermal_uf_max": 2.0,
+        "max_sash_weight_kg": 0,
+        "max_height_mm": 5000, "max_width_mm": 2500,
+        "glass_max_mm": 44,
+        "wind_resistance_pa": 2600,
+        "fire_resistant": False,
+        "budget": "стандарт",
+        "sound_db": 40,
+        "pros": ["Полуструктурное остекление", "Современный вид", "Средняя цена"],
+        "cons": ["Средняя теплоизоляция", "Ограничения по пролётам"],
+        "norms": ["ГОСТ 33079-2014"],
+        "articles_example": ["ALT-F50NL-01", "ALT-F50NL-02"],
+    },
+    {
+        "system": "Alutech ALT SL160",
+        "manufacturer": "Alutech",
+        "series": "ALT SL160",
+        "types": ["раздвижные"],
+        "thermal_uf_min": 1.5, "thermal_uf_max": 2.0,
+        "max_sash_weight_kg": 200,
+        "max_height_mm": 2800, "max_width_mm": 2500,
+        "glass_max_mm": 40,
+        "wind_resistance_pa": 1800,
+        "fire_resistant": False,
+        "budget": "стандарт",
+        "sound_db": 36,
+        "pros": ["Доступная раздвижная система", "Простой монтаж", "Наличие"],
+        "cons": ["Средние характеристики", "Ограничения по весу створки"],
+        "norms": ["ГОСТ 21519-2022"],
+        "articles_example": ["ALT-SL160-01", "ALT-SL160-02"],
+    },
+    {
+        "system": "Alutech ALT C48",
+        "manufacturer": "Alutech",
+        "series": "ALT C48",
+        "types": ["окна", "витражи"],
+        "thermal_uf_min": 5.0, "thermal_uf_max": 6.0,
+        "max_sash_weight_kg": 80,
+        "max_height_mm": 2200, "max_width_mm": 1200,
+        "glass_max_mm": 32,
+        "wind_resistance_pa": 1800,
+        "fire_resistant": False,
+        "budget": "эконом",
+        "sound_db": 28,
+        "pros": ["Минимальная цена", "Быстрая поставка", "Простой монтаж"],
+        "cons": ["Холодная система без терморазрыва", "Только неотапливаемые помещения"],
+        "norms": ["ГОСТ 21519-2022"],
+        "articles_example": ["ALT-C48-01", "ALT-C48-02"],
+    },
+    # --- TATPROF ---
+    {
+        "system": "TATPROF ТПТ 65А",
+        "manufacturer": "TATPROF",
+        "series": "ТПТ 65А",
+        "types": ["окна"],
+        "thermal_uf_min": 1.5, "thermal_uf_max": 1.9,
+        "max_sash_weight_kg": 100,
+        "max_height_mm": 2200, "max_width_mm": 1200,
+        "glass_max_mm": 40,
+        "wind_resistance_pa": 1800,
+        "fire_resistant": False,
+        "budget": "эконом",
+        "sound_db": 36,
+        "pros": ["Российское производство", "Доступная цена", "Быстрая поставка"],
+        "cons": ["Ограничения по размерам", "Базовый дизайн", "Меньший выбор фурнитуры"],
+        "norms": ["ГОСТ 21519-2022"],
+        "articles_example": ["TPT-65A-01", "TPT-65A-02"],
+    },
+    {
+        "system": "TATPROF ТПТ 47А",
+        "manufacturer": "TATPROF",
+        "series": "ТПТ 47А",
+        "types": ["окна"],
+        "thermal_uf_min": 5.5, "thermal_uf_max": 7.0,
+        "max_sash_weight_kg": 60,
+        "max_height_mm": 2000, "max_width_mm": 1000,
+        "glass_max_mm": 24,
+        "wind_resistance_pa": 1500,
+        "fire_resistant": False,
+        "budget": "эконом",
+        "sound_db": 25,
+        "pros": ["Минимальная цена", "Российское производство", "Быстрая поставка"],
+        "cons": ["Холодная система", "Только неотапливаемые помещения", "Малые размеры"],
+        "norms": ["ГОСТ 21519-2022"],
+        "articles_example": ["TPT-47A-01", "TPT-47A-02"],
+    },
+]
+
+WIND_PRESSURE_BASE = {
+    "I": 0.17, "II": 0.30, "III": 0.38, "IV": 0.48,
+    "V": 0.60, "VI": 0.73, "VII": 0.85,
+}
+
+
+def _calc_wind_pressure(wind_region: str, floors: int) -> float:
+    """Расчёт ветрового давления по СП 20.13330 (упрощённый)."""
+    w0 = WIND_PRESSURE_BASE.get(wind_region, 0.38)
+    height_m = max(floors * 3.0, 3.0)
+    k_z = (height_m / 10.0) ** 0.2
+    return w0 * k_z * 1.4
+
+
+def _score_profile(profile: dict, params: dict, wind_pa: float) -> int:
+    """Подсчёт рейтинга профильной системы 0-100."""
+    score = 0.0
+
+    # 1. Теплоизоляция (25%)
+    if params.get("thermal_required"):
+        uf_avg = (profile["thermal_uf_min"] + profile["thermal_uf_max"]) / 2
+        if uf_avg <= 1.0:
+            thermal_score = 100
+        elif uf_avg <= 1.5:
+            thermal_score = 85 - (uf_avg - 1.0) * 40
+        elif uf_avg <= 2.0:
+            thermal_score = 65 - (uf_avg - 1.5) * 50
+        else:
+            thermal_score = max(0, 40 - (uf_avg - 2.0) * 30)
+        score += thermal_score * 0.25
+    else:
+        score += 80 * 0.25
+
+    # 2. Размеры (20%)
+    w = params.get("width_mm", 1500)
+    h = params.get("height_mm", 2100)
+    if h <= profile["max_height_mm"] and w <= profile["max_width_mm"]:
+        dim_score = 100
+    elif h <= profile["max_height_mm"] * 1.1 and w <= profile["max_width_mm"] * 1.1:
+        dim_score = 60
+    else:
+        dim_score = 10
+    score += dim_score * 0.20
+
+    # 3. Ветровая нагрузка (20%)
+    if profile["wind_resistance_pa"] >= wind_pa:
+        wind_score = 100
+    elif profile["wind_resistance_pa"] >= wind_pa * 0.8:
+        wind_score = 60
+    else:
+        wind_score = 20
+    score += wind_score * 0.20
+
+    # 4. Бюджет (15%)
+    budget = params.get("budget", "стандарт")
+    p_budget = profile["budget"]
+    if budget == p_budget:
+        budget_score = 100
+    elif (budget == "стандарт" and p_budget == "эконом") or (
+        budget == "премиум" and p_budget == "стандарт"
+    ):
+        budget_score = 70
+    elif budget == "стандарт" and p_budget == "премиум":
+        budget_score = 50
+    elif budget == "эконом" and p_budget == "стандарт":
+        budget_score = 50
+    else:
+        budget_score = 30
+    score += budget_score * 0.15
+
+    # 5. Стеклопакет (10%)
+    sound_db = params.get("sound_insulation_db", 35)
+    glass_cap = profile["glass_max_mm"]
+    if glass_cap >= 50:
+        glass_score = 100
+    elif glass_cap >= 44:
+        glass_score = 80
+    elif glass_cap >= 36:
+        glass_score = 60
+    else:
+        glass_score = 30
+    if profile["sound_db"] >= sound_db:
+        glass_score = min(100, glass_score + 10)
+    score += glass_score * 0.10
+
+    # 6. Огнестойкость (10%)
+    if params.get("fire_resistance"):
+        fire_score = 100 if profile["fire_resistant"] else 0
+    else:
+        fire_score = 80
+    score += fire_score * 0.10
+
+    return max(0, min(100, round(score)))
+
+
+@app.post("/api/recommend-profile")
+async def api_recommend_profile(data: dict):
+    """AI-подбор профильной системы по параметрам проекта."""
+    try:
+        construction_type = data.get("construction_type", "окна")
+        width_mm = int(data.get("width_mm", 1500))
+        height_mm = int(data.get("height_mm", 2100))
+        floors = int(data.get("floors", 5))
+        wind_region = data.get("wind_region", "III")
+        thermal_required = bool(data.get("thermal_required", True))
+        sound_insulation_db = int(data.get("sound_insulation_db", 35))
+        fire_resistance = bool(data.get("fire_resistance", False))
+        budget = data.get("budget", "стандарт")
+
+        params = {
+            "construction_type": construction_type,
+            "width_mm": width_mm,
+            "height_mm": height_mm,
+            "floors": floors,
+            "wind_region": wind_region,
+            "thermal_required": thermal_required,
+            "sound_insulation_db": sound_insulation_db,
+            "fire_resistance": fire_resistance,
+            "budget": budget,
+        }
+
+        wind_pa = _calc_wind_pressure(wind_region, floors) * 1000
+
+        candidates = [
+            p for p in PROFILE_SYSTEMS if construction_type in p["types"]
+        ]
+        if not candidates:
+            candidates = PROFILE_SYSTEMS
+
+        scored = []
+        for p in candidates:
+            s = _score_profile(p, params, wind_pa)
+            uf_avg = (p["thermal_uf_min"] + p["thermal_uf_max"]) / 2
+
+            reasons = []
+            if thermal_required and uf_avg <= 1.2:
+                reasons.append("высокие требования к теплоизоляции")
+            if floors >= 9:
+                reasons.append(f"здание {floors} этажей")
+            if fire_resistance and p["fire_resistant"]:
+                reasons.append("огнестойкое исполнение")
+            if budget == "эконом":
+                reasons.append("экономичное решение")
+            elif budget == "премиум":
+                reasons.append("премиальное качество")
+
+            reason = (
+                f"Оптимальный выбор для {construction_type}: "
+                + ", ".join(reasons)
+                if reasons
+                else f"Подходящая система для {construction_type}"
+            )
+
+            scored.append({
+                "system": p["system"],
+                "manufacturer": p["manufacturer"],
+                "series": p["series"],
+                "score": s,
+                "thermal_uf": round(uf_avg, 2),
+                "max_sash_weight_kg": p["max_sash_weight_kg"],
+                "max_height_mm": p["max_height_mm"],
+                "glass_max_mm": p["glass_max_mm"],
+                "pros": p["pros"],
+                "cons": p["cons"],
+                "reason": reason,
+                "norms": p["norms"],
+                "articles_example": p["articles_example"],
+            })
+
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        for i, item in enumerate(scored):
+            item["rank"] = i + 1
+
+        warnings = []
+        if height_mm > 3000:
+            warnings.append(
+                "При высоте конструкции более 3м требуется индивидуальный расчёт несущей способности"
+            )
+        if floors >= 15:
+            warnings.append(
+                "При высоте более 15 этажей требуется расчёт ветровой нагрузки по СП 20.13330"
+            )
+        if wind_region in ("V", "VI", "VII"):
+            warnings.append(
+                f"Ветровой район {wind_region} — рекомендуется усиленное армирование профилей"
+            )
+        if fire_resistance and not any(p["fire_resistant"] for p in candidates):
+            warnings.append(
+                "Огнестойкие исполнения доступны не во всех системах — уточняйте у производителя"
+            )
+
+        log_activity(
+            "recommend_profile",
+            f"{construction_type} {width_mm}x{height_mm}",
+            f"Найдено {len(scored)} систем, лучшая: {scored[0]['system']} ({scored[0]['score']})",
+        )
+
+        return {
+            "status": "ok",
+            "recommendations": scored[:8],
+            "parameters_used": params,
+            "wind_pressure_pa": round(wind_pa),
+            "warnings": warnings,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== 13. СТАТИСТИКА / ДАШБОРД ==============
 
 @app.get("/api/stats")
 async def api_stats():

@@ -6,6 +6,14 @@
     <title>KMD Assistant — ALDMEGA LAB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -370,7 +378,7 @@
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
                             <p class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">Modules</p>
-                            <p class="font-mono text-sm font-semibold text-carbon-700">9</p>
+                            <p class="font-mono text-sm font-semibold text-carbon-700">10</p>
                         </div>
                         <div class="w-px h-8 bg-carbon-200"></div>
                         <div>
@@ -396,6 +404,9 @@
                     {id: 'genspec', label: 'Генерация'},
                     {id: 'batch', label: 'Пакетная'},
                     {id: 'checklist', label: 'Чек-лист'},
+                    {id: 'preview3d', label: '3D Просмотр'},
+                    {id: 'cutting', label: 'Раскрой'},
+                    {id: 'profileai', label: 'Подбор системы'},
                     {id: 'dashboard', label: 'Дашборд'},
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
@@ -1043,6 +1054,640 @@
             </div>
         </section>
 
+        <!-- ===== TAB: 3D PREVIEW ===== -->
+        <section x-show="activeTab === 'preview3d'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                 x-init="$watch('activeTab', v => { if (v === 'preview3d') init3dScene(); })">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">3D / Preview</p>
+                <h2 class="section-title">3D Просмотр конструкции</h2>
+                <p class="section-subtitle">Интерактивная 3D модель алюминиевой конструкции. Задайте параметры вручную или загрузите PDF чертеж.</p>
+            </div>
+
+            <!-- Mode toggle -->
+            <div class="flex gap-2 mb-8 fade-up d1">
+                <button @click="preview3dMode = 'manual'"
+                        :class="preview3dMode === 'manual' ? 'btn-primary' : 'btn-secondary'"
+                        class="text-xs">Ручной ввод</button>
+                <button @click="preview3dMode = 'pdf'"
+                        :class="preview3dMode === 'pdf' ? 'btn-primary' : 'btn-secondary'"
+                        class="text-xs">Из PDF</button>
+            </div>
+
+            <!-- Manual input form -->
+            <div x-show="preview3dMode === 'manual'" class="section-panel mb-8 fade-up d2">
+                <h3 class="section-label mb-5">Параметры конструкции</h3>
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Тип</label>
+                        <select x-model="preview3dParams.construction_type" class="w-full px-3 py-2 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                            <option value="окно">Окно</option>
+                            <option value="витраж">Витраж</option>
+                            <option value="дверь">Дверь</option>
+                            <option value="фасад">Фасад</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Ширина, мм</label>
+                        <input type="number" x-model.number="preview3dParams.width_mm" class="w-full px-3 py-2 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Высота, мм</label>
+                        <input type="number" x-model.number="preview3dParams.height_mm" class="w-full px-3 py-2 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Глубина рамы, мм</label>
+                        <input type="number" x-model.number="preview3dParams.frame_depth_mm" class="w-full px-3 py-2 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                </div>
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Формула стеклопакета</label>
+                        <input type="text" x-model="preview3dParams.glass_formula" class="w-full px-3 py-2 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div class="flex items-end pb-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" x-model="preview3dParams.has_impost" class="accent-brass w-4 h-4">
+                            <span class="font-mono text-xs text-carbon-600">Импост</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Цвет снаружи</label>
+                        <div class="flex items-center gap-2">
+                            <input type="color" x-model="preview3dParams.color_outside" class="w-8 h-8 rounded cursor-pointer border border-carbon-200">
+                            <span class="font-mono text-xs text-carbon-500" x-text="preview3dParams.color_outside"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider block mb-1">Цвет внутри</label>
+                        <div class="flex items-center gap-2">
+                            <input type="color" x-model="preview3dParams.color_inside" class="w-8 h-8 rounded cursor-pointer border border-carbon-200">
+                            <span class="font-mono text-xs text-carbon-500" x-text="preview3dParams.color_inside"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sections config -->
+                <h4 class="section-label mb-3">Секции</h4>
+                <div class="space-y-3 mb-6">
+                    <template x-for="(sec, si) in preview3dParams.sections" :key="si">
+                        <div class="flex items-center gap-3 p-3 bg-white/40 rounded-lg border border-carbon-100">
+                            <span class="font-mono text-xs text-carbon-400 w-6" x-text="si + 1"></span>
+                            <select x-model="sec.type" class="px-2 py-1.5 bg-white/80 border border-carbon-200 rounded font-mono text-xs text-carbon-700 focus:outline-none focus:border-brass">
+                                <option value="fixed">Глухое</option>
+                                <option value="tilt_turn">Поворотно-откидное</option>
+                                <option value="tilt">Откидное</option>
+                                <option value="turn">Поворотное</option>
+                                <option value="sliding">Раздвижное</option>
+                            </select>
+                            <div class="flex items-center gap-1">
+                                <label class="font-mono text-[10px] text-carbon-400">W:</label>
+                                <input type="number" x-model.number="sec.w" class="w-20 px-2 py-1.5 bg-white/80 border border-carbon-200 rounded font-mono text-xs text-carbon-700 focus:outline-none focus:border-brass">
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <label class="font-mono text-[10px] text-carbon-400">H:</label>
+                                <input type="number" x-model.number="sec.h" class="w-20 px-2 py-1.5 bg-white/80 border border-carbon-200 rounded font-mono text-xs text-carbon-700 focus:outline-none focus:border-brass">
+                            </div>
+                            <div x-show="sec.type !== 'fixed'" class="flex items-center gap-1">
+                                <label class="font-mono text-[10px] text-carbon-400">Ручка:</label>
+                                <input type="number" x-model.number="sec.handle_height" class="w-20 px-2 py-1.5 bg-white/80 border border-carbon-200 rounded font-mono text-xs text-carbon-700 focus:outline-none focus:border-brass">
+                            </div>
+                            <button @click="preview3dParams.sections.splice(si, 1)" x-show="preview3dParams.sections.length > 1" class="ml-auto text-carbon-400 hover:text-status-fail transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <button @click="preview3dParams.sections.push({type: 'fixed', w: 750, h: preview3dParams.height_mm, handle_height: 1050})" class="btn-secondary text-xs mb-6">+ Добавить секцию</button>
+
+                <div class="text-center">
+                    <button @click="runPreview3d()" class="btn-primary" :disabled="loading">
+                        <template x-if="!loading"><span>Построить 3D модель</span></template>
+                        <template x-if="loading"><span>Построение...</span></template>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PDF input -->
+            <div x-show="preview3dMode === 'pdf'" class="mb-8 fade-up d2">
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto"
+                     :class="{ 'dragover': drag3dPdf, 'loaded': file3dPdf }"
+                     @dragover.prevent="drag3dPdf = true" @dragleave="drag3dPdf = false"
+                     @drop.prevent="drag3dPdf = false; file3dPdf = $event.dataTransfer.files[0]"
+                     @click="$refs.input3dPdf.click()">
+                    <input type="file" x-ref="input3dPdf" accept=".pdf" class="hidden" @change="file3dPdf = $event.target.files[0]">
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="file3dPdf ? file3dPdf.name : 'Загрузите PDF с КМД чертежом'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="file3dPdf ? (file3dPdf.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center mt-8" x-show="file3dPdf">
+                    <button @click="runPreview3dFromPdf()" class="btn-primary" :disabled="loading">Извлечь и построить 3D</button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loading && activeTab === 'preview3d'" class="text-center py-12">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Построение 3D модели</p>
+            </div>
+
+            <!-- 3D Viewer -->
+            <div x-show="preview3dResult" class="fade-up">
+                <!-- Info cards -->
+                <div class="grid grid-cols-5 gap-4 mb-6" x-show="preview3dResult?.scene">
+                    <div class="metric-card"><p class="section-label mb-2">Ширина</p><p class="font-display text-2xl text-carbon-900" x-text="(preview3dResult?.scene?.frame?.width || 0) + ' мм'"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Высота</p><p class="font-display text-2xl text-carbon-900" x-text="(preview3dResult?.scene?.frame?.height || 0) + ' мм'"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Глубина</p><p class="font-display text-2xl text-carbon-900" x-text="(preview3dResult?.scene?.frame?.depth || 0) + ' мм'"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Секций</p><p class="font-display text-2xl text-carbon-900" x-text="(preview3dResult?.scene?.sections || []).length"></p></div>
+                    <div class="metric-card"><p class="section-label mb-2">Стеклопакет</p><p class="font-mono text-sm font-semibold text-carbon-900" x-text="preview3dResult?.scene?.glass_formula || ''"></p></div>
+                </div>
+
+                <!-- Canvas container -->
+                <div class="section-panel p-0 overflow-hidden mb-4" style="border: 1px solid rgba(26,26,20,0.08); box-shadow: 0 8px 30px rgba(26,26,20,0.06);">
+                    <div id="three-canvas-container" style="width:100%; height:600px; background:#F0EDE6; position:relative;"></div>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex items-center gap-3 mb-8 flex-wrap">
+                    <button @click="rotate3d(-45)" class="btn-secondary text-xs">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                        Влево
+                    </button>
+                    <button @click="rotate3d(45)" class="btn-secondary text-xs">
+                        Вправо
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/></svg>
+                    </button>
+                    <button @click="reset3dView()" class="btn-secondary text-xs">Сброс вида</button>
+                    <label class="flex items-center gap-2 cursor-pointer ml-4">
+                        <input type="checkbox" x-model="show3dWireframe" @change="toggle3dWireframe()" class="accent-brass w-4 h-4">
+                        <span class="font-mono text-xs text-carbon-600">Каркас</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" x-model="show3dDimensions" @change="toggle3dDimensions()" class="accent-brass w-4 h-4">
+                        <span class="font-mono text-xs text-carbon-600">Размеры</span>
+                    </label>
+                    <button @click="export3dPng()" class="btn-secondary text-xs ml-auto">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Экспорт PNG
+                    </button>
+                    <button @click="preview3dResult = null; if(threeRenderer){threeRenderer.dispose();threeRenderer=null;}" class="btn-secondary text-xs">Заново</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: ПОДБОР ПРОФИЛЬНОЙ СИСТЕМЫ ===== -->
+        <section x-show="activeTab === 'profileai'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">AI / Profile Selector</p>
+                <h2 class="section-title">Подбор профильной системы</h2>
+                <p class="section-subtitle">Укажите параметры проекта — система подберёт оптимальную профильную систему из базы Reynaers, Schüco, Alutech и TATPROF.</p>
+            </div>
+
+            <div x-show="!profileResult && !loading" class="fade-up d1">
+                <div class="section-panel">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <!-- Тип конструкции -->
+                        <div>
+                            <label class="section-label mb-2 block">Тип конструкции</label>
+                            <select x-model="profileParams.construction_type" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="окна">Окна</option>
+                                <option value="витражи">Витражи</option>
+                                <option value="фасады">Фасады</option>
+                                <option value="двери">Двери</option>
+                                <option value="раздвижные">Раздвижные</option>
+                            </select>
+                        </div>
+                        <!-- Ширина -->
+                        <div>
+                            <label class="section-label mb-2 block">Ширина, мм</label>
+                            <input type="number" x-model.number="profileParams.width_mm" min="300" max="6000" step="50" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <!-- Высота -->
+                        <div>
+                            <label class="section-label mb-2 block">Высота, мм</label>
+                            <input type="number" x-model.number="profileParams.height_mm" min="300" max="6000" step="50" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <!-- Этажность -->
+                        <div>
+                            <label class="section-label mb-2 block">Этажность здания</label>
+                            <input type="number" x-model.number="profileParams.floors" min="1" max="80" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <!-- Ветровой район -->
+                        <div>
+                            <label class="section-label mb-2 block">Ветровой район (СП 20)</label>
+                            <select x-model="profileParams.wind_region" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="I">I (0.17 кПа)</option>
+                                <option value="II">II (0.30 кПа)</option>
+                                <option value="III">III (0.38 кПа)</option>
+                                <option value="IV">IV (0.48 кПа)</option>
+                                <option value="V">V (0.60 кПа)</option>
+                                <option value="VI">VI (0.73 кПа)</option>
+                                <option value="VII">VII (0.85 кПа)</option>
+                            </select>
+                        </div>
+                        <!-- Бюджет -->
+                        <div>
+                            <label class="section-label mb-2 block">Бюджет</label>
+                            <select x-model="profileParams.budget" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-body text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                                <option value="эконом">Эконом</option>
+                                <option value="стандарт">Стандарт</option>
+                                <option value="премиум">Премиум</option>
+                            </select>
+                        </div>
+                        <!-- Звукоизоляция -->
+                        <div>
+                            <label class="section-label mb-2 block">Звукоизоляция, дБ</label>
+                            <input type="number" x-model.number="profileParams.sound_insulation_db" min="20" max="60" class="w-full px-3 py-2.5 bg-white border border-carbon-200 rounded-lg text-sm font-mono text-carbon-800 focus:border-brass focus:outline-none transition-colors">
+                        </div>
+                        <!-- Чекбоксы -->
+                        <div class="flex flex-col justify-end gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="profileParams.thermal_required" class="w-4 h-4 rounded border-carbon-300 text-brass focus:ring-brass">
+                                <span class="text-sm font-body text-carbon-700">Теплоизоляция</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="profileParams.fire_resistance" class="w-4 h-4 rounded border-carbon-300 text-brass focus:ring-brass">
+                                <span class="text-sm font-body text-carbon-700">Огнестойкость</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-8">
+                        <button @click="runProfileRecommend()" class="btn-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                            Подобрать систему
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loading && activeTab === 'profileai'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Анализ параметров</p>
+            </div>
+
+            <!-- Results -->
+            <div x-show="profileResult" class="fade-up">
+                <div class="mb-6 flex gap-3 items-center">
+                    <button @click="profileResult = null" class="btn-secondary">Заново</button>
+                    <span class="font-mono text-xs text-carbon-400" x-show="profileResult?.wind_pressure_pa">
+                        Ветровое давление: <span class="text-carbon-700 font-semibold" x-text="profileResult?.wind_pressure_pa + ' Па'"></span>
+                    </span>
+                </div>
+
+                <!-- Warnings -->
+                <template x-for="(warn, wi) in profileResult?.warnings || []" :key="wi">
+                    <div class="mb-3 px-4 py-3 rounded-lg flex items-start gap-2" style="background:rgba(196,135,59,0.08);border:1px solid rgba(196,135,59,0.2);">
+                        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#C4873B" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <span class="text-xs font-body" style="color:#8A7030" x-text="warn"></span>
+                    </div>
+                </template>
+
+                <!-- Recommendation cards -->
+                <div class="space-y-4 mt-4">
+                    <template x-for="(rec, ri) in profileResult?.recommendations || []" :key="ri">
+                        <div class="section-panel" :style="ri === 0 ? 'border-left:3px solid #B8963B' : ''">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-sm font-bold"
+                                         :style="ri === 0 ? 'background:rgba(184,150,59,0.15);color:#B8963B' : ri === 1 ? 'background:rgba(74,124,89,0.1);color:#4A7C59' : 'background:rgba(26,26,20,0.05);color:#9A9A8C'"
+                                         x-text="rec.rank">
+                                    </div>
+                                    <div>
+                                        <h3 class="font-display text-xl text-carbon-900" style="font-weight:500" x-text="rec.system"></h3>
+                                        <p class="font-mono text-[10px] text-carbon-400 tracking-wide uppercase" x-text="rec.manufacturer + ' / ' + rec.series"></p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-mono text-2xl font-bold" :style="rec.score >= 80 ? 'color:#4A7C59' : rec.score >= 60 ? 'color:#C4873B' : 'color:#A14242'" x-text="rec.score"></span>
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Score</p>
+                                </div>
+                            </div>
+
+                            <!-- Score bar -->
+                            <div class="w-full bg-carbon-100 rounded-full h-1.5 mb-4">
+                                <div class="h-1.5 rounded-full progress-bar-animated" :style="'width:' + rec.score + '%;background:' + (rec.score >= 80 ? '#4A7C59' : rec.score >= 60 ? '#C4873B' : '#A14242')"></div>
+                            </div>
+
+                            <!-- Specs grid -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Uf, Вт/м²К</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.thermal_uf"></p>
+                                </div>
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Стеклопакет</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.glass_max_mm + ' мм'"></p>
+                                </div>
+                                <div class="metric-card" style="padding:0.75rem 1rem">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Макс. высота</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.max_height_mm + ' мм'"></p>
+                                </div>
+                                <div class="metric-card" style="padding:0.75rem 1rem" x-show="rec.max_sash_weight_kg > 0">
+                                    <p class="font-mono text-[9px] text-carbon-400 uppercase tracking-wider">Вес створки</p>
+                                    <p class="font-mono text-lg font-bold text-carbon-800" x-text="rec.max_sash_weight_kg + ' кг'"></p>
+                                </div>
+                            </div>
+
+                            <!-- Reason -->
+                            <p class="text-sm font-body text-carbon-600 mb-3 italic" x-text="rec.reason"></p>
+
+                            <!-- Pros / Cons -->
+                            <div class="grid grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <p class="font-mono text-[9px] text-status-ok uppercase tracking-wider mb-1.5 font-semibold">Преимущества</p>
+                                    <template x-for="(pro, pi) in rec.pros" :key="pi">
+                                        <div class="flex items-start gap-1.5 mb-1">
+                                            <svg class="w-3 h-3 flex-shrink-0 mt-0.5 text-status-ok" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span class="text-xs text-carbon-600" x-text="pro"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div>
+                                    <p class="font-mono text-[9px] text-status-fail uppercase tracking-wider mb-1.5 font-semibold">Ограничения</p>
+                                    <template x-for="(con, ci) in rec.cons" :key="ci">
+                                        <div class="flex items-start gap-1.5 mb-1">
+                                            <svg class="w-3 h-3 flex-shrink-0 mt-0.5 text-status-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                                            <span class="text-xs text-carbon-500" x-text="con"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Norms -->
+                            <div class="flex flex-wrap gap-1.5">
+                                <template x-for="(norm, ni) in rec.norms" :key="ni">
+                                    <span class="badge bg-brass-pale text-brass-dark" x-text="norm"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ===== TAB: CUTTING OPTIMIZER ===== -->
+        <section x-show="activeTab === 'cutting'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+
+            <div class="mb-10 fade-up">
+                <p class="section-label mb-3">Optimization</p>
+                <h2 class="section-title">Раскрой профилей</h2>
+                <p class="section-subtitle">Оптимальная карта раскроя профилей из хлыстов. Минимизация отходов алгоритмом FFD.</p>
+            </div>
+
+            <!-- Mode toggle -->
+            <div class="flex gap-2 mb-8 fade-up d1">
+                <button @click="cuttingMode = 'manual'" :class="cuttingMode === 'manual' ? 'btn-primary' : 'btn-secondary'" class="text-xs">Ручной ввод</button>
+                <button @click="cuttingMode = 'pdf'" :class="cuttingMode === 'pdf' ? 'btn-primary' : 'btn-secondary'" class="text-xs">Из PDF</button>
+            </div>
+
+            <!-- Manual mode -->
+            <div x-show="cuttingMode === 'manual' && !cuttingResult && !loading" class="fade-up d2">
+                <div class="section-panel mb-6">
+                    <h3 class="section-label mb-5">Параметры хлыста</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Длина хлыста, мм</label>
+                            <input type="number" x-model.number="cuttingParams.stock_length" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Ширина реза, мм</label>
+                            <input type="number" x-model.number="cuttingParams.blade_width" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Мин. остаток, мм</label>
+                            <input type="number" x-model.number="cuttingParams.min_remnant" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-panel mb-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <h3 class="section-label">Заготовки для нарезки</h3>
+                        <button @click="addCutRow()" class="btn-secondary text-xs">+ Добавить</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Артикул</th>
+                                <th>Длина, мм</th>
+                                <th>Кол-во</th>
+                                <th class="text-right">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(row, i) in cuttingParams.cuts" :key="i">
+                                <tr>
+                                    <td>
+                                        <input type="text" x-model="row.article" placeholder="4080102" class="w-full px-2 py-1.5 bg-white/60 border border-carbon-200 rounded font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass">
+                                    </td>
+                                    <td>
+                                        <input type="number" x-model.number="row.length" placeholder="1200" class="w-full px-2 py-1.5 bg-white/60 border border-carbon-200 rounded font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass">
+                                    </td>
+                                    <td>
+                                        <div class="flex items-center gap-1">
+                                            <button @click="row.qty = Math.max(1, row.qty - 1)" class="w-7 h-7 flex items-center justify-center border border-carbon-200 rounded text-carbon-500 hover:border-brass hover:text-brass transition-colors text-sm font-bold">-</button>
+                                            <input type="number" x-model.number="row.qty" min="1" class="w-14 px-1 py-1.5 bg-white/60 border border-carbon-200 rounded font-mono text-sm text-carbon-900 text-center focus:outline-none focus:border-brass">
+                                            <button @click="row.qty++" class="w-7 h-7 flex items-center justify-center border border-carbon-200 rounded text-carbon-500 hover:border-brass hover:text-brass transition-colors text-sm font-bold">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="text-right">
+                                        <button @click="removeCutRow(i)" x-show="cuttingParams.cuts.length > 1" class="text-carbon-400 hover:text-status-fail transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-center">
+                    <button @click="runCuttingOptimize()" class="btn-primary" :disabled="cuttingParams.cuts.every(c => !c.article || !c.length)">Рассчитать раскрой</button>
+                </div>
+            </div>
+
+            <!-- PDF mode -->
+            <div x-show="cuttingMode === 'pdf' && !cuttingResult && !loading" class="fade-up d2">
+                <div class="section-panel mb-6">
+                    <h3 class="section-label mb-5">Параметры</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Длина хлыста, мм</label>
+                            <input type="number" x-model.number="cuttingParams.stock_length" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Ширина реза, мм</label>
+                            <input type="number" x-model.number="cuttingParams.blade_width" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                        <div>
+                            <label class="block font-mono text-[10px] font-semibold tracking-[0.1em] uppercase text-carbon-400 mb-2">Мин. остаток, мм</label>
+                            <input type="number" x-model.number="cuttingParams.min_remnant" class="w-full px-3 py-2.5 bg-white/60 border border-carbon-200 rounded-lg font-mono text-sm text-carbon-900 focus:outline-none focus:border-brass focus:ring-1 focus:ring-brass/30">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drop-zone p-14 text-center max-w-2xl mx-auto mb-6"
+                     :class="{ 'dragover': dragCutPdf, 'loaded': fileCutPdf }"
+                     @dragover.prevent="dragCutPdf = true" @dragleave="dragCutPdf = false"
+                     @drop.prevent="dragCutPdf = false; fileCutPdf = $event.dataTransfer.files[0]"
+                     @click="$refs.inputCutPdf.click()">
+                    <input type="file" x-ref="inputCutPdf" accept=".pdf" class="hidden" @change="fileCutPdf = $event.target.files[0]">
+                    <div class="w-14 h-14 mx-auto mb-4 border border-carbon-300 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-carbon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <p class="font-body font-medium text-sm text-carbon-700" x-text="fileCutPdf ? fileCutPdf.name : 'Загрузите PDF с КМД'"></p>
+                    <p class="font-mono text-xs text-carbon-400 mt-1" x-text="fileCutPdf ? (fileCutPdf.size / 1024 / 1024).toFixed(1) + ' MB' : 'Перетащите или нажмите'"></p>
+                </div>
+                <div class="text-center" x-show="fileCutPdf">
+                    <button @click="runCuttingFromPdf()" class="btn-primary">Автоматический раскрой из КМД</button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loading && activeTab === 'cutting'" class="text-center py-20">
+                <div class="spinner mx-auto mb-5"></div>
+                <p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Оптимизация раскроя</p>
+            </div>
+
+            <!-- Results -->
+            <div x-show="cuttingResult" class="fade-up">
+                <div class="mb-6"><button @click="cuttingResult = null; fileCutPdf = null" class="btn-secondary">Заново</button></div>
+
+                <!-- Summary cards -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="metric-card accent-left">
+                        <p class="section-label mb-2">Хлыстов</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="cuttingResult?.total_bars_needed || 0"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="'по ' + (cuttingResult?.stock_length_mm || 0) + ' мм'"></p>
+                    </div>
+                    <div class="metric-card" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'border-left:3px solid #4A7C59' : (cuttingResult?.waste_percent || 0) < 20 ? 'border-left:3px solid #C4873B' : 'border-left:3px solid #A14242'">
+                        <p class="section-label mb-2">Отходы</p>
+                        <p class="font-display text-3xl" :style="(cuttingResult?.waste_percent || 0) < 10 ? 'color:#4A7C59' : (cuttingResult?.waste_percent || 0) < 20 ? 'color:#C4873B' : 'color:#A14242'" x-text="(cuttingResult?.waste_percent || 0) + '%'"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1" x-text="(cuttingResult?.total_waste_mm || 0) + ' мм'"></p>
+                    </div>
+                    <div class="metric-card" style="border-left:3px solid #4A7C59">
+                        <p class="section-label mb-2">Экономия</p>
+                        <p class="font-display text-3xl" style="color:#4A7C59" x-text="(cuttingResult?.savings_vs_naive || 0) + '%'"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">vs без оптимизации</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="section-label mb-2">Общий расход</p>
+                        <p class="font-display text-3xl text-carbon-900" x-text="((cuttingResult?.total_stock_length_mm || 0) / 1000).toFixed(1)"></p>
+                        <p class="font-mono text-[10px] text-carbon-400 mt-1">метров профиля</p>
+                    </div>
+                </div>
+
+                <!-- Bar visualization -->
+                <div class="section-panel mb-6">
+                    <h3 class="section-label mb-5">Карта раскроя</h3>
+                    <div class="space-y-3">
+                        <template x-for="bar in cuttingResult?.cutting_plan || []" :key="bar.bar_number">
+                            <div>
+                                <div class="flex items-center gap-3 mb-1.5">
+                                    <span class="font-mono text-[10px] font-bold text-carbon-500 w-6 text-right" x-text="'#' + bar.bar_number"></span>
+                                    <div class="flex-1 h-9 rounded-lg overflow-hidden flex" style="background:#DDDDD4">
+                                        <template x-for="(cut, ci) in bar.cuts" :key="ci">
+                                            <div class="h-full flex items-center justify-center relative group"
+                                                 :style="'width:' + (cut.length_mm / (cuttingResult?.stock_length_mm || 6500) * 100) + '%;background:#B8963B;border-right:1px solid rgba(255,255,255,0.3);'"
+                                                 :title="cut.article + ': ' + cut.length_mm + ' мм'">
+                                                <span class="font-mono text-[8px] font-bold text-white truncate px-0.5" x-text="cut.length_mm" x-show="cut.length_mm / (cuttingResult?.stock_length_mm || 6500) > 0.06"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <span class="font-mono text-[10px] w-12 text-right" :style="bar.utilization_percent >= 90 ? 'color:#4A7C59;font-weight:700' : bar.utilization_percent >= 70 ? 'color:#C4873B;font-weight:600' : 'color:#A14242;font-weight:600'" x-text="bar.utilization_percent + '%'"></span>
+                                    <span class="font-mono text-[10px] text-carbon-400 w-16 text-right" x-text="bar.waste_mm + ' мм'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="flex items-center gap-5 mt-5 pt-4 border-t border-carbon-100">
+                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#B8963B"></div><span class="font-mono text-[9px] text-carbon-500">Заготовка</span></div>
+                        <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#DDDDD4"></div><span class="font-mono text-[9px] text-carbon-500">Отход</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#4A7C59">90%+</span><span class="font-mono text-[9px] text-carbon-500">Отлично</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#C4873B">70-90%</span><span class="font-mono text-[9px] text-carbon-500">Нормально</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-mono text-[9px] font-bold" style="color:#A14242">&lt;70%</span><span class="font-mono text-[9px] text-carbon-500">Много отходов</span></div>
+                    </div>
+                </div>
+
+                <!-- Summary by article -->
+                <div class="section-panel mb-6" x-show="(cuttingResult?.summary_by_article || []).length > 0">
+                    <h3 class="section-label mb-4">Сводка по артикулам</h3>
+                    <table class="data-table">
+                        <thead><tr><th>Артикул</th><th class="text-right">Кол-во резов</th><th class="text-right">Общая длина</th></tr></thead>
+                        <tbody>
+                            <template x-for="(a, i) in cuttingResult?.summary_by_article || []" :key="i">
+                                <tr>
+                                    <td class="font-mono font-semibold text-carbon-900" x-text="a.article"></td>
+                                    <td class="text-right font-mono" x-text="a.total_cuts + ' шт.'"></td>
+                                    <td class="text-right font-mono" x-text="(a.total_length_mm / 1000).toFixed(1) + ' м'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Detailed bar list -->
+                <div class="section-panel overflow-hidden">
+                    <h3 class="section-label mb-4">Детализация по хлыстам</h3>
+                    <table class="data-table">
+                        <thead><tr><th>#</th><th>Заготовки</th><th class="text-right">Использовано</th><th class="text-right">Отход</th><th class="text-right">Загрузка</th></tr></thead>
+                        <tbody>
+                            <template x-for="bar in cuttingResult?.cutting_plan || []" :key="'d'+bar.bar_number">
+                                <tr>
+                                    <td class="font-mono font-bold text-carbon-900" x-text="bar.bar_number"></td>
+                                    <td>
+                                        <div class="flex flex-wrap gap-1">
+                                            <template x-for="(cut, ci) in bar.cuts" :key="ci">
+                                                <span class="px-1.5 py-0.5 bg-brass-pale rounded font-mono text-[10px] text-carbon-700" x-text="cut.article + ' ' + cut.length_mm"></span>
+                                            </template>
+                                        </div>
+                                    </td>
+                                    <td class="text-right font-mono" x-text="bar.used_mm + ' мм'"></td>
+                                    <td class="text-right font-mono" x-text="bar.waste_mm + ' мм'"></td>
+                                    <td class="text-right">
+                                        <span class="font-mono text-xs font-bold" :style="bar.utilization_percent >= 90 ? 'color:#4A7C59' : bar.utilization_percent >= 70 ? 'color:#C4873B' : 'color:#A14242'" x-text="bar.utilization_percent + '%'"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Extracted data (PDF mode) -->
+                <div x-show="cuttingResult?.extracted_cuts" class="section-panel mt-6">
+                    <h3 class="section-label mb-4">Извлечено из PDF</h3>
+                    <div class="mb-3">
+                        <span class="font-mono text-[10px] text-carbon-400 uppercase tracking-wider">Артикулы: </span>
+                        <template x-for="art in cuttingResult?.extracted_articles || []" :key="art">
+                            <span class="px-2 py-1 bg-white/60 border border-carbon-100 rounded font-mono text-xs text-carbon-700 mr-1" x-text="art"></span>
+                        </template>
+                    </div>
+                    <table class="data-table">
+                        <thead><tr><th>Артикул</th><th class="text-right">Длина, мм</th><th class="text-right">Кол-во</th></tr></thead>
+                        <tbody>
+                            <template x-for="(ec, i) in cuttingResult?.extracted_cuts || []" :key="i">
+                                <tr>
+                                    <td class="font-mono font-semibold text-carbon-900" x-text="ec.article"></td>
+                                    <td class="text-right font-mono" x-text="ec.length_mm"></td>
+                                    <td class="text-right font-mono" x-text="ec.quantity"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+
         <!-- ===== TAB 9: DASHBOARD ===== -->
         <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
             <div class="mb-10 fade-up"><p class="section-label mb-3">09 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
@@ -1137,6 +1782,109 @@ function app() {
 
         fileSpec: null, dragSpec: false,
         specResult: null,
+
+        // 3D Preview state
+        preview3dMode: 'manual',
+        preview3dParams: {
+            construction_type: 'окно',
+            width_mm: 1500,
+            height_mm: 2100,
+            frame_depth_mm: 72,
+            glass_formula: '4-16-4-16-4',
+            has_impost: true,
+            color_outside: '#7B7B7B',
+            color_inside: '#FFFFFF',
+            sections: [
+                {type: 'fixed', w: 750, h: 2100, handle_height: 1050},
+                {type: 'tilt_turn', w: 750, h: 2100, handle_height: 1050},
+            ],
+        },
+        file3dPdf: null, drag3dPdf: false,
+        preview3dResult: null,
+        show3dDimensions: true,
+        show3dWireframe: false,
+        threeRenderer: null,
+        threeScene: null,
+        threeCamera: null,
+        threeControls: null,
+        threeAnimId: null,
+        threeDimGroup: null,
+        threeLabelGroup: null,
+        _threeModules: null,
+
+        // Profile AI Selector state
+        profileParams: {
+            construction_type: 'окна',
+            width_mm: 1500,
+            height_mm: 2100,
+            floors: 5,
+            wind_region: 'III',
+            thermal_required: true,
+            sound_insulation_db: 35,
+            fire_resistance: false,
+            budget: 'стандарт',
+        },
+        profileResult: null,
+
+        // Cutting optimizer state
+        cuttingMode: 'manual',
+        cuttingParams: { stock_length: 6500, blade_width: 5, min_remnant: 50, cuts: [{article: '', length: '', qty: 1}] },
+        fileCutPdf: null, dragCutPdf: false,
+        cuttingResult: null,
+
+        addCutRow() { this.cuttingParams.cuts.push({article: '', length: '', qty: 1}); },
+        removeCutRow(i) { this.cuttingParams.cuts.splice(i, 1); },
+
+        async runCuttingOptimize() {
+            this.loading = true; this.error = null;
+            const payload = {
+                stock_length_mm: this.cuttingParams.stock_length,
+                blade_width_mm: this.cuttingParams.blade_width,
+                min_remnant_mm: this.cuttingParams.min_remnant,
+                cuts: this.cuttingParams.cuts
+                    .filter(c => c.article && c.length)
+                    .map(c => ({ article: c.article, length_mm: c.length, quantity: c.qty })),
+            };
+            try {
+                const res = await fetch('/api/optimize-cutting', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.cuttingResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runCuttingFromPdf() {
+            this.loading = true; this.error = null;
+            const fd = new FormData();
+            fd.append('file', this.fileCutPdf);
+            fd.append('stock_length_mm', this.cuttingParams.stock_length);
+            fd.append('blade_width_mm', this.cuttingParams.blade_width);
+            fd.append('min_remnant_mm', this.cuttingParams.min_remnant);
+            try {
+                const res = await fetch('/api/optimize-cutting-from-pdf', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.cuttingResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runProfileRecommend() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/recommend-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.profileParams),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.profileResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
 
         async runCompare() {
             this.loading = true; this.error = null;
@@ -1262,6 +2010,475 @@ function app() {
         },
 
         resetComparePdf() { this.cpResult = null; this.fileCpA = null; this.fileCpB = null; },
+
+        // ===== 3D Preview Methods =====
+
+        async _loadThree() {
+            if (this._threeModules) return this._threeModules;
+            const THREE = await import('three');
+            const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+            this._threeModules = { THREE, OrbitControls };
+            return this._threeModules;
+        },
+
+        async init3dScene() {
+            const container = document.getElementById('three-canvas-container');
+            if (!container || this.threeRenderer) return;
+
+            const { THREE, OrbitControls } = await this._loadThree();
+
+            const w = container.clientWidth;
+            const h = container.clientHeight || 600;
+
+            // Renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.innerHTML = '';
+            container.appendChild(renderer.domElement);
+
+            // Scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color('#F0EDE6');
+
+            // Camera
+            const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+            camera.position.set(800, 600, 1200);
+
+            // Controls
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.minDistance = 200;
+            controls.maxDistance = 5000;
+            controls.target.set(0, 0, 0);
+
+            // Lights
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(500, 800, 600);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 3000;
+            dirLight.shadow.camera.left = -1500;
+            dirLight.shadow.camera.right = 1500;
+            dirLight.shadow.camera.top = 1500;
+            dirLight.shadow.camera.bottom = -1500;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0xfff5e6, 0.3);
+            fillLight.position.set(-400, 200, -300);
+            scene.add(fillLight);
+
+            // Floor grid
+            const gridHelper = new THREE.GridHelper(3000, 30, 0xD0CCC0, 0xE5E0D6);
+            gridHelper.position.y = -5;
+            scene.add(gridHelper);
+
+            // Floor plane for shadows
+            const floorGeo = new THREE.PlaneGeometry(4000, 4000);
+            const floorMat = new THREE.ShadowMaterial({ opacity: 0.08 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -4;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            this.threeRenderer = renderer;
+            this.threeScene = scene;
+            this.threeCamera = camera;
+            this.threeControls = controls;
+
+            // Animation loop
+            const animate = () => {
+                this.threeAnimId = requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            // Resize observer
+            const ro = new ResizeObserver(() => {
+                const nw = container.clientWidth;
+                const nh = container.clientHeight || 600;
+                camera.aspect = nw / nh;
+                camera.updateProjectionMatrix();
+                renderer.setSize(nw, nh);
+            });
+            ro.observe(container);
+        },
+
+        async update3dScene(data) {
+            if (!data || !data.scene) return;
+            const { THREE } = await this._loadThree();
+            const scene = this.threeScene;
+            if (!scene) return;
+
+            // Clear old construction meshes (keep lights, grid, floor)
+            const toRemove = [];
+            scene.traverse(child => {
+                if (child.userData && child.userData.construction) {
+                    toRemove.push(child);
+                }
+            });
+            toRemove.forEach(obj => {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                    else obj.material.dispose();
+                }
+            });
+            if (this.threeDimGroup) { scene.remove(this.threeDimGroup); this.threeDimGroup = null; }
+            if (this.threeLabelGroup) { scene.remove(this.threeLabelGroup); this.threeLabelGroup = null; }
+
+            const s = data.scene;
+            const fw = s.frame.width;
+            const fh = s.frame.height;
+            const fd = s.frame.depth;
+            const pw = s.frame.profile_width;
+
+            // Scale: 1mm = 1 unit, center at origin
+            const offsetX = -fw / 2;
+            const offsetY = 0;
+
+            // Aluminum material
+            const alumOutside = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(s.color_outside),
+                metalness: 0.8,
+                roughness: 0.3,
+            });
+            const alumInside = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(s.color_inside),
+                metalness: 0.6,
+                roughness: 0.35,
+            });
+
+            function makeFrameBar(x, y, z, bw, bh, bd, tag) {
+                const geo = new THREE.BoxGeometry(bw, bh, bd);
+                const mesh = new THREE.Mesh(geo, [alumOutside, alumOutside, alumOutside, alumOutside, alumInside, alumOutside]);
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData = { construction: true, tag: tag };
+                return mesh;
+            }
+
+            // Main outer frame
+            // Bottom
+            scene.add(makeFrameBar(offsetX + fw/2, pw/2, 0, fw, pw, fd, 'frame-bottom'));
+            // Top
+            scene.add(makeFrameBar(offsetX + fw/2, fh - pw/2, 0, fw, pw, fd, 'frame-top'));
+            // Left
+            scene.add(makeFrameBar(offsetX + pw/2, fh/2, 0, pw, fh - 2*pw, fd, 'frame-left'));
+            // Right
+            scene.add(makeFrameBar(offsetX + fw - pw/2, fh/2, 0, pw, fh - 2*pw, fd, 'frame-right'));
+
+            // Impost
+            if (s.impost) {
+                const imp = s.impost;
+                const impW = imp.width;
+                if (imp.orientation === 'vertical') {
+                    scene.add(makeFrameBar(offsetX + imp.x, fh/2, 0, impW, fh - 2*pw, fd, 'impost'));
+                } else {
+                    scene.add(makeFrameBar(offsetX + fw/2, imp.x, 0, fw - 2*pw, impW, fd, 'impost-h'));
+                }
+            }
+
+            // Glass panels
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0x88ccdd,
+                metalness: 0.0,
+                roughness: 0.05,
+                transmission: 0.9,
+                transparent: true,
+                opacity: 0.35,
+                ior: 1.5,
+                thickness: 0.5,
+                side: THREE.DoubleSide,
+            });
+
+            (s.glass_panels || []).forEach((gp, gi) => {
+                const gw = Math.max(gp.width, 10);
+                const gh = Math.max(gp.height, 10);
+                const gt = Math.min(gp.thickness || 24, fd * 0.6);
+                const geo = new THREE.BoxGeometry(gw, gh, gt);
+                const mesh = new THREE.Mesh(geo, glassMat);
+                mesh.position.set(offsetX + gp.x + gw/2, gp.y + gh/2, 0);
+                mesh.castShadow = false;
+                mesh.receiveShadow = false;
+                mesh.userData = { construction: true, tag: 'glass-' + gi };
+                scene.add(mesh);
+            });
+
+            // Handles
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.2 });
+            (s.handles || []).forEach((handle, hi) => {
+                const hx = offsetX + handle.x;
+                const hy = handle.y;
+                const hz = fd / 2 + 8;
+
+                // Handle base (cylinder)
+                const baseGeo = new THREE.CylinderGeometry(6, 6, 30, 16);
+                const baseMesh = new THREE.Mesh(baseGeo, handleMat);
+                baseMesh.position.set(hx, hy, hz);
+                baseMesh.rotation.x = Math.PI / 2;
+                baseMesh.castShadow = true;
+                baseMesh.userData = { construction: true, tag: 'handle-base-' + hi };
+                scene.add(baseMesh);
+
+                // Handle lever (cylinder)
+                const leverGeo = new THREE.CylinderGeometry(4, 4, 80, 12);
+                const leverMesh = new THREE.Mesh(leverGeo, handleMat);
+                leverMesh.position.set(hx, hy + 40, hz + 10);
+                leverMesh.castShadow = true;
+                leverMesh.userData = { construction: true, tag: 'handle-lever-' + hi };
+                scene.add(leverMesh);
+
+                // Handle knob (sphere)
+                const knobGeo = new THREE.SphereGeometry(7, 16, 16);
+                const knobMesh = new THREE.Mesh(knobGeo, handleMat);
+                knobMesh.position.set(hx, hy + 80, hz + 10);
+                knobMesh.castShadow = true;
+                knobMesh.userData = { construction: true, tag: 'handle-knob-' + hi };
+                scene.add(knobMesh);
+
+                // Opening indicator triangle for tilt-turn sections
+                if (handle.opening_type === 'tilt_turn' || handle.opening_type === 'turn' || handle.opening_type === 'tilt') {
+                    const sec = s.sections[handle.section_index];
+                    if (sec) {
+                        const triShape = new THREE.Shape();
+                        const triSize = Math.min(sec.width, sec.height) * 0.08;
+                        triShape.moveTo(0, 0);
+                        triShape.lineTo(triSize, 0);
+                        triShape.lineTo(triSize / 2, triSize * 0.8);
+                        triShape.closePath();
+                        const triGeo = new THREE.ShapeGeometry(triShape);
+                        const triMat = new THREE.MeshBasicMaterial({ color: 0xB8963B, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+                        const triMesh = new THREE.Mesh(triGeo, triMat);
+                        triMesh.position.set(offsetX + sec.x + sec.width / 2 - triSize / 2, fh - pw - triSize * 1.2, fd / 2 + 1);
+                        triMesh.userData = { construction: true, tag: 'indicator-' + hi };
+                        scene.add(triMesh);
+                    }
+                }
+            });
+
+            // Section labels (using sprite text)
+            this.threeLabelGroup = new THREE.Group();
+            this.threeLabelGroup.userData = { construction: true, tag: 'labels' };
+            (s.sections || []).forEach((sec, si) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                ctx.roundRect(0, 0, 256, 64, 8);
+                ctx.fill();
+                ctx.fillStyle = '#2A2A22';
+                ctx.font = 'bold 28px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(sec.label, 128, 32);
+
+                const tex = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.scale.set(120, 30, 1);
+                sprite.position.set(offsetX + sec.x + sec.width / 2, fh / 2, fd / 2 + 30);
+                sprite.userData = { construction: true, tag: 'label-' + si };
+                this.threeLabelGroup.add(sprite);
+            });
+            scene.add(this.threeLabelGroup);
+
+            // Dimension lines
+            this.threeDimGroup = new THREE.Group();
+            this.threeDimGroup.userData = { construction: true, tag: 'dimensions' };
+            this.threeDimGroup.visible = this.show3dDimensions;
+
+            const dimMat = new THREE.LineBasicMaterial({ color: 0x717164, linewidth: 1 });
+            const dimOffset = 80;
+
+            // Width dimension (bottom)
+            {
+                const pts = [
+                    new THREE.Vector3(offsetX, -dimOffset, 0),
+                    new THREE.Vector3(offsetX + fw, -dimOffset, 0),
+                ];
+                const geo = new THREE.BufferGeometry().setFromPoints(pts);
+                const line = new THREE.Line(geo, dimMat);
+                line.userData = { construction: true };
+                this.threeDimGroup.add(line);
+
+                // End ticks
+                [-1, 1].forEach((side, idx) => {
+                    const tx = idx === 0 ? offsetX : offsetX + fw;
+                    const tickPts = [
+                        new THREE.Vector3(tx, -dimOffset - 15, 0),
+                        new THREE.Vector3(tx, -dimOffset + 15, 0),
+                    ];
+                    const tickGeo = new THREE.BufferGeometry().setFromPoints(tickPts);
+                    const tick = new THREE.Line(tickGeo, dimMat);
+                    tick.userData = { construction: true };
+                    this.threeDimGroup.add(tick);
+                });
+
+                // Width label
+                const wCanvas = document.createElement('canvas');
+                wCanvas.width = 256; wCanvas.height = 48;
+                const wCtx = wCanvas.getContext('2d');
+                wCtx.fillStyle = '#565648';
+                wCtx.font = 'bold 30px monospace';
+                wCtx.textAlign = 'center';
+                wCtx.textBaseline = 'middle';
+                wCtx.fillText(fw + ' мм', 128, 24);
+                const wTex = new THREE.CanvasTexture(wCanvas);
+                const wSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: wTex, transparent: true }));
+                wSprite.scale.set(140, 26, 1);
+                wSprite.position.set(0, -dimOffset - 35, 0);
+                wSprite.userData = { construction: true };
+                this.threeDimGroup.add(wSprite);
+            }
+
+            // Height dimension (left side)
+            {
+                const pts = [
+                    new THREE.Vector3(offsetX - dimOffset, 0, 0),
+                    new THREE.Vector3(offsetX - dimOffset, fh, 0),
+                ];
+                const geo = new THREE.BufferGeometry().setFromPoints(pts);
+                const line = new THREE.Line(geo, dimMat);
+                line.userData = { construction: true };
+                this.threeDimGroup.add(line);
+
+                [0, fh].forEach(ty => {
+                    const tickPts = [
+                        new THREE.Vector3(offsetX - dimOffset - 15, ty, 0),
+                        new THREE.Vector3(offsetX - dimOffset + 15, ty, 0),
+                    ];
+                    const tickGeo = new THREE.BufferGeometry().setFromPoints(tickPts);
+                    const tick = new THREE.Line(tickGeo, dimMat);
+                    tick.userData = { construction: true };
+                    this.threeDimGroup.add(tick);
+                });
+
+                const hCanvas = document.createElement('canvas');
+                hCanvas.width = 256; hCanvas.height = 48;
+                const hCtx = hCanvas.getContext('2d');
+                hCtx.fillStyle = '#565648';
+                hCtx.font = 'bold 30px monospace';
+                hCtx.textAlign = 'center';
+                hCtx.textBaseline = 'middle';
+                hCtx.fillText(fh + ' мм', 128, 24);
+                const hTex = new THREE.CanvasTexture(hCanvas);
+                const hSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: hTex, transparent: true }));
+                hSprite.scale.set(140, 26, 1);
+                hSprite.position.set(offsetX - dimOffset - 40, fh / 2, 0);
+                hSprite.userData = { construction: true };
+                this.threeDimGroup.add(hSprite);
+            }
+
+            scene.add(this.threeDimGroup);
+
+            // Fit camera
+            const maxDim = Math.max(fw, fh);
+            const dist = maxDim * 1.4;
+            this.threeCamera.position.set(dist * 0.6, fh * 0.5, dist * 0.8);
+            this.threeControls.target.set(0, fh / 2, 0);
+            this.threeControls.update();
+        },
+
+        async runPreview3d() {
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/preview-3d', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.preview3dParams),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.preview3dResult = await res.json();
+                await this.$nextTick();
+                await this.init3dScene();
+                await this.update3dScene(this.preview3dResult);
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runPreview3dFromPdf() {
+            this.loading = true; this.error = null;
+            const fd = new FormData();
+            fd.append('file', this.file3dPdf);
+            try {
+                const res = await fetch('/api/preview-3d-from-pdf', { method: 'POST', body: fd });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.preview3dResult = await res.json();
+                await this.$nextTick();
+                await this.init3dScene();
+                await this.update3dScene(this.preview3dResult);
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        rotate3d(deg) {
+            if (!this.threeControls) return;
+            const angle = deg * Math.PI / 180;
+            const target = this.threeControls.target;
+            const cam = this.threeCamera.position;
+            const dx = cam.x - target.x;
+            const dz = cam.z - target.z;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            cam.x = target.x + dx * cos - dz * sin;
+            cam.z = target.z + dx * sin + dz * cos;
+            this.threeControls.update();
+        },
+
+        reset3dView() {
+            if (!this.threeCamera || !this.threeControls || !this.preview3dResult) return;
+            const s = this.preview3dResult.scene;
+            const fw = s.frame.width;
+            const fh = s.frame.height;
+            const maxDim = Math.max(fw, fh);
+            const dist = maxDim * 1.4;
+            this.threeCamera.position.set(dist * 0.6, fh * 0.5, dist * 0.8);
+            this.threeControls.target.set(0, fh / 2, 0);
+            this.threeControls.update();
+        },
+
+        toggle3dWireframe() {
+            if (!this.threeScene) return;
+            this.threeScene.traverse(child => {
+                if (child.isMesh && child.userData.construction) {
+                    if (child.material) {
+                        const mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(m => { m.wireframe = this.show3dWireframe; });
+                    }
+                }
+            });
+        },
+
+        toggle3dDimensions() {
+            if (this.threeDimGroup) {
+                this.threeDimGroup.visible = this.show3dDimensions;
+            }
+        },
+
+        export3dPng() {
+            if (!this.threeRenderer) return;
+            const dataUrl = this.threeRenderer.domElement.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'kmd-3d-preview.png';
+            link.href = dataUrl;
+            link.click();
+        },
     }
 }
 </script>
