@@ -32,6 +32,9 @@ from webapp.models import (
     Base as DBBase,
     DocumentVersion,
     Project as ProjectModel,
+    User,
+    Workspace,
+    WorkspaceMember,
 )
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
@@ -40,6 +43,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
+
+# Sprint 13: Auth, Workspaces, Permissions, API Keys
+from webapp.auth import router as auth_router
+from webapp.workspaces import router as workspaces_router
+from webapp.api_keys import router as api_keys_router
+from webapp.permissions import RoleMiddleware
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -78,10 +87,14 @@ async def verify_api_key(api_key: str = Security(_api_key_header)):
 # Paths exempt from API key auth
 _AUTH_EXEMPT_PATHS: set[str] = {
     "/", "/docs", "/redoc", "/openapi.json", "/api/health", "/api/auth/validate",
+    "/api/auth/login", "/api/auth/register", "/api/auth/refresh",
+    "/api/auth/google", "/api/auth/google/callback",
+    "/api/auth/yandex", "/api/auth/yandex/callback",
 }
 _AUTH_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/icons/", "/manifest.json", "/sw.js", "/offline.html",
     "/api/download/", "/api/download-act/", "/api/download-nc/",
+    "/auth_ui.js",
 )
 
 # Добавляем tools в путь
@@ -276,7 +289,10 @@ async def api_health():
     }
 
 
-@app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
+@app.get("/api/auth/validate",
+    "/api/auth/login", "/api/auth/register", "/api/auth/refresh",
+    "/api/auth/google", "/api/auth/google/callback",
+    "/api/auth/yandex", "/api/auth/yandex/callback", tags=["Auth"], summary="Validate API key")
 async def api_auth_validate(api_key: str = Security(_api_key_header)):
     """Check if the provided X-API-Key header is valid."""
     if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
@@ -342,6 +358,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(APIKeyMiddleware)  # registered last = executes first (outermost)
+app.add_middleware(RoleMiddleware)  # Sprint 13: permission checks
+
+# Sprint 13: подключаем роутеры аутентификации, воркспейсов, API-ключей
+app.include_router(auth_router)
+app.include_router(workspaces_router)
+app.include_router(api_keys_router)
 
 
 @app.on_event("startup")
@@ -453,6 +475,15 @@ async def pwa_manifest():
         media_type="application/manifest+json",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+@app.get("/auth_ui.js")
+async def auth_ui_script():
+    """Отдаёт JS-модуль аутентификации."""
+    js_path = Path(__file__).parent / "auth_ui.js"
+    if not js_path.exists():
+        raise HTTPException(status_code=404, detail="auth_ui.js not found")
+    return FileResponse(js_path, media_type="application/javascript")
 
 
 @app.get("/sw.js")
