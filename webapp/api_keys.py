@@ -156,6 +156,8 @@ class WorkspaceRateLimiter:
     можно заменить на распределённый вариант.
     """
 
+    MAX_TRACKED_WORKSPACES = 10_000
+
     def __init__(self) -> None:
         # workspace_id -> list of timestamps
         self._requests: Dict[int, list] = defaultdict(list)
@@ -171,6 +173,12 @@ class WorkspaceRateLimiter:
 
         # Очистка устаревших записей
         self._requests[workspace_id] = [t for t in timestamps if t > window_start]
+        # Ограничиваем размер кэша — удаляем самые старые workspace при переполнении
+        if len(self._requests) > self.MAX_TRACKED_WORKSPACES:
+            # Удаляем workspace без активных запросов
+            empty_keys = [k for k, v in self._requests.items() if not v]
+            for k in empty_keys:
+                del self._requests[k]
         timestamps = self._requests[workspace_id]
 
         if len(timestamps) >= limit:
@@ -208,15 +216,37 @@ async def get_current_user_id(
 async def get_current_workspace_id(
     request: Request,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> Optional[int]:
-    """Получает ID текущего рабочего пространства из заголовка или профиля."""
+    """Получает и валидирует ID рабочего пространства.
+
+    Проверяет, что пользователь является участником запрошенного workspace.
+    """
+    from webapp.models import WorkspaceMember
+    ws_id: Optional[int] = None
     ws_header = request.headers.get("X-Workspace-Id")
     if ws_header:
         try:
-            return int(ws_header)
+            ws_id = int(ws_header)
         except ValueError:
             pass
-    return current_user.workspace_id
+    if ws_id is None:
+        ws_id = current_user.workspace_id
+    # Валидация: пользователь должен быть участником workspace
+    if ws_id is not None:
+        from sqlalchemy import select as sa_select
+        membership = await db.execute(
+            sa_select(WorkspaceMember.id).where(
+                WorkspaceMember.workspace_id == ws_id,
+                WorkspaceMember.user_id == current_user.id,
+            )
+        )
+        if membership.scalar_one_or_none() is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Нет доступа к данному рабочему пространству",
+            )
+    return ws_id
 
 
 # ---------------------------------------------------------------------------
@@ -344,10 +374,13 @@ async def create_api_key(
 async def list_api_keys(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     workspace_id: Optional[int] = Depends(get_current_workspace_id),
 ) -> Any:
     """Список API-ключей текущего рабочего пространства (ключи замаскированы)."""
     query = select(ApiKey).where(ApiKey.is_active == True)  # noqa: E712
+    # Всегда фильтруем по user_id для безопасности
+    query = query.where(ApiKey.user_id == current_user.id)
     if workspace_id is not None:
         query = query.where(ApiKey.workspace_id == workspace_id)
     query = query.order_by(ApiKey.created_at.desc())

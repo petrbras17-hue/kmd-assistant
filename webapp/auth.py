@@ -31,7 +31,16 @@ from webapp.models import User
 # Настройки
 # ---------------------------------------------------------------------------
 
-JWT_SECRET: str = os.getenv("JWT_SECRET") or secrets.token_urlsafe(64)
+_jwt_env = os.getenv("JWT_SECRET", "").strip()
+if _jwt_env:
+    JWT_SECRET: str = _jwt_env
+else:
+    JWT_SECRET = secrets.token_urlsafe(64)
+    import logging as _logging
+    _logging.getLogger("kmd.auth").warning(
+        "JWT_SECRET не задан — сгенерирован временный ключ. "
+        "Токены будут невалидны после перезапуска!"
+    )
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -195,7 +204,7 @@ async def get_current_user(
     except (JWTError, KeyError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Невалидный токен: {exc}",
+            detail="Невалидный или просроченный токен",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -378,7 +387,7 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
     except (JWTError, KeyError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Невалидный refresh-токен: {exc}",
+            detail="Невалидный или просроченный refresh-токен",
         )
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -444,7 +453,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Ошибка авторизации Google: {exc}",
+            detail="Ошибка авторизации через Google",
         )
 
     userinfo = token_data.get("userinfo")
@@ -455,6 +464,11 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         )
 
     email = userinfo.get("email", "")
+    if not userinfo.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email не подтверждён в Google аккаунте",
+        )
     name = userinfo.get("name") or email.split("@")[0]
     picture = userinfo.get("picture")
     google_id = userinfo.get("sub", "")
@@ -468,7 +482,14 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         avatar=picture,
     )
 
-    return create_token_pair(user)
+    tokens = create_token_pair(user)
+    # Редирект на фронтенд с токенами во фрагменте URL (безопаснее query params)
+    redirect_url = (
+        f"{OAUTH_REDIRECT_BASE_URL}/#access_token={tokens['access_token']}"
+        f"&refresh_token={tokens['refresh_token']}"
+        f"&token_type=bearer"
+    )
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +524,7 @@ async def yandex_callback(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Ошибка авторизации Яндекс: {exc}",
+            detail="Ошибка авторизации через Яндекс",
         )
 
     # Яндекс не возвращает userinfo в токене — нужно запросить отдельно
@@ -540,4 +561,10 @@ async def yandex_callback(request: Request, db: AsyncSession = Depends(get_db)):
         avatar=avatar_url,
     )
 
-    return create_token_pair(user)
+    tokens = create_token_pair(user)
+    redirect_url = (
+        f"{OAUTH_REDIRECT_BASE_URL}/#access_token={tokens['access_token']}"
+        f"&refresh_token={tokens['refresh_token']}"
+        f"&token_type=bearer"
+    )
+    return RedirectResponse(url=redirect_url, status_code=302)

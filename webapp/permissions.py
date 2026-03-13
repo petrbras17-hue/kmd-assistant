@@ -251,13 +251,13 @@ async def check_workspace_role(
 
     Raises 403 if the user is not a member of the workspace.
 
-    TODO (S13-2 integration): Wire up with real WorkspaceMember lookup.
     """
     ws_role = await _get_workspace_role(user, workspace_id, db)
     if ws_role is None:
-        # Fall back to global role for now.
-        # After S13-2 merge, raise 403 if the user is not a workspace member.
-        ws_role = _resolve_role(user)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Вы не являетесь участником данного рабочего пространства",
+        )
     return ws_role
 
 
