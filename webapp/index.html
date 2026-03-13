@@ -713,6 +713,301 @@
 
         /* Tab transition (Alpine x-transition fallback) */
         .tab-content { transition: opacity 0.3s ease, transform 0.3s ease; }
+
+        /* ===== LANDING PAGE ===== */
+        .landing-hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .landing-hero::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(184,150,59,0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(184,150,59,0.04) 0%, transparent 50%);
+            pointer-events: none;
+            animation: heroGlow 12s ease-in-out infinite alternate;
+        }
+        @keyframes heroGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(2%, -2%) scale(1.05); }
+        }
+        .landing-hero .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1.25rem;
+            border: 1px solid rgba(184,150,59,0.25);
+            border-radius: 100px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #B8963B;
+            background: rgba(184,150,59,0.04);
+            animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .landing-hero .hero-main-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 7vw, 5rem);
+            font-weight: 700;
+            color: #1A1A14;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-top: 2rem;
+            animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+        }
+        .landing-hero .hero-main-title .accent {
+            color: #B8963B;
+            font-style: italic;
+        }
+        .landing-hero .hero-subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            color: #717164;
+            max-width: 40rem;
+            line-height: 1.75;
+            margin-top: 1.5rem;
+            animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+        }
+        .landing-hero .hero-cta-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2.5rem;
+            animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+        }
+        .landing-hero .hero-stats {
+            display: flex;
+            gap: 3rem;
+            margin-top: 3.5rem;
+            animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+        }
+        .landing-hero .stat-item .stat-num {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #B8963B;
+        }
+        .landing-hero .stat-item .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.5625rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #9A9A8C;
+            margin-top: 0.25rem;
+        }
+        .landing-scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            animation: fadeUp 1s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
+        }
+        .landing-scroll-hint .scroll-line {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, #B8963B, transparent);
+            animation: scrollPulse 2s ease-in-out infinite;
+        }
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+            50% { opacity: 1; transform: scaleY(1); }
+        }
+
+        /* ===== CATALOG SECTIONS ===== */
+        .catalog-section {
+            padding: 5rem 1.5rem 3rem;
+            max-width: 72rem;
+            margin: 0 auto;
+        }
+        .catalog-chapter {
+            display: flex;
+            align-items: baseline;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .catalog-chapter .chapter-num {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 800;
+            color: rgba(184,150,59,0.08);
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .catalog-chapter .chapter-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+            font-weight: 600;
+            color: #1A1A14;
+            letter-spacing: -0.03em;
+        }
+        .catalog-chapter-desc {
+            font-size: 0.9375rem;
+            color: #9A9A8C;
+            max-width: 36rem;
+            line-height: 1.7;
+            margin-bottom: 2.5rem;
+            padding-left: 0.5rem;
+        }
+
+        /* Product cards */
+        .product-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.25rem;
+        }
+        .product-card {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(26,26,20,0.06);
+            border-radius: 16px;
+            padding: 1.75rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #B8963B, #D4B66A);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .product-card:hover {
+            background: rgba(255,255,255,0.95);
+            transform: translateY(-6px);
+            box-shadow: 0 20px 60px rgba(26,26,20,0.08), 0 4px 16px rgba(26,26,20,0.04);
+        }
+        .product-card:hover::before { transform: scaleX(1); }
+        .product-card .card-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            background: rgba(184,150,59,0.06);
+            transition: all 0.3s ease;
+        }
+        .product-card:hover .card-icon {
+            background: rgba(184,150,59,0.12);
+            transform: scale(1.08);
+        }
+        .product-card .card-title {
+            font-family: 'Instrument Sans', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1A1A14;
+            margin-bottom: 0.5rem;
+        }
+        .product-card .card-desc {
+            font-size: 0.8125rem;
+            color: #9A9A8C;
+            line-height: 1.65;
+        }
+        .product-card .card-ai-badge {
+            position: absolute;
+            top: 1rem; right: 1rem;
+            padding: 0.2rem 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.5625rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            border-radius: 6px;
+            background: linear-gradient(135deg, rgba(184,150,59,0.12), rgba(212,182,106,0.08));
+            color: #D4B66A;
+        }
+        .product-card .card-arrow {
+            position: absolute;
+            bottom: 1.25rem; right: 1.25rem;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: rgba(26,26,20,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateX(-8px);
+            transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .product-card:hover .card-arrow {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Scroll-triggered animations */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .scroll-reveal.from-left {
+            transform: translateX(-40px) translateY(0);
+        }
+        .scroll-reveal.from-right {
+            transform: translateX(40px) translateY(0);
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translate(0, 0);
+        }
+
+        /* Back button in module view */
+        .back-to-catalog {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            color: #9A9A8C;
+            border-radius: 8px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+        .back-to-catalog:hover {
+            color: #B8963B;
+            background: rgba(184,150,59,0.06);
+        }
+
+        /* Landing footer */
+        .landing-footer {
+            padding: 4rem 1.5rem;
+            text-align: center;
+            border-top: 1px solid rgba(26,26,20,0.06);
+            margin-top: 4rem;
+        }
+
+        @media (max-width: 768px) {
+            .landing-hero { min-height: 85vh; padding: 1.5rem 1rem; }
+            .landing-hero .hero-stats { gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+            .landing-hero .hero-cta-group { flex-direction: column; align-items: center; }
+            .catalog-section { padding: 3rem 1rem 2rem; }
+            .catalog-chapter { flex-direction: column; gap: 0.25rem; }
+            .catalog-chapter .chapter-num { font-size: 2.5rem; }
+            .product-cards { grid-template-columns: 1fr; }
+            .landing-scroll-hint { display: none; }
+        }
     </style>
 </head>
 <body class="min-h-screen arch-grid grain">
@@ -792,18 +1087,17 @@
     </aside>
 
     <!-- ===== TOP BAR ===== -->
-    <nav class="glass-nav sticky top-0 z-50" :class="sidebarOpen ? 'main-shifted' : ''" style="transition: margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1)">
+    <nav class="glass-nav sticky top-0 z-50" x-show="!showLanding" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
         <div class="max-w-7xl mx-auto px-5 md:px-8">
             <div class="flex items-center justify-between py-2.5">
                 <div class="flex items-center gap-3">
+                    <button @click="goToLanding()" class="back-to-catalog" style="padding:0.4rem 0.75rem;margin:0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        <span class="hidden sm:inline">Каталог</span>
+                    </button>
                     <button @click="sidebarOpen = !sidebarOpen" class="menu-toggle" aria-label="Toggle menu">
                         <span></span><span></span><span></span>
                     </button>
-                    <div class="hidden sm:flex items-center gap-2.5">
-                        <span class="font-display text-base text-carbon-800 tracking-tight" style="font-weight:600">KMD</span>
-                        <span class="w-px h-4 bg-carbon-200"></span>
-                        <span class="font-mono text-[9px] tracking-[0.15em] uppercase text-carbon-400">ALDMEGA LAB</span>
-                    </div>
                 </div>
                 <!-- Breadcrumb + actions -->
                 <div class="flex items-center gap-2 md:gap-4">
@@ -860,8 +1154,109 @@
         </div>
     </div>
 
-    <!-- ===== MAIN CONTENT ===== -->
-    <main class="max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-12" :class="sidebarOpen ? 'main-shifted' : ''" style="transition: margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1)">
+    <!-- ===== LANDING PAGE ===== -->
+    <div x-show="showLanding" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+
+        <!-- HERO -->
+        <div class="landing-hero">
+            <div class="hero-badge">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#4A7C59;box-shadow:0 0 8px rgba(74,124,89,0.5)"></span>
+                ALDMEGA LAB / PLATFORM v3.0
+            </div>
+            <h1 class="hero-main-title">
+                KMD <span class="accent">Assistant</span>
+            </h1>
+            <p class="hero-subtitle">
+                Интеллектуальная платформа для инженеров алюминиевых конструкций.
+                Автоматизация проверки документации, расчёты по ГОСТ, AI-анализ чертежей
+                и полный цикл управления производством — в одном инструменте.
+            </p>
+            <div class="hero-cta-group">
+                <button @click="scrollToCatalog()" class="btn-primary" style="padding:0.875rem 2.5rem;font-size:0.75rem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    Смотреть каталог
+                </button>
+                <button @click="showAiChat = true" class="btn-secondary" style="padding:0.75rem 2rem;font-size:0.75rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Спросить AI
+                </button>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-num">32</div>
+                    <div class="stat-label">Модуля</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">7</div>
+                    <div class="stat-label">AI моделей</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">50+</div>
+                    <div class="stat-label">API эндпоинтов</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">24/7</div>
+                    <div class="stat-label">Облако</div>
+                </div>
+            </div>
+            <div class="landing-scroll-hint">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:0.5625rem;letter-spacing:0.15em;text-transform:uppercase;color:#9A9A8C">Каталог</span>
+                <div class="scroll-line"></div>
+            </div>
+        </div>
+
+        <!-- CATALOG -->
+        <div x-ref="catalogSection">
+            <template x-for="(cat, catIdx) in navCategories" :key="cat.key">
+                <div class="catalog-section scroll-reveal" :class="catIdx % 2 === 0 ? '' : 'from-right'" :style="'transition-delay:' + (catIdx * 0.1) + 's'">
+                    <div class="catalog-chapter">
+                        <span class="chapter-num" x-text="String(catIdx + 1).padStart(2, '0')"></span>
+                        <h2 class="chapter-title" x-text="cat.label"></h2>
+                    </div>
+                    <p class="catalog-chapter-desc" x-text="catalogDescriptions[cat.key]"></p>
+                    <div class="product-cards">
+                        <template x-for="(item, itemIdx) in cat.items" :key="item.id">
+                            <div class="product-card scroll-reveal" :style="'transition-delay:' + (catIdx * 0.1 + itemIdx * 0.06) + 's'" @click="openModule(item.id)">
+                                <div class="card-icon" x-html="item.icon"></div>
+                                <div class="card-title" x-text="item.label"></div>
+                                <div class="card-desc" x-text="cardDescriptions[item.id] || ''"></div>
+                                <template x-if="item.ai">
+                                    <span class="card-ai-badge">AI</span>
+                                </template>
+                                <div class="card-arrow">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2A2A22" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- LANDING FOOTER -->
+        <div class="landing-footer">
+            <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:0.75rem">
+                <div style="width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#B8963B,#D4B66A)">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:0.6875rem;font-weight:700;color:#1A1A14">K</span>
+                </div>
+                <span style="font-family:'Playfair Display',serif;font-size:1rem;color:#9A9A8C;font-style:italic">KMD Assistant</span>
+            </div>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:0.5625rem;letter-spacing:0.2em;text-transform:uppercase;color:#C4C4B8">
+                ALDMEGA LAB / Intelligent Documentation Platform / v3.0
+            </p>
+        </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT (MODULE VIEW) ===== -->
+    <main x-show="!showLanding" class="max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-12" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
+
+        <!-- Back to catalog -->
+        <div class="mb-6 fade-up">
+            <button @click="goToLanding()" class="back-to-catalog">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Каталог
+            </button>
+        </div>
 
         <!-- ===== TAB 1: COMPARE SPECS ===== -->
         <section x-show="activeTab === 'compare'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
@@ -3699,21 +4094,21 @@
     </main>
 
     <!-- ===== MOBILE BOTTOM NAVIGATION ===== -->
-    <div class="mobile-bottom-nav">
+    <div class="mobile-bottom-nav" x-show="!showLanding">
         <div class="mob-nav-inner">
-            <button @click="switchTab('compare')" class="mob-nav-btn" :class="['compare','check','parse','crossval','comparepdf','genspec','batch','checklist'].includes(activeTab) ? 'active' : ''">
+            <button @click="goToLanding()" class="mob-nav-btn" :class="showLanding ? 'active' : ''">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Home
+            </button>
+            <button @click="switchTab('compare')" class="mob-nav-btn" :class="['compare','check','parse','crossval','comparepdf','genspec','batch','checklist'].includes(activeTab) && !showLanding ? 'active' : ''">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Docs
             </button>
-            <button @click="switchTab('thermal')" class="mob-nav-btn" :class="['thermal','wind','sashweight','glass','fasteners'].includes(activeTab) ? 'active' : ''">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 7h6m-6 4h6m-6 4h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
-                Calc
-            </button>
-            <button @click="switchTab('aireview')" class="mob-nav-btn" :class="['aireview','ainote','aigost','aihardware','aicompare','aigenkmd','aitranslate'].includes(activeTab) ? 'active' : ''">
+            <button @click="switchTab('aireview')" class="mob-nav-btn" :class="['aireview','ainote','aigost','aihardware','aicompare','aigenkmd','aitranslate'].includes(activeTab) && !showLanding ? 'active' : ''">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                 AI
             </button>
-            <button @click="switchTab('projects')" class="mob-nav-btn" :class="['versioning','requisition','projects','actgen','cnc','qrlabels','photoreport','nodeslibrary'].includes(activeTab) ? 'active' : ''">
+            <button @click="switchTab('projects')" class="mob-nav-btn" :class="['versioning','requisition','projects','actgen','cnc','qrlabels','photoreport','nodeslibrary'].includes(activeTab) && !showLanding ? 'active' : ''">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                 Prod
             </button>
@@ -3724,29 +4119,18 @@
         </div>
     </div>
 
-    <!-- ===== FOOTER ===== -->
-    <footer class="py-10 text-center border-t border-carbon-100 mt-20">
-        <div class="max-w-7xl mx-auto px-8">
-            <div class="flex items-center justify-center gap-3 mb-3">
-                <div class="w-6 h-6 border border-carbon-300 rounded flex items-center justify-center">
-                    <span class="font-mono text-[8px] font-bold text-carbon-500">K</span>
-                </div>
-                <span class="font-display text-sm text-carbon-400 italic">KMD Assistant</span>
-            </div>
-            <p class="font-mono text-[9px] tracking-[0.2em] uppercase text-carbon-300">ALDMEGA LAB / Intelligent Documentation Platform / v2.0</p>
-        </div>
-    </footer>
 </div>
 
 <script>
 function app() {
     return {
         activeTab: 'compare',
+        showLanding: true,
         loading: false,
         error: null,
 
         // Navigation state
-        sidebarOpen: window.innerWidth >= 1024,
+        sidebarOpen: false,
         navSearch: '',
         showAiChat: false,
         openCategories: ['docs', 'calc', 'visual', 'ai', 'prod', 'analytics'],
@@ -3817,9 +4201,70 @@ function app() {
             else this.openCategories.push(key);
         },
 
-        switchTab(tabId) {
-            if (this.activeTab === tabId) return;
+        catalogDescriptions: {
+            docs: 'Полный комплект инструментов для работы с проектной документацией: от проверки отдельного PDF до пакетной обработки целого проекта. Сравнение спецификаций, кросс-валидация чертежей и автоматическая генерация ведомостей.',
+            calc: 'Инженерные калькуляторы по действующим нормам: теплотехника по ГОСТ 26602.1, ветровые нагрузки по СП 20, расчёт массы створок, подбор стеклопакетов и крепёжных элементов для любого типа основания.',
+            visual: 'Интерактивный 3D-просмотр конструкций, оптимизация раскроя профилей с минимизацией отходов и интеллектуальный подбор профильных систем Reynaers, Schuco, Alutech и TATPROF.',
+            ai: 'Семь AI-инструментов на базе нейросетей: ревью чертежей, генерация пояснительных записок, консультации по ГОСТ, подбор фурнитуры, сравнение версий, автогенерация КМД и перевод между стандартами.',
+            prod: 'Управление производственным циклом от заявки до сдачи объекта: версионирование документов, формирование заявок, трекинг проектов, генерация актов, программы ЧПУ и QR-маркировка.',
+            analytics: 'Аналитика использования платформы: статистика операций, последние действия, визуализация активности по модулям.',
+        },
+
+        cardDescriptions: {
+            compare: 'Загрузите два XLSX-файла заявок. Система найдёт расхождения по артикулам, количеству и цветам.',
+            check: 'Проверка PDF-чертежа на полноту: титульный лист, штамп, примечания, спецификация.',
+            parse: 'Извлечение позиций, артикулов, количества и размеров из PDF-чертежа КМД.',
+            crossval: 'Перекрёстная проверка: PDF-чертёж против XLSX-спецификации. Найдёт несовпадения.',
+            comparepdf: 'Текстовый diff между двумя версиями PDF-документов. Покажет добавленное и удалённое.',
+            genspec: 'Автоматическая генерация XLSX-спецификации из чертежа (PDF или DXF).',
+            batch: 'Загрузите ZIP-архив проекта. Обработка всех PDF, DXF и XLSX файлов за один раз.',
+            checklist: 'Проверка КМД по 7 категориям с процентом соответствия и детальным отчётом.',
+            thermal: 'Расчёт коэффициента теплопередачи Uw по ГОСТ 26602.1-99 для оконных конструкций.',
+            wind: 'Расчёт ветровой нагрузки по СП 20.13330.2016 с учётом региона и этажности.',
+            sashweight: 'Расчёт массы створки с учётом профиля, стеклопакета и ограничений фурнитуры.',
+            glass: 'Подбор формулы стеклопакета по требованиям: теплоизоляция, шумозащита, ветроустойчивость.',
+            fasteners: 'Расчёт типа и количества крепёжных элементов для различных типов оснований.',
+            preview3d: 'Интерактивная 3D-визуализация оконной конструкции с размерами и сечениями.',
+            cutting: 'Оптимальный раскрой профилей по алгоритму FFD с минимизацией отходов.',
+            profileai: 'Интеллектуальный подбор профильной системы по параметрам объекта и бюджету.',
+            aireview: 'AI анализирует чертёж и выдаёт замечания по ошибкам, несоответствиям и улучшениям.',
+            ainote: 'AI генерирует пояснительную записку к чертежу по стандартам оформления.',
+            aigost: 'AI-консультант по ГОСТ, СП и ТУ. Ответы со ссылками на конкретные пункты норм.',
+            aihardware: 'AI подбирает фурнитуру по параметрам конструкции: бренд, серия, артикулы.',
+            aicompare: 'AI сравнивает два чертежа визуально и выдаёт отчёт о различиях.',
+            aigenkmd: 'Генерация черновой КМД-документации из технического задания с помощью AI.',
+            aitranslate: 'Перевод документации между ГОСТ и EN/ISO с автоматической заменой ссылок на нормы.',
+            versioning: 'Контроль версий документов КМД с историей изменений.',
+            requisition: 'Формирование заявки на материалы из спецификации проекта.',
+            projects: 'Трекер проектов: от замера до монтажа с этапами и статусами.',
+            actgen: 'Генерация актов приёмки работ по шаблонам.',
+            cnc: 'Генерация программ для станков ЧПУ из данных раскроя.',
+            qrlabels: 'QR-маркировка изделий для прослеживаемости на производстве.',
+            photoreport: 'Формирование фотоотчёта по проекту с привязкой к этапам.',
+            nodeslibrary: 'Библиотека типовых узлов: примыкания, соединения, пороги.',
+            dashboard: 'Статистика операций, история действий, аналитика по модулям.',
+        },
+
+        openModule(tabId) {
             this.activeTab = tabId;
+            this.showLanding = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        goToLanding() {
+            this.showLanding = true;
+            this.sidebarOpen = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        scrollToCatalog() {
+            this.$refs.catalogSection.scrollIntoView({ behavior: 'smooth' });
+        },
+
+        switchTab(tabId) {
+            if (this.activeTab === tabId && !this.showLanding) return;
+            this.activeTab = tabId;
+            this.showLanding = false;
             if (window.innerWidth < 1024) this.sidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
@@ -5025,6 +5470,28 @@ function app() {
         },
     }
 }
+
+// Scroll-reveal animation observer
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    // Observe after Alpine renders
+    setTimeout(() => {
+        document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+    }, 200);
+
+    // Re-observe when landing is shown again
+    const mo = new MutationObserver(() => {
+        document.querySelectorAll('.scroll-reveal:not(.visible)').forEach(el => observer.observe(el));
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+});
 </script>
 
 </body>
