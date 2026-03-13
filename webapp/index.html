@@ -417,6 +417,8 @@
                     {id: 'aigost', label: 'AI ГОСТ'},
                     {id: 'aihardware', label: 'AI Фурнитура'},
                     {id: 'aicompare', label: 'AI Сравнение'},
+                    {id: 'aigenkmd', label: 'AI КМД'},
+                    {id: 'aitranslate', label: 'AI Перевод'},
                     {id: 'dashboard', label: 'Дашборд'},
                 ]" :key="tab.id">
                     <button @click="activeTab = tab.id"
@@ -2573,6 +2575,206 @@
             </div>
         </section>
 
+        <!-- ===== TAB: AI KMD GENERATION ===== -->
+        <section x-show="activeTab === 'aigenkmd'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F6 / AI Generation</p><h2 class="section-title">AI Генерация КМД</h2><p class="section-subtitle">Создание черновой КМД документации из технического задания с помощью AI.</p></div>
+
+            <div x-show="!kmdGenResult && !loading" class="fade-up">
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Название объекта *</label>
+                        <input x-model="kmdGenParams.object_name" type="text" placeholder="ЖК Остров, корпус 2" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Заказчик</label>
+                        <input x-model="kmdGenParams.customer" type="text" placeholder="АО Ал Д Мега Лаб" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Тип конструкций</label>
+                        <select x-model="kmdGenParams.construction_type" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                            <option value="окна">Окна</option>
+                            <option value="двери">Двери</option>
+                            <option value="витражи">Витражи</option>
+                            <option value="фасады">Фасады</option>
+                            <option value="раздвижные">Раздвижные системы</option>
+                            <option value="входные группы">Входные группы</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Профильная система</label>
+                        <select x-model="kmdGenParams.profile_system" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                            <option>Reynaers MasterLine 8</option>
+                            <option>Reynaers MasterLine 8 HI</option>
+                            <option>Reynaers ConceptWall 50</option>
+                            <option>Reynaers ConceptWall 60</option>
+                            <option>Reynaers Hi-Finity</option>
+                            <option>Reynaers CS 86-HI</option>
+                            <option>Schüco AWS 75.SI+</option>
+                            <option>Schüco AWS 90.SI+</option>
+                            <option>Schüco FWS 50+.SI</option>
+                            <option>Schüco FWS 60+.SI</option>
+                            <option>Schüco ASS 77 PD.HI</option>
+                            <option>Schüco ADS 90.SI</option>
+                            <option>Alutech ALT W72</option>
+                            <option>Alutech ALT F50</option>
+                            <option>Alutech ALT F50 NL</option>
+                            <option>Alutech ALT SL160</option>
+                            <option>Alutech ALT C48</option>
+                            <option>TATPROF ТПТ 65А</option>
+                            <option>TATPROF ТПТ 47А</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Формула стеклопакета</label>
+                        <input x-model="kmdGenParams.glass_formula" type="text" placeholder="4-16Ar-4-16Ar-4" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Цвет RAL</label>
+                        <input x-model="kmdGenParams.color_ral" type="text" placeholder="RAL 7016" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Примечания</label>
+                        <input x-model="kmdGenParams.notes" type="text" placeholder="Высотное здание, III ветровой район" class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass">
+                    </div>
+                </div>
+
+                <!-- Positions table -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase">Позиции конструкций *</label>
+                        <button @click="addKmdPosition()" class="btn-secondary text-xs">+ Добавить позицию</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-carbon-200">
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">ID</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Тип</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Ширина</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Высота</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Кол-во</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Открывание</th>
+                                    <th class="text-left font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase py-2 px-2">Высота ручки</th>
+                                    <th class="py-2 px-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(pos, i) in kmdGenParams.positions" :key="i">
+                                    <tr class="border-b border-carbon-100">
+                                        <td class="py-2 px-2"><input x-model="pos.id" type="text" class="w-16 bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs font-mono"></td>
+                                        <td class="py-2 px-2">
+                                            <select x-model="pos.type" class="bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs">
+                                                <option value="окно">окно</option>
+                                                <option value="дверь">дверь</option>
+                                                <option value="витраж">витраж</option>
+                                                <option value="фрамуга">фрамуга</option>
+                                            </select>
+                                        </td>
+                                        <td class="py-2 px-2"><input x-model.number="pos.width" type="number" class="w-20 bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs font-mono" placeholder="мм"></td>
+                                        <td class="py-2 px-2"><input x-model.number="pos.height" type="number" class="w-20 bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs font-mono" placeholder="мм"></td>
+                                        <td class="py-2 px-2"><input x-model.number="pos.quantity" type="number" min="1" class="w-16 bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs font-mono"></td>
+                                        <td class="py-2 px-2">
+                                            <select x-model="pos.opening" class="bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs">
+                                                <option value="глухое">глухое</option>
+                                                <option value="поворотное">поворотное</option>
+                                                <option value="откидное">откидное</option>
+                                                <option value="поворотно-откидное">поворотно-откидное</option>
+                                                <option value="раздвижное">раздвижное</option>
+                                            </select>
+                                        </td>
+                                        <td class="py-2 px-2"><input x-model.number="pos.handle_height" type="number" class="w-20 bg-canvas-dark border border-carbon-200 rounded px-2 py-1 text-xs font-mono" placeholder="мм"></td>
+                                        <td class="py-2 px-2"><button @click="removeKmdPosition(i)" class="text-status-fail hover:text-red-700 text-xs" x-show="kmdGenParams.positions.length > 1">&#10005;</button></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <button @click="runAiGenerateKmd()" :disabled="!kmdGenParams.object_name || kmdGenParams.positions.length === 0" class="btn-primary" :class="(!kmdGenParams.object_name || kmdGenParams.positions.length === 0) ? 'opacity-50 cursor-not-allowed' : ''">Сгенерировать КМД</button>
+            </div>
+
+            <div x-show="loading && activeTab === 'aigenkmd'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI генерирует КМД документацию...</p></div>
+
+            <div x-show="kmdGenResult" class="fade-up">
+                <div class="bg-white/60 backdrop-blur rounded-2xl border border-carbon-100 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-display text-xl text-carbon-900">Черновой комплект КМД</h3>
+                        <div class="flex gap-2">
+                            <button @click="navigator.clipboard.writeText(kmdGenResult?.kmd_document || '')" class="btn-secondary text-xs">Копировать</button>
+                            <button @click="downloadKmdAsTxt()" class="btn-secondary text-xs">Скачать как TXT</button>
+                            <button @click="kmdGenResult = null" class="btn-secondary text-xs">Новая генерация</button>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-1" x-text="'Позиций: ' + (kmdGenResult?.positions_count || 0) + ' | Модель: ' + (kmdGenResult?.model_used || '')"></p>
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed max-h-[70vh] overflow-y-auto" style="white-space: pre-wrap;" x-text="kmdGenResult?.kmd_document"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: AI TRANSLATE ===== -->
+        <section x-show="activeTab === 'aitranslate'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-10 fade-up"><p class="section-label mb-3">F7 / AI Translation</p><h2 class="section-title">AI Перевод КМД</h2><p class="section-subtitle">Перевод КМД документации между системами стандартов ГОСТ и EN/ISO с автоматической заменой ссылок.</p></div>
+
+            <div x-show="!translateResult && !loading" class="fade-up">
+                <div class="mb-6">
+                    <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-3">Направление перевода</label>
+                    <div class="flex gap-3">
+                        <button @click="translateDirection = 'gost_to_en'"
+                            :class="translateDirection === 'gost_to_en' ? 'bg-brass text-white' : 'bg-canvas-dark text-carbon-600 border border-carbon-200'"
+                            class="px-5 py-2.5 rounded-lg font-mono text-xs tracking-wider transition-all">
+                            ГОСТ &rarr; EN
+                        </button>
+                        <button @click="translateDirection = 'en_to_gost'"
+                            :class="translateDirection === 'en_to_gost' ? 'bg-brass text-white' : 'bg-canvas-dark text-carbon-600 border border-carbon-200'"
+                            class="px-5 py-2.5 rounded-lg font-mono text-xs tracking-wider transition-all">
+                            EN &rarr; ГОСТ
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Текст для перевода</label>
+                    <textarea x-model="translateText" rows="12" placeholder="Вставьте фрагмент КМД документации для перевода..." class="w-full bg-canvas-dark border border-carbon-200 rounded-lg px-4 py-3 font-body text-sm text-carbon-800 focus:outline-none focus:border-brass resize-y"></textarea>
+                </div>
+                <button @click="runAiTranslate()" :disabled="!translateText.trim()" class="btn-primary" :class="!translateText.trim() ? 'opacity-50 cursor-not-allowed' : ''">Перевести</button>
+            </div>
+
+            <div x-show="loading && activeTab === 'aitranslate'" class="text-center py-12"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">AI переводит документацию...</p></div>
+
+            <div x-show="translateResult" class="fade-up">
+                <div class="bg-white/60 backdrop-blur rounded-2xl border border-carbon-100 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-display text-xl text-carbon-900">Результат перевода</h3>
+                        <div class="flex gap-2">
+                            <button @click="navigator.clipboard.writeText(translateResult?.translated_text || '')" class="btn-secondary text-xs">Копировать</button>
+                            <button @click="translateResult = null" class="btn-secondary text-xs">Новый перевод</button>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[10px] text-carbon-400 mb-3" x-text="'Направление: ' + (translateResult?.direction === 'gost_to_en' ? 'ГОСТ → EN' : 'EN → ГОСТ') + ' | Модель: ' + (translateResult?.model_used || '')"></p>
+
+                    <!-- Standards mapping badges -->
+                    <div x-show="translateResult?.standards_mapped?.length > 0" class="mb-4">
+                        <p class="font-mono text-[10px] text-carbon-400 tracking-[0.15em] uppercase mb-2">Замены стандартов</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="(m, i) in (translateResult?.standards_mapped || [])" :key="i">
+                                <div class="inline-flex items-center gap-1.5 bg-brass-pale border border-brass/20 rounded-full px-3 py-1">
+                                    <span class="font-mono text-[10px] text-carbon-700" x-text="m.from"></span>
+                                    <span class="font-mono text-[10px] text-brass">&rarr;</span>
+                                    <span class="font-mono text-[10px] text-carbon-700" x-text="m.to"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="bg-canvas-dark rounded-lg p-5 font-body text-sm text-carbon-800 leading-relaxed max-h-[60vh] overflow-y-auto" style="white-space: pre-wrap;" x-text="translateResult?.translated_text"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===== TAB 9: DASHBOARD ===== -->
         <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
             <div class="mb-10 fade-up"><p class="section-label mb-3">18 / Analytics</p><h2 class="section-title">Дашборд</h2><p class="section-subtitle">Сводная статистика по всем операциям и журнал последних действий.</p></div>
@@ -2756,6 +2958,28 @@ function app() {
         // AI Compare state
         fileAiCmpA: null, fileAiCmpB: null, dragAiCmpA: false, dragAiCmpB: false,
         aiCompareResult: null,
+
+        // AI KMD Generation state
+        kmdGenParams: {
+            object_name: '', customer: '', construction_type: 'окна',
+            profile_system: 'Reynaers MasterLine 8',
+            glass_formula: '4-16Ar-4-16Ar-4', color_ral: 'RAL 7016', notes: '',
+            positions: [
+                {id: 'О-1', type: 'окно', width: 1500, height: 2100, quantity: 1, opening: 'поворотно-откидное', handle_height: 1050}
+            ]
+        },
+        kmdGenResult: null,
+
+        // AI Translate state
+        translateDirection: 'gost_to_en',
+        translateText: '',
+        translateResult: null,
+
+        addKmdPosition() {
+            const n = this.kmdGenParams.positions.length + 1;
+            this.kmdGenParams.positions.push({id: 'О-' + n, type: 'окно', width: 1500, height: 2100, quantity: 1, opening: 'глухое', handle_height: 0});
+        },
+        removeKmdPosition(i) { this.kmdGenParams.positions.splice(i, 1); },
 
         addCutRow() { this.cuttingParams.cuts.push({article: '', length: '', qty: 1}); },
         removeCutRow(i) { this.cuttingParams.cuts.splice(i, 1); },
@@ -3050,6 +3274,48 @@ function app() {
                 this.aiCompareResult = await res.json();
             } catch (e) { this.error = e.message; }
             this.loading = false;
+        },
+
+        async runAiGenerateKmd() {
+            const p = this.kmdGenParams;
+            if (!p.object_name || p.positions.length === 0) { this.error = 'Укажите название объекта и добавьте позиции'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/ai-generate-kmd', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(p),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.kmdGenResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        async runAiTranslate() {
+            if (!this.translateText.trim()) { this.error = 'Введите текст для перевода'; return; }
+            this.loading = true; this.error = null;
+            try {
+                const res = await fetch('/api/ai-translate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: this.translateText, direction: this.translateDirection }),
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+                this.translateResult = await res.json();
+            } catch (e) { this.error = e.message; }
+            this.loading = false;
+        },
+
+        downloadKmdAsTxt() {
+            if (!this.kmdGenResult?.kmd_document) return;
+            const blob = new Blob([this.kmdGenResult.kmd_document], {type: 'text/plain;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (this.kmdGenParams.object_name || 'KMD') + '_draft.txt';
+            a.click();
+            URL.revokeObjectURL(url);
         },
 
         // ===== 3D Preview Methods =====

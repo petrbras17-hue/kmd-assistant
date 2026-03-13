@@ -72,6 +72,8 @@ counters = {
     "ai_gost": 0,
     "ai_hardware": 0,
     "ai_compare": 0,
+    "ai_generate_kmd": 0,
+    "ai_translate": 0,
 }
 
 
@@ -3940,6 +3942,219 @@ async def api_ai_compare_visual(
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F6: AI KMD GENERATION ==============
+
+@app.post("/api/ai-generate-kmd")
+async def api_ai_generate_kmd(payload: dict):
+    """AI generation of KMD documentation from a technical brief."""
+    try:
+        object_name = payload.get("object_name", "")
+        customer = payload.get("customer", "")
+        construction_type = payload.get("construction_type", "")
+        profile_system = payload.get("profile_system", "")
+        glass_formula = payload.get("glass_formula", "")
+        color_ral = payload.get("color_ral", "")
+        notes = payload.get("notes", "")
+        positions = payload.get("positions", [])
+
+        if not object_name or not positions:
+            raise HTTPException(status_code=400, detail="Укажите название объекта и хотя бы одну позицию")
+
+        positions_text = ""
+        for p in positions:
+            pos_line = f"  - {p.get('id', '?')}: тип={p.get('type', '?')}, {p.get('width', '?')}x{p.get('height', '?')} мм, кол-во={p.get('quantity', 1)}, открывание={p.get('opening', 'глухое')}"
+            if p.get("handle_height"):
+                pos_line += f", высота ручки={p['handle_height']} мм"
+            positions_text += pos_line + "\n"
+
+        user_brief = (
+            f"Объект: {object_name}\n"
+            f"Заказчик: {customer}\n"
+            f"Тип конструкций: {construction_type}\n"
+            f"Профильная система: {profile_system}\n"
+            f"Формула стеклопакета: {glass_formula}\n"
+            f"Цвет RAL: {color_ral}\n"
+            f"Позиции:\n{positions_text}"
+            f"Примечания: {notes}"
+        )
+
+        system_prompt = (
+            "Ты ведущий инженер-конструктор КМД алюминиевых светопрозрачных конструкций с 20-летним опытом. "
+            "Составь полный черновой комплект КМД документации на основании технического задания. "
+            "Документ должен включать следующие разделы:\n\n"
+            "1. ТИТУЛЬНЫЙ ЛИСТ — название объекта, заказчик, шифр проекта (сгенерируй), дата, стадия «Р» (рабочая документация)\n\n"
+            "2. ПОЯСНИТЕЛЬНАЯ ЗАПИСКА:\n"
+            "   - Основание для разработки\n"
+            "   - Нормативные документы: ГОСТ 21.502-2016 (правила оформления КМД), ГОСТ 21519-2022 (окна и двери), "
+            "СП 426.1325800.2018 (светопрозрачные конструкции), ГОСТ 30674-99, ГОСТ 30970-2014, "
+            "СП 20.13330.2016 (нагрузки), СП 50.13330.2012 (теплозащита)\n"
+            "   - Описание конструктивных решений\n"
+            "   - Требования к материалам\n\n"
+            "3. СПЕЦИФИКАЦИЯ ПРОФИЛЕЙ — таблица с артикулами выбранной профильной системы: "
+            "рама, створка, импост, штапик, соединители, усилители. "
+            "Укажи реальные артикулы для указанной системы если знаешь, иначе укажи типовые обозначения.\n\n"
+            "4. ОПИСАНИЕ ПОЗИЦИЙ — для каждой позиции из ТЗ:\n"
+            "   - Маркировка, размеры (ширина × высота)\n"
+            "   - Тип открывания, высота ручки\n"
+            "   - Формула стеклопакета\n"
+            "   - Схема членения (текстовое описание)\n"
+            "   - Особые требования\n\n"
+            "5. ВЕДОМОСТЬ ЭЛЕМЕНТОВ — сводная таблица: позиция, наименование, артикул, длина, количество\n\n"
+            "6. УКАЗАНИЯ ПО МОНТАЖУ:\n"
+            "   - Последовательность монтажа\n"
+            "   - Допуски по ГОСТ 30971-2012\n"
+            "   - Требования к монтажным швам\n"
+            "   - Крепление к проёму\n\n"
+            "7. РЕКОМЕНДАЦИИ ПО КРЕПЕЖУ И ГЕРМЕТИЗАЦИИ:\n"
+            "   - Тип и шаг анкерных креплений\n"
+            "   - Герметики (наружный, внутренний)\n"
+            "   - Пароизоляция и гидроизоляция монтажного шва\n\n"
+            "Форматируй как готовый документ с чёткими заголовками разделов. "
+            "Используй профессиональную терминологию КМД. Все размеры в мм."
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_brief},
+        ]
+        model = "google/gemini-2.0-flash-001"
+        kmd_document = await _call_llm(messages, model=model, max_tokens=8000)
+
+        log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
+        return {
+            "status": "ok",
+            "kmd_document": kmd_document,
+            "positions_count": len(positions),
+            "model_used": model,
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============== F7: AI KMD TRANSLATOR ==============
+
+@app.post("/api/ai-translate")
+async def api_ai_translate(payload: dict):
+    """AI translation of KMD documentation between GOST and EN standards."""
+    try:
+        text = payload.get("text", "").strip()
+        direction = payload.get("direction", "gost_to_en")
+
+        if not text:
+            raise HTTPException(status_code=400, detail="Введите текст для перевода")
+        if direction not in ("gost_to_en", "en_to_gost"):
+            raise HTTPException(status_code=400, detail="direction должен быть 'gost_to_en' или 'en_to_gost'")
+
+        if direction == "gost_to_en":
+            direction_instruction = (
+                "Переведи документацию с русского на английский, заменив российские стандарты на европейские/международные аналоги."
+            )
+            standards_mapping = (
+                "Используй следующую таблицу соответствия стандартов:\n"
+                "- ГОСТ 21519-2022 (окна и двери алюминиевые) → EN 14351-1 (Windows and doors — Product standard)\n"
+                "- ГОСТ 30674-99 (блоки оконные ПВХ) → EN 14351-1\n"
+                "- ГОСТ 21.502-2016 (правила оформления КМД) → EN ISO 7200 (Technical product documentation)\n"
+                "- СП 20.13330.2016 (нагрузки и воздействия) → EN 1991-1-4 (Eurocode 1: Wind actions)\n"
+                "- СП 50.13330.2012 (теплозащита зданий) → EN ISO 10077-1 (Thermal transmittance of windows)\n"
+                "- СП 426.1325800.2018 (светопрозрачные конструкции) → EN 13830 (Curtain walling)\n"
+                "- ГОСТ 30970-2014 (соединения узловые) → EN 12412-2 (Thermal performance — Determination of Uf)\n"
+                "- ГОСТ 30971-2012 (монтажные швы) → EN 1026 (Air permeability) + EN 1027 (Watertightness)\n"
+                "- ГОСТ 111-2014 (стекло листовое) → EN 572-1 (Glass in building — Basic soda lime silicate)\n"
+                "- ГОСТ 24866-2014 (стеклопакеты) → EN 1279 (Glass in building — Insulating glass units)\n"
+                "- ГОСТ 30826-2014 (стекло многослойное) → EN ISO 12543 (Laminated glass)\n"
+                "- ГОСТ 30698-2014 (стекло закалённое) → EN 12150-1 (Thermally toughened soda lime silicate safety glass)\n"
+                "- СП 52.13330.2016 (естественное освещение) → EN 17037 (Daylight in buildings)\n"
+                "- ГОСТ 21.501-2018 (правила оформления архитектурных чертежей) → EN ISO 4157 (Designation systems)\n"
+                "- ГОСТ Р 56926-2016 (фурнитура) → EN 13126 (Hardware for windows)\n"
+                "- ГОСТ 538-2014 (замки и защёлки) → EN 1303 (Cylinders for locks)\n"
+                "- СП 112.13330.2011 (пожарная безопасность) → EN 13501-1 (Fire classification)\n"
+            )
+        else:
+            direction_instruction = (
+                "Переведи документацию с английского на русский, заменив европейские/международные стандарты на российские аналоги."
+            )
+            standards_mapping = (
+                "Используй следующую таблицу соответствия стандартов:\n"
+                "- EN 14351-1 (Windows and doors) → ГОСТ 21519-2022 (окна и двери алюминиевые)\n"
+                "- EN ISO 7200 (Technical product documentation) → ГОСТ 21.502-2016 (правила оформления КМД)\n"
+                "- EN 1991-1-4 (Eurocode 1: Wind actions) → СП 20.13330.2016 (нагрузки и воздействия)\n"
+                "- EN ISO 10077-1 (Thermal transmittance) → СП 50.13330.2012 (теплозащита зданий)\n"
+                "- EN 13830 (Curtain walling) → СП 426.1325800.2018 (светопрозрачные конструкции)\n"
+                "- EN 12412-2 (Thermal performance Uf) → ГОСТ 30970-2014 (соединения узловые)\n"
+                "- EN 1026 / EN 1027 (Air/Water permeability) → ГОСТ 30971-2012 (монтажные швы)\n"
+                "- EN 572-1 (Basic soda lime silicate glass) → ГОСТ 111-2014 (стекло листовое)\n"
+                "- EN 1279 (Insulating glass units) → ГОСТ 24866-2014 (стеклопакеты)\n"
+                "- EN ISO 12543 (Laminated glass) → ГОСТ 30826-2014 (стекло многослойное)\n"
+                "- EN 12150-1 (Toughened safety glass) → ГОСТ 30698-2014 (стекло закалённое)\n"
+                "- EN 17037 (Daylight in buildings) → СП 52.13330.2016 (естественное освещение)\n"
+                "- EN ISO 4157 (Designation systems) → ГОСТ 21.501-2018 (правила оформления)\n"
+                "- EN 13126 (Hardware for windows) → ГОСТ Р 56926-2016 (фурнитура)\n"
+                "- EN 1303 (Cylinders for locks) → ГОСТ 538-2014 (замки и защёлки)\n"
+                "- EN 13501-1 (Fire classification) → СП 112.13330.2011 (пожарная безопасность)\n"
+            )
+
+        system_prompt = (
+            "Ты эксперт-переводчик строительной документации КМД (конструкции из алюминиевых профилей). "
+            f"{direction_instruction}\n\n"
+            "Правила перевода:\n"
+            "1. Замени все ссылки на стандарты на эквиваленты целевой системы\n"
+            "2. Сохрани техническую терминологию: профили, артикулы, размеры\n"
+            "3. Адаптируй единицы измерения если нужно (мм остаются мм)\n"
+            "4. Сохрани структуру и форматирование документа\n"
+            "5. Технические термины переводи точно: створка=sash, импост=mullion/transom, "
+            "штапик=glazing bead, рама=frame, стеклопакет=insulated glass unit (IGU), "
+            "фурнитура=hardware, уплотнитель=gasket/seal, откос=reveal, подоконник=window sill, "
+            "отлив=drip cap/sill flashing, монтажный шов=installation joint, "
+            "поворотно-откидное=tilt-and-turn, глухое=fixed, раздвижное=sliding\n\n"
+            f"{standards_mapping}\n"
+            "В конце ответа добавь раздел 'MAPPED STANDARDS:' со списком замён в формате:\n"
+            "ORIGINAL_STANDARD → REPLACEMENT_STANDARD (по одной паре на строку)"
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text},
+        ]
+        model = "google/gemini-2.0-flash-001"
+        result_text = await _call_llm(messages, model=model, max_tokens=8000)
+
+        # Parse mapped standards from the response
+        standards_mapped = []
+        if "MAPPED STANDARDS:" in result_text:
+            parts = result_text.split("MAPPED STANDARDS:")
+            translated_text = parts[0].strip()
+            mapping_lines = parts[1].strip().split("\n")
+            for line in mapping_lines:
+                line = line.strip().lstrip("- ")
+                if "→" in line or "->" in line:
+                    sep = "→" if "→" in line else "->"
+                    frm, to = line.split(sep, 1)
+                    standards_mapped.append({"from": frm.strip(), "to": to.strip()})
+        else:
+            translated_text = result_text
+
+        log_activity("ai_translate", direction, f"AI перевод КМД ({direction})")
+        return {
+            "status": "ok",
+            "translated_text": translated_text,
+            "direction": direction,
+            "standards_mapped": standards_mapped,
+            "model_used": model,
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
