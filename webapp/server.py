@@ -27,7 +27,12 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from sqlalchemy import select, func as sa_func
 from webapp.database import async_session, engine as db_engine
-from webapp.models import ActivityLog as ActivityLogModel, Base as DBBase
+from webapp.models import (
+    ActivityLog as ActivityLogModel,
+    Base as DBBase,
+    DocumentVersion,
+    Project as ProjectModel,
+)
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
@@ -35,13 +40,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
-from sqlalchemy import select
-from webapp.database import async_session
-from webapp.models import DocumentVersion
-
-from sqlalchemy import select
-from webapp.database import async_session
-from webapp.models import Project as ProjectModel
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -340,6 +338,7 @@ async def log_activity(op_type: str, filename: str, summary: str):
         "summary": summary,
     }
     activity_log.insert(0, entry)
+    del activity_log[MAX_ACTIVITY:]
     # Persist to database
     try:
         async with async_session() as session:
@@ -5103,14 +5102,14 @@ async def api_project_update_status(project_id: int):
         next_idx = current_idx + 1
         db_project.status = PROJECT_STAGES[next_idx]
 
-        stages_data = db_project.stages or {}
-        history = stages_data.get("status_history", [])
+        stages_data = dict(db_project.stages or {})  # copy to ensure new identity
+        history = list(stages_data.get("status_history", []))
         history.append({
             "stage": PROJECT_STAGES[next_idx],
             "timestamp": datetime.now().isoformat(timespec="seconds"),
         })
         stages_data["status_history"] = history
-        db_project.stages = stages_data
+        db_project.stages = stages_data  # new dict = triggers SQLAlchemy change detection
 
         await session.commit()
         await session.refresh(db_project)

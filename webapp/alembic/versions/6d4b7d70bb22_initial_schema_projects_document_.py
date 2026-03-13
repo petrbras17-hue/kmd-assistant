@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '6d4b7d70bb22'
@@ -27,7 +26,7 @@ def upgrade() -> None:
     sa.Column('address', sa.String(length=1024), nullable=True),
     sa.Column('customer', sa.String(length=512), nullable=True),
     sa.Column('status', sa.String(length=64), nullable=False),
-    sa.Column('stages', postgresql.JSON(astext_type=Text()), nullable=True),
+    sa.Column('stages', sa.JSON(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
