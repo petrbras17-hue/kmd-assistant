@@ -19,7 +19,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
-from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func as sa_func
@@ -296,9 +295,9 @@ async def verify_api_key_v2(
                 db_key.workspace_id, db_key.rate_limit
             )
             if not allowed:
-                return JSONResponse(  # type: ignore[return-value]
+                raise HTTPException(
                     status_code=429,
-                    content={"detail": "Превышен лимит запросов"},
+                    detail="Превышен лимит запросов",
                     headers={"Retry-After": str(retry_after)},
                 )
 
@@ -396,10 +395,11 @@ async def get_api_key_stats(
     key_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     workspace_id: Optional[int] = Depends(get_current_workspace_id),
 ) -> Any:
     """Статистика использования API-ключа."""
-    db_key = await _get_key_or_404(db, key_id, workspace_id)
+    db_key = await _get_key_or_404(db, key_id, workspace_id, user_id=current_user.id)
 
     now = datetime.now(timezone.utc)
     is_expired = bool(db_key.expires_at and db_key.expires_at < now)
@@ -424,10 +424,11 @@ async def update_api_key(
     body: ApiKeyUpdateRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     workspace_id: Optional[int] = Depends(get_current_workspace_id),
 ) -> Any:
     """Обновить название, описание, разрешения или лимит API-ключа."""
-    db_key = await _get_key_or_404(db, key_id, workspace_id)
+    db_key = await _get_key_or_404(db, key_id, workspace_id, user_id=current_user.id)
 
     if body.name is not None:
         db_key.name = body.name
@@ -450,10 +451,11 @@ async def revoke_api_key(
     key_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     workspace_id: Optional[int] = Depends(get_current_workspace_id),
 ) -> Any:
     """Отозвать API-ключ (soft delete — is_active=False)."""
-    db_key = await _get_key_or_404(db, key_id, workspace_id)
+    db_key = await _get_key_or_404(db, key_id, workspace_id, user_id=current_user.id)
 
     db_key.is_active = False
     await db.flush()
@@ -471,10 +473,11 @@ async def regenerate_api_key(
     key_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     workspace_id: Optional[int] = Depends(get_current_workspace_id),
 ) -> Any:
     """Перегенерировать API-ключ: старый инвалидируется, возвращается новый."""
-    db_key = await _get_key_or_404(db, key_id, workspace_id)
+    db_key = await _get_key_or_404(db, key_id, workspace_id, user_id=current_user.id)
 
     new_plain = _generate_key()
     db_key.key_hash = _hash_key(new_plain)
@@ -499,11 +502,14 @@ async def _get_key_or_404(
     db: AsyncSession,
     key_id: int,
     workspace_id: Optional[int],
+    user_id: Optional[int] = None,
 ) -> ApiKey:
-    """Получить ключ по ID с проверкой принадлежности к workspace."""
+    """Получить ключ по ID с проверкой принадлежности к workspace и пользователю."""
     query = select(ApiKey).where(ApiKey.id == key_id)
     if workspace_id is not None:
         query = query.where(ApiKey.workspace_id == workspace_id)
+    if user_id is not None:
+        query = query.where(ApiKey.user_id == user_id)
 
     result = await db.execute(query)
     db_key = result.scalar_one_or_none()

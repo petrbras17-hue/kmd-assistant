@@ -261,7 +261,13 @@ async def _get_or_create_oauth_user(
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user is not None:
-            # Привязать OAuth-провайдер к существующему аккаунту
+            # Если аккаунт уже привязан к другому провайдеру — не перезаписываем
+            if user.provider != "local" and user.provider != provider:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Этот email уже связан с другим способом входа",
+                )
+            # Привязать OAuth-провайдер к локальному аккаунту
             user.provider = provider
             user.provider_id = provider_id
 
@@ -269,7 +275,8 @@ async def _get_or_create_oauth_user(
         # Убедимся что username уникален
         base_username = username
         suffix = 0
-        while True:
+        max_attempts = 100
+        while suffix < max_attempts:
             candidate = f"{base_username}_{suffix}" if suffix else base_username
             existing = await db.execute(
                 select(User).where(User.username == candidate)
@@ -278,6 +285,9 @@ async def _get_or_create_oauth_user(
                 username = candidate
                 break
             suffix += 1
+        else:
+            # Fallback: random suffix to guarantee uniqueness
+            username = f"{base_username}_{secrets.token_hex(4)}"
 
         user = User(
             username=username,
