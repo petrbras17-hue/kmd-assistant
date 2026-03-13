@@ -32,6 +32,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy import select
+from webapp.database import async_session
+from webapp.models import DocumentVersion
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -213,6 +216,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
 VERSIONS_DIR = Path(__file__).parent / "versions"
+# DEPRECATED: VERSIONS_JSON was used for file-based version storage.
+# Metadata is now stored in PostgreSQL via DocumentVersion model.
+# Kept for potential migration of legacy data.
 VERSIONS_JSON = Path(__file__).parent / "versions.json"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
@@ -4591,18 +4597,58 @@ async def api_ai_translate(request: Request, payload: dict):
 
 # ============== F13. KMD VERSIONING ==============
 
-def _load_versions_db() -> dict:
-    """Load versions metadata from JSON file."""
-    if VERSIONS_JSON.exists():
-        return json.loads(VERSIONS_JSON.read_text(encoding="utf-8"))
-    return {}
+async def _load_versions_for_file(filename: str) -> list[dict]:
+    """Load all versions of a file from DB."""
+    async with async_session() as session:
+        stmt = select(DocumentVersion).where(
+            DocumentVersion.filename == filename
+        ).order_by(DocumentVersion.version)
+        result = await session.execute(stmt)
+        return [
+            {
+                "version": v.version,
+                "filename": v.filename,
+                "stored_as": Path(v.file_path).name,
+                "date": v.created_at.isoformat(timespec="seconds") if v.created_at else "",
+                "text_hash": v.file_hash or "",
+            }
+            for v in result.scalars().all()
+        ]
 
 
-def _save_versions_db(db: dict):
-    """Save versions metadata to JSON file (atomic write)."""
-    tmp = VERSIONS_JSON.with_suffix(".tmp")
-    tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(VERSIONS_JSON)
+async def _load_all_versions() -> dict[str, list[dict]]:
+    """Load all versions grouped by filename from DB."""
+    async with async_session() as session:
+        stmt = select(DocumentVersion).order_by(
+            DocumentVersion.filename, DocumentVersion.version
+        )
+        result = await session.execute(stmt)
+        grouped: dict[str, list[dict]] = {}
+        for v in result.scalars().all():
+            entry = {
+                "version": v.version,
+                "filename": v.filename,
+                "stored_as": Path(v.file_path).name,
+                "date": v.created_at.isoformat(timespec="seconds") if v.created_at else "",
+                "text_hash": v.file_hash or "",
+            }
+            grouped.setdefault(v.filename, []).append(entry)
+        return grouped
+
+
+async def _save_version_to_db(filename: str, version_num: int, file_path: str, file_hash: str, project_id: int = None):
+    """Save a new version entry to DB."""
+    async with async_session() as session:
+        entry = DocumentVersion(
+            filename=filename,
+            version=version_num,
+            file_path=file_path,
+            file_hash=file_hash,
+            project_id=project_id,
+        )
+        session.add(entry)
+        await session.commit()
+        return entry
 
 
 @app.post("/api/versioning/upload", tags=["Analytics & Projects"], summary="Upload document version")
@@ -4622,13 +4668,19 @@ async def api_versioning_upload(file: UploadFile = File(...)):
 
         text_hash = hashlib.sha256(full_text.encode("utf-8")).hexdigest()[:16]
 
-        db = _load_versions_db()
-        versions = db.get(original_name, [])
+        versions = await _load_versions_for_file(original_name)
         version_num = len(versions) + 1
 
         versioned_filename = f"v{version_num}_{uuid.uuid4().hex[:6]}_{original_name}"
         dest = VERSIONS_DIR / versioned_filename
         shutil.copy2(str(path), str(dest))
+
+        await _save_version_to_db(
+            filename=original_name,
+            version_num=version_num,
+            file_path=str(dest),
+            file_hash=text_hash,
+        )
 
         version_entry = {
             "version": version_num,
@@ -4639,9 +4691,6 @@ async def api_versioning_upload(file: UploadFile = File(...)):
             "page_count": page_count,
             "text_length": len(full_text),
         }
-        versions.append(version_entry)
-        db[original_name] = versions
-        _save_versions_db(db)
 
         log_activity("versioning", original_name, f"Версия {version_num} загружена, {page_count} стр.")
 
@@ -4657,11 +4706,11 @@ async def api_versioning_upload(file: UploadFile = File(...)):
 @app.get("/api/versioning/history", tags=["Analytics & Projects"], summary="Get version history")
 async def api_versioning_history(request: Request, filename: str = ""):
     """Return version history for a file or all files."""
-    db = _load_versions_db()
     if filename:
-        versions = db.get(filename, [])
+        versions = await _load_versions_for_file(filename)
         return {"status": "ok", "filename": filename, "versions": versions}
     # Return all files with their versions
+    db = await _load_all_versions()
     result = []
     for fname, versions in db.items():
         result.append({"filename": fname, "versions_count": len(versions), "versions": versions})
@@ -4673,11 +4722,10 @@ async def api_versioning_diff(v1: str, v2: str, filename: str = ""):
     """Compare text of two versions. v1 and v2 are version numbers."""
     import fitz
 
-    db = _load_versions_db()
     if not filename:
         raise HTTPException(status_code=400, detail="Укажите filename параметр")
 
-    versions = db.get(filename, [])
+    versions = await _load_versions_for_file(filename)
     v1_num, v2_num = int(v1), int(v2)
 
     entry1 = next((v for v in versions if v["version"] == v1_num), None)
