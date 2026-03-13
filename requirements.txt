@@ -36,5 +36,8 @@ pinecone>=5.0.0
 # === Rate Limiting ===
 slowapi>=0.1.9
 
+# === Cache ===
+redis[hiredis]>=5.0
+
 # === Utilities ===
 chardet>=5.2.0
