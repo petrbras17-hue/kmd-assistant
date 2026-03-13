@@ -15,6 +15,7 @@ import zipfile
 import tempfile
 import html as _html
 import base64
+import hmac
 import hashlib
 import difflib
 from pathlib import Path
@@ -51,7 +52,7 @@ _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 async def verify_api_key(api_key: str = Security(_api_key_header)):
     """Dependency that validates X-API-Key header."""
-    if not api_key or api_key != KMD_API_KEY:
+    if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 # Paths exempt from API key auth
@@ -128,23 +129,35 @@ app = FastAPI(
 
 # ---------- API-key auth middleware ----------
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """Require X-API-Key on all POST /api/* endpoints (except exemptions)."""
+    """Require X-API-Key on mutating /api/* endpoints.
+
+    Browser requests authenticated via CSRF token are exempt (the CSRF
+    middleware validates them separately).  Machine-to-machine callers
+    must supply X-API-Key.
+    """
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
 
-        # Only protect POST (and PUT/PATCH/DELETE) on /api/* paths
+        # Only protect POST/PUT/PATCH/DELETE on /api/* paths
         if method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api"):
             # Check exemptions
             if path not in _AUTH_EXEMPT_PATHS and not path.startswith(_AUTH_EXEMPT_PREFIXES):
                 api_key = request.headers.get("X-API-Key", "")
-                if api_key != KMD_API_KEY:
+                csrf_token = request.headers.get("X-CSRF-Token", "")
+                # Allow if valid API key OR valid CSRF token (browser)
+                has_valid_api_key = api_key and hmac.compare_digest(api_key, KMD_API_KEY)
+                has_valid_csrf = (
+                    csrf_token
+                    and csrf_token in csrf_tokens
+                    and csrf_tokens[csrf_token] > time.time()
+                )
+                if not has_valid_api_key and not has_valid_csrf:
                     return StarletteJSONResponse(
                         status_code=401,
                         content={"detail": "Invalid or missing API key"},
@@ -153,7 +166,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app.add_middleware(APIKeyMiddleware)
+# APIKeyMiddleware is registered AFTER CSRFMiddleware (below) so that
+# Starlette's inverse ordering gives us: APIKey → CSRF → route handler.
 
 
 # Swagger "Authorize" button — adds X-API-Key to all try-it-out requests
@@ -189,7 +203,7 @@ async def api_health():
 @app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
 async def api_auth_validate(api_key: str = Security(_api_key_header)):
     """Check if the provided X-API-Key header is valid."""
-    if not api_key or api_key != KMD_API_KEY:
+    if not api_key or not hmac.compare_digest(api_key, KMD_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return {"status": "ok", "message": "API key is valid"}
 
@@ -207,6 +221,7 @@ VERSIONS_DIR.mkdir(exist_ok=True)
 # ============== CSRF PROTECTION ==============
 
 CSRF_TOKEN_TTL = 3600  # 1 hour
+CSRF_MAX_TOKENS = 10_000  # prevent unbounded memory growth
 csrf_tokens: dict[str, float] = {}  # token -> expiry timestamp
 
 # Endpoints exempt from CSRF validation
@@ -222,11 +237,11 @@ def _cleanup_expired_csrf_tokens():
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    """Validate X-CSRF-Token header on all POST /api/* requests."""
+    """Validate X-CSRF-Token header on all mutating /api/* requests."""
 
     async def dispatch(self, request: Request, call_next):
         if (
-            request.method == "POST"
+            request.method in ("POST", "PUT", "PATCH", "DELETE")
             and request.url.path.startswith("/api/")
             and request.url.path not in _CSRF_EXEMPT_PATHS
         ):
@@ -247,6 +262,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(CSRFMiddleware)
+app.add_middleware(APIKeyMiddleware)  # registered last = executes first (outermost)
 
 
 # ============== IN-MEMORY ACTIVITY LOG ==============
@@ -379,10 +395,13 @@ async def pwa_icons(filename: str):
 
 # ============== CSRF TOKEN ENDPOINT ==============
 
+@limiter.limit("30/minute")
 @app.get("/api/csrf-token")
-async def get_csrf_token():
+async def get_csrf_token(request: Request):
     """Generate a new CSRF token (valid for 1 hour)."""
     _cleanup_expired_csrf_tokens()
+    if len(csrf_tokens) >= CSRF_MAX_TOKENS:
+        raise HTTPException(status_code=429, detail="Too many active CSRF tokens")
     token = uuid.uuid4().hex
     csrf_tokens[token] = time.time() + CSRF_TOKEN_TTL
     return {"csrf_token": token}
