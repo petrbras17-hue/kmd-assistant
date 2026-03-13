@@ -55,6 +55,8 @@ from rag_engine import (
     get_gost_context, get_kmd_formatting_rules, find_similar_kmd,
     validate_kmd_document,
 )
+from kmd_rules_engine import validate_kmd_full, format_report_ru
+from multi_validator import validate_with_agents
 
 tags_metadata = [
     {"name": "Documentation", "description": "KMD document parsing, comparison, validation, checklists, and cross-validation."},
@@ -1247,6 +1249,163 @@ async def api_validate_articles(payload: dict):
         "invalid": len(results) - valid_count,
         "results": results,
     }
+
+
+# ============== 7b. RULE ENGINE VALIDATION ==============
+
+@app.post("/api/rules-validate", tags=["Documentation"],
+          summary="Expert rule engine KMD validation (deterministic)")
+async def api_rules_validate(file: UploadFile = File(...)):
+    """Детерминистическая проверка КМД экспертной системой правил.
+
+    Кодифицирует знания инженера с 30-летним стажем:
+    - Совместимость артикулов по профильным системам
+    - Допуски размеров конструкций
+    - Формулы стеклопакетов
+    - Параметры фурнитуры
+    - Комплектность документации
+    - Перекрёстная валидация данных
+    """
+    suffix = Path(file.filename or "doc.pdf").suffix.lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        parsed = parse_kmd_pdf(tmp_path)
+        result = validate_kmd_full(parsed)
+        result["report_text"] = format_report_ru(result)
+        result["parsed_summary"] = {
+            "total_positions": parsed.get("total_positions", 0),
+            "total_items": parsed.get("total_items", 0),
+            "profile_system": parsed.get("profile_system", ""),
+            "articles_count": parsed.get("articles_count", 0),
+        }
+        return result
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.post("/api/multi-validate", tags=["Documentation"],
+          summary="Multi-agent AI validation (5 specialist agents + consensus)")
+async def api_multi_validate(file: UploadFile = File(...)):
+    """Проверка КМД 5 независимыми AI-агентами с механизмом консенсуса.
+
+    Агенты: Геометрический, Материаловедческий, Нормативный,
+    Конструктивный, Оформительский.
+
+    Результат принимается только при согласии ≥3 из 5 агентов.
+    """
+    suffix = Path(file.filename or "doc.pdf").suffix.lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        parsed = parse_kmd_pdf(tmp_path)
+        text = ""
+        try:
+            from pdf_tools import extract_text_from_pdf
+            text = extract_text_from_pdf(tmp_path)
+        except Exception:
+            pass
+        result = await validate_with_agents(parsed, raw_text=text[:10000])
+        return result
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.post("/api/full-validate", tags=["Documentation"],
+          summary="Full 3-level KMD validation (parser + rules + AI agents + RAG)")
+async def api_full_validate(file: UploadFile = File(...)):
+    """Полная 3-уровневая проверка КМД:
+
+    Уровень 1: Парсер — извлечение данных
+    Уровень 2: Экспертные правила — детерминистические проверки
+    Уровень 3: AI агенты — семантический анализ + RAG контекст
+
+    Возвращает объединённый результат всех уровней.
+    """
+    suffix = Path(file.filename or "doc.pdf").suffix.lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        # Уровень 1: Парсер
+        parsed = parse_kmd_pdf(tmp_path)
+
+        # Извлечь текст для AI агентов
+        raw_text = ""
+        try:
+            from pdf_tools import extract_text_from_pdf
+            raw_text = extract_text_from_pdf(tmp_path)
+        except Exception:
+            pass
+
+        # Уровень 2: Экспертные правила
+        rules_result = validate_kmd_full(parsed)
+
+        # Уровень 3: AI агенты (параллельно с RAG)
+        import asyncio
+        agents_task = asyncio.create_task(
+            validate_with_agents(parsed, raw_text=raw_text[:10000])
+        )
+
+        # RAG валидация артикулов
+        rag_articles = []
+        if parsed.get("unique_articles"):
+            try:
+                rag_articles = await validate_articles_batch(parsed["unique_articles"][:20])
+            except Exception:
+                pass
+
+        agents_result = await agents_task
+
+        # Объединяем результаты
+        combined_score = (
+            rules_result.get("score", 0) * 0.4 +
+            agents_result.get("confidence", 0) * 0.4 +
+            (100 if not any(a.get("valid") is False for a in rag_articles) else 60) * 0.2
+        )
+
+        combined_status = "ok"
+        if rules_result.get("status") == "critical" or agents_result.get("status") == "critical":
+            combined_status = "critical"
+        elif rules_result.get("status") == "warning" or agents_result.get("status") == "warning":
+            combined_status = "warning"
+
+        return {
+            "status": combined_status,
+            "combined_score": round(combined_score, 1),
+            "level_1_parser": {
+                "total_positions": parsed.get("total_positions", 0),
+                "total_items": parsed.get("total_items", 0),
+                "profile_system": parsed.get("profile_system", ""),
+                "articles_count": parsed.get("articles_count", 0),
+                "colors": parsed.get("colors", []),
+            },
+            "level_2_rules": {
+                "status": rules_result.get("status"),
+                "score": rules_result.get("score"),
+                "errors_count": len(rules_result.get("errors", [])),
+                "critical": rules_result.get("errors_by_severity", {}).get("critical", 0),
+                "warnings": rules_result.get("errors_by_severity", {}).get("warning", 0),
+                "errors": rules_result.get("errors", [])[:20],
+                "report": format_report_ru(rules_result),
+            },
+            "level_3_agents": {
+                "status": agents_result.get("status"),
+                "confidence": agents_result.get("confidence"),
+                "confirmed_errors": agents_result.get("confirmed_errors", []),
+                "probable_errors": agents_result.get("probable_errors", []),
+                "summary": agents_result.get("summary_ru", ""),
+            },
+            "rag_validation": {
+                "articles_checked": len(rag_articles),
+                "articles_valid": sum(1 for a in rag_articles if a.get("valid")),
+                "results": rag_articles[:10],
+            },
+        }
+    finally:
+        os.unlink(tmp_path)
 
 
 # ============== 8. СРАВНЕНИЕ ВЕРСИЙ PDF ==============
