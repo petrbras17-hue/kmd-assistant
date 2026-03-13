@@ -986,7 +986,7 @@
         </section>
 
         <!-- ===== TAB 2: CHECK PDF ===== -->
-        <section x-show="activeTab === 'check'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'check'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">02</div>
                 <p class="hero-label">Validation</p>
@@ -1078,7 +1078,7 @@
         </section>
 
         <!-- ===== TAB 3: PARSE KMD ===== -->
-        <section x-show="activeTab === 'parse'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'parse'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">03</div>
                 <p class="hero-label">Extraction</p>
@@ -1156,7 +1156,7 @@
         </section>
 
         <!-- ===== TAB 4: CROSS-VALIDATE ===== -->
-        <section x-show="activeTab === 'crossval'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'crossval'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">04</div>
                 <p class="hero-label">Cross-validation</p>
@@ -1265,7 +1265,7 @@
         </section>
 
         <!-- ===== TAB 5: COMPARE PDF ===== -->
-        <section x-show="activeTab === 'comparepdf'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'comparepdf'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">05</div>
                 <p class="hero-label">PDF Diff</p>
@@ -1356,7 +1356,7 @@
         </section>
 
         <!-- ===== TAB 6: GENERATE SPEC ===== -->
-        <section x-show="activeTab === 'genspec'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'genspec'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">06</div><p class="hero-label">Generation</p><h2 class="hero-title">Генерация спецификации</h2><p class="hero-desc">Загрузите чертёж (PDF или DXF). Система извлечёт данные и сформирует XLSX спецификацию.</p><div class="hero-divider"></div></div>
 
             <div x-show="!specResult && !loading" class="fade-up d1">
@@ -1395,7 +1395,7 @@
         </section>
 
         <!-- ===== TAB 7: BATCH PROCESS ===== -->
-        <section x-show="activeTab === 'batch'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'batch'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">07</div><p class="hero-label">Batch Processing</p><h2 class="hero-title">Пакетная обработка</h2><p class="hero-desc">Загрузите ZIP-архив с проектом КМД. Система автоматически обработает все PDF, DXF и XLSX файлы.</p><div class="hero-divider"></div></div>
 
             <div x-show="!batchResult && !loading" class="fade-up d1">
@@ -1432,7 +1432,7 @@
         </section>
 
         <!-- ===== TAB 8: CHECKLIST ===== -->
-        <section x-show="activeTab === 'checklist'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'checklist'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">08</div><p class="hero-label">Quality Check</p><h2 class="hero-title">Чек-лист КМД</h2><p class="hero-desc">Загрузите PDF с КМД. Система проверит документ по 7 категориям и покажет процент соответствия.</p><div class="hero-divider"></div></div>
 
             <div x-show="!clResult && !loading" class="fade-up d1">
@@ -1478,7 +1478,7 @@
         </section>
 
         <!-- ===== TAB: 3D PREVIEW ===== -->
-        <section x-show="activeTab === 'preview3d'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+        <section x-show="activeTab === 'preview3d'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
                  x-init="$watch('activeTab', v => { if (v === 'preview3d') init3dScene(); })">
 
             <div class="mb-10 fade-up">
@@ -1661,7 +1661,7 @@
         </section>
 
         <!-- ===== TAB: ПОДБОР ПРОФИЛЬНОЙ СИСТЕМЫ ===== -->
-        <section x-show="activeTab === 'profileai'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'profileai'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Profile Selector</p>
@@ -1855,7 +1855,7 @@
 
 
         <!-- ===== TAB: CUTTING OPTIMIZER ===== -->
-        <section x-show="activeTab === 'cutting'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'cutting'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Optimization</p>
@@ -2112,7 +2112,7 @@
 
 
         <!-- ===== TAB F8: THERMAL CALCULATOR ===== -->
-        <section x-show="activeTab === 'thermal'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'thermal'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Thermal</p>
@@ -2214,7 +2214,7 @@
 
 
         <!-- ===== TAB F9: WIND LOAD CALCULATOR ===== -->
-        <section x-show="activeTab === 'wind'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'wind'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Wind Load</p>
@@ -2340,7 +2340,7 @@
 
 
         <!-- ===== TAB F10: SASH WEIGHT CALCULATOR ===== -->
-        <section x-show="activeTab === 'sashweight'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'sashweight'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Sash Weight</p>
@@ -2451,7 +2451,7 @@
 
 
         <!-- ===== TAB F11: GLASS UNIT CALCULATOR ===== -->
-        <section x-show="activeTab === 'glass'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'glass'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Glass Unit</p>
@@ -2585,7 +2585,7 @@
 
 
         <!-- ===== TAB F12: FASTENERS CALCULATOR ===== -->
-        <section x-show="activeTab === 'fasteners'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'fasteners'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
 
             <div class="mb-10 fade-up">
                 <p class="hero-label">Fasteners</p>
@@ -2721,7 +2721,7 @@
 
 
         <!-- ===== AI TAB 1: AI REVIEW ===== -->
-        <section x-show="activeTab === 'aireview'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aireview'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="mb-10 fade-up">
                 <p class="hero-label">AI Review</p>
                 <h2 class="hero-title" style="text-align:left">AI Ревью чертежа</h2>
@@ -2761,7 +2761,7 @@
         </section>
 
         <!-- ===== AI TAB 2: AI NOTE ===== -->
-        <section x-show="activeTab === 'ainote'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'ainote'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="mb-10 fade-up">
                 <p class="hero-label">AI Note</p>
                 <h2 class="hero-title" style="text-align:left">AI Пояснительная записка</h2>
@@ -2801,7 +2801,7 @@
         </section>
 
         <!-- ===== AI TAB 3: AI GOST ===== -->
-        <section x-show="activeTab === 'aigost'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aigost'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">21</div>
                 <p class="hero-label">AI GOST</p>
@@ -2841,7 +2841,7 @@
         </section>
 
         <!-- ===== AI TAB 4: AI HARDWARE ===== -->
-        <section x-show="activeTab === 'aihardware'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aihardware'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">22</div>
                 <p class="hero-label">AI Hardware</p>
@@ -2940,7 +2940,7 @@
         </section>
 
         <!-- ===== AI TAB 5: AI COMPARE VISUAL ===== -->
-        <section x-show="activeTab === 'aicompare'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aicompare'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero">
                 <div class="hero-number">23</div>
                 <p class="hero-label">AI Compare</p>
@@ -2993,7 +2993,7 @@
         </section>
 
         <!-- ===== TAB: AI KMD GENERATION ===== -->
-        <section x-show="activeTab === 'aigenkmd'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aigenkmd'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">F6</div><p class="hero-label">AI Generation</p><h2 class="hero-title">AI Генерация КМД</h2><p class="hero-desc">Создание черновой КМД документации из технического задания с помощью AI.</p><div class="hero-divider"></div></div>
 
             <div x-show="!kmdGenResult && !loading" class="fade-up">
@@ -3134,7 +3134,7 @@
         </section>
 
         <!-- ===== TAB: AI TRANSLATE ===== -->
-        <section x-show="activeTab === 'aitranslate'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'aitranslate'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">F7</div><p class="hero-label">AI Translation</p><h2 class="hero-title">AI Перевод КМД</h2><p class="hero-desc">Перевод документации между ГОСТ и EN/ISO с автоматической заменой ссылок.</p><div class="hero-divider"></div></div>
 
             <div x-show="!translateResult && !loading" class="fade-up">
@@ -3193,7 +3193,7 @@
         </section>
 
         <!-- ===== TAB: VERSIONING ===== -->
-        <section x-show="activeTab === 'versioning'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'versioning'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">13</div><p class="hero-label">Versioning</p><h2 class="hero-title">Версионирование КМД</h2><p class="hero-desc">Загружайте версии документов, отслеживайте изменения, сравнивайте редакции.</p><div class="hero-divider"></div></div>
 
             <div class="grid grid-cols-2 gap-8 fade-up">
@@ -3258,7 +3258,7 @@
         </section>
 
         <!-- ===== TAB: REQUISITION ===== -->
-        <section x-show="activeTab === 'requisition'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'requisition'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">14</div><p class="hero-label">Requisition</p><h2 class="hero-title">Заявка на материалы</h2><p class="hero-desc">Загрузите КМД в PDF. Система извлечёт артикулы и сформирует заявку в Excel.</p><div class="hero-divider"></div></div>
 
             <div x-show="!reqResult && !loading" class="fade-up">
@@ -3303,7 +3303,7 @@
         </section>
 
         <!-- ===== TAB: PROJECTS ===== -->
-        <section x-show="activeTab === 'projects'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'projects') loadProjects(); })">
+        <section x-show="activeTab === 'projects'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave" x-init="$watch('activeTab', v => { if (v === 'projects') loadProjects(); })">
             <div class="section-hero"><div class="hero-number">15</div><p class="hero-label">Projects</p><h2 class="hero-title">Трекер проектов</h2><p class="hero-desc">Создавайте проекты и отслеживайте их статус от замера до сдачи.</p><div class="hero-divider"></div></div>
 
             <div class="grid grid-cols-3 gap-8 fade-up">
@@ -3360,7 +3360,7 @@
         </section>
 
         <!-- ===== TAB: ACT GENERATOR ===== -->
-        <section x-show="activeTab === 'actgen'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'actgen'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">16</div><p class="hero-label">Act Generator</p><h2 class="hero-title">Генератор актов КС-2</h2><p class="hero-desc">Заполните данные и сформируйте акт о приёмке выполненных работ в формате DOCX.</p><div class="hero-divider"></div></div>
 
             <div x-show="!actResult && !loading" class="fade-up">
@@ -3414,7 +3414,7 @@
         </section>
 
         <!-- ===== TAB: CNC ===== -->
-        <section x-show="activeTab === 'cnc'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'cnc'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">17</div><p class="hero-label">CNC Programs</p><h2 class="hero-title">Генератор ЧПУ программ</h2><p class="hero-desc">Задайте нарезки и операции. Система сгенерирует программу для торцевой пилы или фрезерного ЧПУ станка.</p><div class="hero-divider"></div></div>
 
             <div x-show="!cncResult && !loading" class="fade-up">
@@ -3462,7 +3462,7 @@
         </section>
 
         <!-- ===== TAB: QR LABELS ===== -->
-        <section x-show="activeTab === 'qrlabels'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'qrlabels'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">18</div><p class="hero-label">Labels</p><h2 class="hero-title">Маркировка позиций</h2><p class="hero-desc">Добавьте позиции и сгенерируйте печатные этикетки с данными для маркировки изделий.</p><div class="hero-divider"></div></div>
 
             <div x-show="!qrResult && !loading" class="fade-up">
@@ -3501,7 +3501,7 @@
         </section>
 
         <!-- ===== TAB: PHOTO REPORT ===== -->
-        <section x-show="activeTab === 'photoreport'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave"
+        <section x-show="activeTab === 'photoreport'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave">
             <div class="section-hero"><div class="hero-number">19</div><p class="hero-label">Photo Report</p><h2 class="hero-title">Шаблон фотоотчёта</h2><p class="hero-desc">Заполните данные проекта и позиции. Система сгенерирует шаблон фотоотчёта в Excel.</p><div class="hero-divider"></div></div>
 
             <div x-show="!photoResult && !loading" class="fade-up">
@@ -3548,7 +3548,7 @@
         </section>
 
         <!-- ===== TAB: NODES LIBRARY ===== -->
-        <section x-show="activeTab === 'nodeslibrary'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'nodeslibrary') loadNodesLibrary(); })">
+        <section x-show="activeTab === 'nodeslibrary'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave" x-init="$watch('activeTab', v => { if (v === 'nodeslibrary') loadNodesLibrary(); })">
             <div class="section-hero"><div class="hero-number">20</div><p class="hero-label">Standard Nodes</p><h2 class="hero-title">Библиотека типовых узлов</h2><p class="hero-desc">Справочник стандартных узлов алюминиевых конструкций с материалами, инструкциями и схемами.</p><div class="hero-divider"></div></div>
 
             <div x-show="!selectedNode" class="fade-up">
@@ -3623,7 +3623,7 @@
         </section>
 
         <!-- ===== TAB 9: DASHBOARD ===== -->
-        <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-content" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
+        <section x-show="activeTab === 'dashboard'" x-transition:enter="tab-zoom-enter" x-transition:leave="tab-zoom-leave" x-init="$watch('activeTab', v => { if (v === 'dashboard') loadStats(); })">
             <div class="section-hero"><div class="hero-number">32</div><p class="hero-label">Analytics</p><h2 class="hero-title">Дашборд</h2><p class="hero-desc">Сводная статистика по всем операциям и журнал последних действий.</p><div class="hero-divider"></div></div>
 
             <div x-show="!dashStats" class="text-center py-20"><div class="spinner mx-auto mb-5"></div><p class="font-mono text-xs text-carbon-400 tracking-[0.15em] uppercase">Загрузка статистики</p></div>
@@ -3831,6 +3831,8 @@ function app() {
                 this.aiChatMessages.push({role: 'bot', text: 'Ошибка: ' + e.message});
             }
             this.aiChatLoading = false;
+            // Cap messages at 100 to prevent unbounded memory growth
+            if (this.aiChatMessages.length > 100) this.aiChatMessages.splice(0, this.aiChatMessages.length - 100);
             this.$nextTick(() => { this.$refs.chatMessages.scrollTop = this.$refs.chatMessages.scrollHeight; });
         },
 

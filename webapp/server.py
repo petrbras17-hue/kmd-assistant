@@ -10,6 +10,7 @@ import json
 import shutil
 import zipfile
 import tempfile
+import html as _html
 import re as _re
 import base64
 import hashlib
@@ -27,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).parent.parent / ".env")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_LLM_MODEL = "google/gemini-2.0-flash-001"
 
 # Добавляем tools в путь
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
@@ -3668,7 +3670,7 @@ async def api_calc_fasteners(data: dict):
 
 # ============== AI HELPER ==============
 
-async def _call_llm(messages: list[dict], model: str = "google/gemini-2.0-flash-001", max_tokens: int = 4000) -> str:
+async def _call_llm(messages: list[dict], model: str = DEFAULT_LLM_MODEL, max_tokens: int = 4000) -> str:
     """Call OpenRouter API and return the response text."""
     if not OPENROUTER_API_KEY:
         raise HTTPException(status_code=503, detail="OpenRouter API key не настроен. Добавьте OPENROUTER_API_KEY в .env")
@@ -3736,7 +3738,7 @@ async def api_ai_review(file: UploadFile = File(...)):
             })
 
         messages = [{"role": "user", "content": content_parts}]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         review_text = await _call_llm(messages, model=model, max_tokens=4000)
 
         log_activity("ai_review", file.filename or "unknown.pdf", "AI ревью чертежа")
@@ -3786,7 +3788,7 @@ async def api_ai_generate_note(file: UploadFile = File(...)):
             })
 
         messages = [{"role": "user", "content": content_parts}]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         note_text = await _call_llm(messages, model=model, max_tokens=6000)
 
         log_activity("ai_note", file.filename or "unknown.pdf", "AI пояснительная записка")
@@ -3832,7 +3834,7 @@ async def api_ai_gost(payload: dict):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": question},
         ]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         answer = await _call_llm(messages, model=model, max_tokens=4000)
 
         # Extract referenced norms from the answer
@@ -3855,6 +3857,8 @@ async def api_ai_gost(payload: dict):
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3893,7 +3897,7 @@ async def api_ai_hardware(payload: dict):
         )
 
         messages = [{"role": "user", "content": prompt}]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         raw = await _call_llm(messages, model=model, max_tokens=4000)
 
         # Try to extract JSON array from the response
@@ -3915,6 +3919,8 @@ async def api_ai_hardware(payload: dict):
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"OpenRouter API error: {e.response.status_code} — {e.response.text[:300]}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3964,7 +3970,7 @@ async def api_ai_compare_visual(
             })
 
         messages = [{"role": "user", "content": content_parts}]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         comparison_text = await _call_llm(messages, model=model, max_tokens=4000)
 
         log_activity("ai_compare", f"{file_a.filename} vs {file_b.filename}", "AI сравнение чертежей")
@@ -4056,7 +4062,7 @@ async def api_ai_generate_kmd(payload: dict):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_brief},
         ]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         kmd_document = await _call_llm(messages, model=model, max_tokens=8000)
 
         log_activity("ai_generate_kmd", object_name, f"AI генерация КМД ({len(positions)} позиций)")
@@ -4159,7 +4165,7 @@ async def api_ai_translate(payload: dict):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": text},
         ]
-        model = "google/gemini-2.0-flash-001"
+        model = DEFAULT_LLM_MODEL
         result_text = await _call_llm(messages, model=model, max_tokens=8000)
 
         # Parse mapped standards from the response
@@ -4864,8 +4870,6 @@ async def api_generate_qr(data: dict):
 <div class="labels-grid">
 """
 
-    import html as _html
-
     for pos in positions:
         pos_id = _html.escape(str(pos.get("id", "N/A")))
         desc = _html.escape(str(pos.get("description", "")))
@@ -5456,6 +5460,8 @@ MODULE_DESCRIPTIONS = {
     "dashboard": "Дашборд — счётчики операций, последние действия, статистика использования.",
 }
 
+_MODULE_CONTEXT_STR = "\n".join(f"- {k}: {v}" for k, v in MODULE_DESCRIPTIONS.items())
+
 
 @app.post("/api/ai-chat")
 async def api_ai_chat(payload: dict):
@@ -5466,20 +5472,18 @@ async def api_ai_chat(payload: dict):
     if not question:
         raise HTTPException(status_code=400, detail="Введите вопрос")
 
-    # Build context about available modules
-    module_context = "\n".join(f"- {k}: {v}" for k, v in MODULE_DESCRIPTIONS.items())
     current_module = MODULE_DESCRIPTIONS.get(context_tab, "")
 
     messages = [{"role": "user", "content": (
         "Ты AI-помощник платформы KMD Assistant от ALDMEGA LAB для инженеров алюминиевых конструкций. "
         "Отвечай кратко, по делу, на русском. Ты эксперт в КМД, ГОСТ, алюминиевых окнах/витражах/фасадах.\n\n"
-        f"Доступные модули платформы:\n{module_context}\n\n"
+        f"Доступные модули платформы:\n{_MODULE_CONTEXT_STR}\n\n"
         f"Пользователь сейчас на вкладке: {context_tab} — {current_module}\n\n"
         f"Вопрос пользователя: {question}"
     )}]
 
     try:
-        answer = await _call_llm(messages, model="google/gemini-2.0-flash-001", max_tokens=2000)
+        answer = await _call_llm(messages, model=DEFAULT_LLM_MODEL, max_tokens=2000)
         return {"status": "ok", "answer": answer}
     except HTTPException:
         raise
