@@ -33,6 +33,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from sqlalchemy import select
+from webapp.database import async_session
+from webapp.models import Project as ProjectModel
+
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
@@ -4882,6 +4886,24 @@ async def api_generate_requisition(file: UploadFile = File(...)):
 
 # ============== F15. PROJECT TRACKER ==============
 
+
+def _project_to_dict(p: ProjectModel) -> dict:
+    """Convert a ProjectModel ORM instance to a frontend-compatible dict."""
+    extra = p.stages or {}
+    return {
+        "id": p.id,
+        "name": p.name,
+        "customer": p.customer or "",
+        "address": p.address or "",
+        "positions_count": extra.get("positions_count", 0),
+        "deadline": extra.get("deadline", ""),
+        "status": p.status,
+        "status_index": PROJECT_STAGES.index(p.status) if p.status in PROJECT_STAGES else 0,
+        "created_at": p.created_at.isoformat(timespec="seconds") if p.created_at else "",
+        "status_history": extra.get("status_history", []),
+    }
+
+
 @app.post("/api/projects/create", tags=["Analytics & Projects"], summary="Create project")
 async def api_project_create(data: dict):
     """Create a new project."""
@@ -4890,23 +4912,33 @@ async def api_project_create(data: dict):
         if field not in data:
             raise HTTPException(status_code=400, detail=f"Поле '{field}' обязательно")
 
-    project = {
-        "id": str(uuid.uuid4().hex[:8]),
-        "name": data["name"],
-        "customer": data["customer"],
-        "address": data["address"],
-        "positions_count": int(data["positions_count"]),
-        "deadline": data["deadline"],
-        "status": PROJECT_STAGES[0],
-        "status_index": 0,
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-        "status_history": [
-            {"stage": PROJECT_STAGES[0], "timestamp": datetime.now().isoformat(timespec="seconds")}
-        ],
-    }
+    now_ts = datetime.now().isoformat(timespec="seconds")
+    status_history = [{"stage": PROJECT_STAGES[0], "timestamp": now_ts}]
+
+    db_project = ProjectModel(
+        name=data["name"],
+        customer=data["customer"],
+        address=data["address"],
+        status=PROJECT_STAGES[0],
+        stages={
+            "positions_count": int(data["positions_count"]),
+            "deadline": data["deadline"],
+            "status_history": status_history,
+        },
+    )
+
+    async with async_session() as session:
+        session.add(db_project)
+        await session.commit()
+        await session.refresh(db_project)
+
+    project = _project_to_dict(db_project)
+
+    # Update in-memory cache for backward compat
     projects_list.insert(0, project)
     if len(projects_list) > 500:
         projects_list.pop()
+
     log_activity("projects", data["name"], f"Проект создан: {data['customer']}")
     return {"status": "ok", "project": project}
 
@@ -4915,27 +4947,55 @@ async def api_project_create(data: dict):
 @app.get("/api/projects/list", tags=["Analytics & Projects"], summary="List all projects")
 async def api_projects_list(request: Request):
     """Return all projects with statuses."""
-    return {"status": "ok", "projects": projects_list, "stages": PROJECT_STAGES}
+    async with async_session() as session:
+        result = await session.execute(
+            select(ProjectModel).order_by(ProjectModel.created_at.desc())
+        )
+        db_projects = result.scalars().all()
+
+    projects = [_project_to_dict(p) for p in db_projects]
+
+    # Sync in-memory cache
+    projects_list.clear()
+    projects_list.extend(projects)
+
+    return {"status": "ok", "projects": projects, "stages": PROJECT_STAGES}
 
 
 @app.post("/api/projects/{project_id}/update-status", tags=["Analytics & Projects"], summary="Update project status")
-async def api_project_update_status(project_id: str):
+async def api_project_update_status(project_id: int):
     """Move project to next stage."""
-    project = next((p for p in projects_list if p["id"] == project_id), None)
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    async with async_session() as session:
+        db_project = await session.get(ProjectModel, project_id)
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Проект не найден")
 
-    current_idx = project["status_index"]
-    if current_idx >= len(PROJECT_STAGES) - 1:
-        return {"status": "ok", "message": "Проект уже завершён", "project": project}
+        current_idx = PROJECT_STAGES.index(db_project.status) if db_project.status in PROJECT_STAGES else 0
+        if current_idx >= len(PROJECT_STAGES) - 1:
+            return {"status": "ok", "message": "Проект уже завершён", "project": _project_to_dict(db_project)}
 
-    next_idx = current_idx + 1
-    project["status"] = PROJECT_STAGES[next_idx]
-    project["status_index"] = next_idx
-    project["status_history"].append({
-        "stage": PROJECT_STAGES[next_idx],
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-    })
+        next_idx = current_idx + 1
+        db_project.status = PROJECT_STAGES[next_idx]
+
+        stages_data = db_project.stages or {}
+        history = stages_data.get("status_history", [])
+        history.append({
+            "stage": PROJECT_STAGES[next_idx],
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+        })
+        stages_data["status_history"] = history
+        db_project.stages = stages_data
+
+        await session.commit()
+        await session.refresh(db_project)
+
+    project = _project_to_dict(db_project)
+
+    # Update in-memory cache
+    for i, p in enumerate(projects_list):
+        if p.get("id") == project_id:
+            projects_list[i] = project
+            break
 
     log_activity("projects", project["name"], f"Статус: {PROJECT_STAGES[next_idx]}")
     return {"status": "ok", "project": project}
