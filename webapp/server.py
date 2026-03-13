@@ -40,7 +40,20 @@ from pdf_tools import extract_text_from_pdf
 from dxf_tools import parse_dxf_for_web
 from ocr_tools import (
     ocr_pil_image,
-    parse_positions, parse_articles, parse_dimensions,
+    parse_positions as ocr_parse_positions,
+    parse_articles as ocr_parse_articles,
+    parse_dimensions as ocr_parse_dimensions,
+)
+from kmd_parser import (
+    parse_kmd_pdf, parse_kmd_page, extract_positions, extract_quantity,
+    extract_articles as kmd_extract_articles, extract_dimensions,
+    extract_dimensions_individual, extract_color, extract_handle_height,
+    extract_profile_system, extract_glass_formula, classify_page,
+)
+from rag_engine import (
+    build_rag_context, validate_article, validate_articles_batch,
+    get_gost_context, get_kmd_formatting_rules, find_similar_kmd,
+    validate_kmd_document,
 )
 
 tags_metadata = [
@@ -424,71 +437,35 @@ async def api_parse_kmd(file: UploadFile = File(...)):
     path = save_upload(file)
 
     try:
-        import fitz
-        doc = fitz.open(str(path))
+        result = parse_kmd_pdf(str(path))
 
         items = []
-        all_articles = set()
-
-        for i in range(len(doc)):
-            text = doc[i].get_text().strip()
-            if not text:
-                continue
-
-            # Ищем позиции: "Поз.О-1, Количество:38"
-            pos_matches = re.finditer(
-                r'Поз\.?\s*([А-Яа-яA-Za-z0-9\-\.]+)\s*,?\s*Количество\s*:?\s*(\d+)',
-                text
-            )
-            for m in pos_matches:
-                pos_name = m.group(1)
-                qty = int(m.group(2))
-
-                # Ищем артикулы на этой странице (7-8 цифр или формат XXXX.XXXX)
-                page_articles = set()
-                for am in re.finditer(r'\b(\d{7,8})\b', text):
-                    art = am.group(1)
-                    if int(art) > 100000:
-                        page_articles.add(art)
-                        all_articles.add(art)
-
-                # Ищем размеры
-                dims = []
-                for dm in re.finditer(r'\b(\d{2,4}(?:[,\.]\d{1,2})?)\b', text):
-                    val = float(dm.group(1).replace(',', '.'))
-                    if 50 < val < 5000:
-                        dims.append(val)
-                dims = sorted(set(dims))[:6]
-
-                # Высота ручки
-                handle_match = re.search(r'[Вв]ысота\s+ручки\s*[\:\s]*(\d+)', text)
-                handle_height = int(handle_match.group(1)) if handle_match else None
-
-                items.append({
-                    "page": i + 1,
-                    "position": pos_name,
-                    "quantity": qty,
-                    "articles": sorted(page_articles),
-                    "dimensions": dims,
-                    "handle_height": handle_height,
-                })
-
-        doc.close()
-
-        # Сводка
-        total_items = sum(it['quantity'] for it in items)
+        for pos in result["positions"]:
+            items.append({
+                "page": pos.get("page", 0),
+                "position": pos["position"],
+                "quantity": pos.get("quantity", 0),
+                "articles": pos.get("articles", []),
+                "dimensions": pos.get("dimensions_mm", []),
+                "dim_wxh": [d["raw"] for d in pos.get("dimensions", [])],
+                "handle_height": pos.get("handle_height"),
+                "color": pos.get("color", ""),
+                "glass": pos.get("glass", []),
+            })
 
         log_activity("parse_kmd", file.filename,
-                     f"Позиций: {len(items)}, артикулов: {len(all_articles)}")
+                     f"Позиций: {result['total_positions']}, артикулов: {result['articles_count']}")
 
         return {
             "status": "ok",
             "filename": file.filename,
             "items": items,
-            "total_positions": len(items),
-            "total_items": total_items,
-            "unique_articles": sorted(all_articles),
-            "articles_count": len(all_articles),
+            "total_positions": result["total_positions"],
+            "total_items": result["total_items"],
+            "unique_articles": result["unique_articles"],
+            "articles_count": result["articles_count"],
+            "profile_system": result.get("profile_system"),
+            "colors": result.get("colors", []),
         }
 
     except Exception as e:
@@ -771,23 +748,25 @@ def _run_checklist(full_text: str, page_texts: list[str]) -> list[dict]:
     # ======================================================================
     cat = "Чертежи изделий"
 
-    # Позиции (Поз.О-1, Поз.БФ1, Поз.В-3 и т.п.)
-    positions = re.findall(
-        r'[Пп]оз\.?\s*([А-Яа-яA-Za-z]{0,3}\-?\d+[\w\-]*)',
-        full_text
-    )
-    unique_positions = list(set(positions))
+    # Позиции — универсальный парсер (Поз.О-1, Витраж В-1, БФ1 и т.п.)
+    pos_list = extract_positions(full_text)
+    unique_positions = list({p["position"] for p in pos_list})
     add(cat, "Маркировка позиций изделий", len(unique_positions) > 0,
-        f"Найдено {len(unique_positions)} уникальных позиций" if unique_positions
+        f"Найдено {len(unique_positions)} уникальных позиций: {', '.join(unique_positions[:10])}"
+        if unique_positions
         else "Позиции изделий не обнаружены", 3)
 
-    # Количество при позиции
-    qty_records = re.findall(
-        r'[Кк]оличество\s*:?\s*(\d+)', full_text
-    )
-    add(cat, "Указано количество изделий по позициям", len(qty_records) > 0,
-        f"Найдено {len(qty_records)} записей с количеством (сумма: {sum(int(q) for q in qty_records)})"
-        if qty_records else "Количество изделий не указано", 3)
+    # Количество при позиции — универсальный парсер
+    qty_total = 0
+    qty_count = 0
+    for p in pos_list:
+        q = extract_quantity(full_text, near_pos=p["start"])
+        if q > 0:
+            qty_count += 1
+            qty_total += q
+    add(cat, "Указано количество изделий по позициям", qty_count > 0,
+        f"Найдено {qty_count} записей с количеством (сумма: {qty_total})"
+        if qty_count else "Количество изделий не указано", 3)
 
     # Высота ручки
     handle_records = re.findall(
@@ -1214,44 +1193,80 @@ async def api_cross_validate(
         spec_path.unlink(missing_ok=True)
 
 
+# ============== 7.5. RAG-ВАЛИДАЦИЯ ДОКУМЕНТА ==============
+
+@app.post("/api/rag-validate", tags=["Documentation"], summary="RAG-powered KMD validation")
+async def api_rag_validate(file: UploadFile = File(...)):
+    """Полная RAG-валидация КМД документа: артикулы, ГОСТ, форматирование, эталонные КМД."""
+    path = save_upload(file)
+    try:
+        text = extract_text_from_pdf(str(path))
+        articles = kmd_extract_articles(text)
+        pos_list = extract_positions(text)
+        positions = [{"position": p["position"],
+                       "quantity": extract_quantity(text, near_pos=p["start"])}
+                      for p in pos_list]
+
+        report = await validate_kmd_document(
+            extracted_text=text,
+            positions=positions,
+            articles=articles,
+        )
+
+        log_activity("rag_validate", file.filename, f"RAG validation: {len(articles)} articles")
+
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            "positions_found": len(positions),
+            "articles_found": len(articles),
+            "profile_system": extract_profile_system(text),
+            "validation": report,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        path.unlink(missing_ok=True)
+
+
+@app.post("/api/validate-articles", tags=["Documentation"], summary="Validate article codes")
+async def api_validate_articles(payload: dict):
+    """Проверить артикулы по базе данных производителей (RAG)."""
+    articles = payload.get("articles", [])
+    if not articles:
+        raise HTTPException(status_code=400, detail="Список артикулов пуст")
+
+    results = await validate_articles_batch(articles[:50])
+    valid_count = sum(1 for r in results if r.get("valid"))
+
+    return {
+        "status": "ok",
+        "total": len(results),
+        "valid": valid_count,
+        "invalid": len(results) - valid_count,
+        "results": results,
+    }
+
+
 # ============== 8. СРАВНЕНИЕ ВЕРСИЙ PDF ==============
 
 def _classify_page(text: str) -> str:
     """Определить тип страницы КМД по содержимому текста."""
     if not text or not text.strip():
         return "пустая"
-    text_lower = text.lower()
-    if any(w in text_lower for w in ['титульный', 'договор', 'заказчик']):
-        return "титульный лист"
-    if any(w in text_lower for w in ['пояснительная', 'записка', 'в соответствии']):
-        return "пояснительная записка"
-    if any(w in text_lower for w in ['спецификация', 'ведомость']):
-        return "спецификация"
-    if 'поз.' in text_lower or 'количество' in text_lower:
-        return "чертёж изделия"
-    if any(w in text_lower for w in ['обработка', 'сборка', 'фрезеровка']):
-        return "чертёж обработки"
-    if any(w in text_lower for w in ['фасад', 'план', 'разрез']):
-        return "план/фасад"
-    if any(w in text_lower for w in ['узел', 'сечение']):
-        return "узел/сечение"
-    return "чертёж"
+    return classify_page(text)
 
 
 def _extract_kmd_data(text: str):
     """Извлечь КМД-данные: позиции, артикулы, количество."""
+    pos_list = extract_positions(text)
     positions = {}
-    for m in re.finditer(
-        r'[Пп]оз\.?\s*([А-Яа-яA-Za-z0-9\-\.]+)\s*,?\s*[Кк]оличество\s*:?\s*(\d+)',
-        text,
-    ):
-        positions[m.group(1)] = int(m.group(2))
+    for p in pos_list:
+        qty = extract_quantity(text, near_pos=p["start"])
+        positions[p["position"]] = qty
 
-    articles = set()
-    for m in re.finditer(r'\b(\d{7,8})\b', text):
-        art = m.group(1)
-        if int(art) > 100000:
-            articles.add(art)
+    articles = set(kmd_extract_articles(text))
 
     return positions, articles
 
@@ -1725,128 +1740,21 @@ async def api_batch_process(file: UploadFile = File(...)):
 
 def _extract_kmd_data_from_pdf(pdf_path: str) -> list[dict]:
     """Извлечь КМД-данные из PDF: позиции, артикулы, размеры, цвета."""
-    import fitz
-
-    doc = fitz.open(pdf_path)
-    raw_items: list[dict] = []
-
-    for i in range(len(doc)):
-        text = doc[i].get_text().strip()
-        if not text:
-            continue
-
-        page_num = i + 1
-
-        # Ищем позиции: "Поз.О-1", "Поз. Д-3", "Поз.ОК-12"
-        pos_matches = list(re.finditer(
-            r'Поз\.?\s*([А-Яа-яA-Za-z]{1,3}\s*[\-\.]\s*\d{1,3})',
-            text
-        ))
-
-        # Ищем артикулы (7-8 цифр > 100000)
-        page_articles = []
-        for am in re.finditer(r'\b(\d{7,8})\b', text):
-            art = am.group(1)
-            if int(art) > 100000:
-                page_articles.append(art)
-
-        # Ищем количество
-        qty_match = re.search(r'Количество\s*:?\s*(\d+)', text)
-        quantity = int(qty_match.group(1)) if qty_match else 0
-
-        # Ищем размеры WxH
-        dim_wxh = re.findall(r'(\d{3,4})\s*[xхXХ×]\s*(\d{3,4})', text)
-        # Отдельные размеры 50-5000 мм
-        individual_dims = []
-        for dm in re.finditer(r'\b(\d{2,4}(?:[,\.]\d{1,2})?)\b', text):
-            val = float(dm.group(1).replace(',', '.'))
-            if 50 <= val <= 5000:
-                individual_dims.append(int(val))
-        individual_dims = sorted(set(individual_dims))[:8]
-
-        # Ищем цвет/RAL
-        color = ""
-        ral_match = re.search(r'RAL\s*(\d{4})', text, re.IGNORECASE)
-        if ral_match:
-            color = f"RAL{ral_match.group(1)}"
-        else:
-            color_match = re.search(
-                r'(?:цвет|окраска|покрытие)\s*[:;\-]?\s*([^\n,]{2,30})',
-                text, re.IGNORECASE,
-            )
-            if color_match:
-                color = color_match.group(1).strip()
-
-        # Ищем описания профилей (текст рядом с артикулами)
-        descriptions: dict[str, str] = {}
-        for art in page_articles:
-            desc_match = re.search(
-                rf'([А-Яа-яA-Za-z][^\n]{{5,60}})\s*{art}|{art}\s+([А-Яа-яA-Za-z][^\n]{{5,60}})',
-                text,
-            )
-            if desc_match:
-                descriptions[art] = (desc_match.group(1) or desc_match.group(2) or "").strip()
-
-        if pos_matches:
-            for pm in pos_matches:
-                pos_name = pm.group(1).replace(' ', '')
-                raw_items.append({
-                    "position": pos_name,
-                    "articles": list(set(page_articles)),
-                    "descriptions": descriptions,
-                    "quantity": quantity,
-                    "dimensions": individual_dims,
-                    "dim_wxh": [f"{w}x{h}" for w, h in dim_wxh],
-                    "color": color,
-                    "page": page_num,
-                })
-        elif page_articles:
-            raw_items.append({
-                "position": f"Стр.{page_num}",
-                "articles": list(set(page_articles)),
-                "descriptions": descriptions,
-                "quantity": quantity,
-                "dimensions": individual_dims,
-                "dim_wxh": [f"{w}x{h}" for w, h in dim_wxh],
-                "color": color,
-                "page": page_num,
-            })
-
-    doc.close()
-
-    # Группируем по позиции
-    grouped: dict[str, dict] = {}
-    for item in raw_items:
-        pos = item["position"]
-        if pos not in grouped:
-            grouped[pos] = {
-                "position": pos,
-                "articles": [],
-                "descriptions": {},
-                "quantity": item["quantity"],
-                "dimensions": [],
-                "dim_wxh": [],
-                "color": item["color"],
-                "page": item["page"],
-            }
-        g = grouped[pos]
-        g["articles"].extend(item["articles"])
-        g["descriptions"].update(item["descriptions"])
-        if item["quantity"] and not g["quantity"]:
-            g["quantity"] = item["quantity"]
-        g["dimensions"].extend(item["dimensions"])
-        g["dim_wxh"].extend(item["dim_wxh"])
-        if item["color"] and not g["color"]:
-            g["color"] = item["color"]
-
-    # Дедупликация
+    result = parse_kmd_pdf(pdf_path)
     positions = []
-    for pos_name, g in grouped.items():
-        g["articles"] = sorted(set(g["articles"]))
-        g["dimensions"] = sorted(set(g["dimensions"]))
-        g["dim_wxh"] = sorted(set(g["dim_wxh"]))
-        positions.append(g)
-
+    for pos in result["positions"]:
+        positions.append({
+            "position": pos["position"],
+            "articles": pos.get("articles", []),
+            "descriptions": {},
+            "quantity": pos.get("quantity", 0),
+            "dimensions": pos.get("dimensions_mm", []),
+            "dim_wxh": [d["raw"] for d in pos.get("dimensions", [])],
+            "color": pos.get("color", ""),
+            "page": pos.get("page", 0),
+            "handle_height": pos.get("handle_height"),
+            "glass": pos.get("glass", []),
+        })
     return positions
 
 
@@ -3767,11 +3675,36 @@ def _pdf_pages_to_base64(pdf_path: str, max_pages: int = 3) -> list[str]:
 
 @app.post("/api/ai-review", tags=["AI Tools"], summary="AI review of KMD drawing")
 async def api_ai_review(file: UploadFile = File(...)):
-    """AI review of a KMD drawing PDF."""
+    """AI review of a KMD drawing PDF with RAG-powered validation."""
     path = save_upload(file)
     try:
         text = extract_text_from_pdf(str(path))
         images_b64 = _pdf_pages_to_base64(str(path), max_pages=3)
+
+        # RAG: get relevant context from knowledge base
+        rag_context = ""
+        try:
+            rag_context = await build_rag_context(
+                query=text[:500],
+                max_tokens=2000,
+                top_k=6,
+            )
+        except Exception:
+            pass  # Graceful degradation if Pinecone unavailable
+
+        # RAG: validate articles found in document
+        articles = kmd_extract_articles(text)
+        articles_report = ""
+        if articles:
+            try:
+                validations = await validate_articles_batch(articles[:20])
+                invalid = [v for v in validations if not v.get("valid")]
+                if invalid:
+                    articles_report = "\n\nПРОВЕРКА АРТИКУЛОВ ПО БАЗЕ ДАННЫХ:\n"
+                    for v in invalid:
+                        articles_report += f"- Артикул {v['article_code']}: {v['description'][:100]}\n"
+            except Exception:
+                pass
 
         content_parts = [
             {
@@ -3784,6 +3717,8 @@ async def api_ai_review(file: UploadFile = File(...)):
                     "4. Отсутствующие узлы или сечения\n"
                     "5. Проблемы с оформлением по ГОСТ 21.502\n\n"
                     "Дай структурированный ответ с категориями: критические ошибки, предупреждения, рекомендации.\n\n"
+                    f"{rag_context}\n"
+                    f"{articles_report}\n"
                     f"Извлечённый текст из PDF:\n{text[:3000]}"
                 ),
             }
@@ -3871,6 +3806,18 @@ async def api_ai_gost(payload: dict):
         raise HTTPException(status_code=400, detail="Вопрос не может быть пустым")
 
     try:
+        # RAG: get relevant GOST context from knowledge base
+        rag_context = ""
+        try:
+            rag_context = await build_rag_context(
+                query=question,
+                namespaces=["gost-standards", "kmd-formatting-rules"],
+                max_tokens=2000,
+                top_k=8,
+            )
+        except Exception:
+            pass
+
         system_prompt = (
             "Ты — эксперт-консультант по нормативной документации для алюминиевых конструкций (КМД). "
             "Отвечай точно, со ссылками на конкретные пункты следующих нормативов:\n"
@@ -3884,7 +3831,8 @@ async def api_ai_gost(payload: dict):
             "- ГОСТ 24700 (блоки оконные деревянные)\n"
             "- ГОСТ 22233-2018 (профили из алюминия)\n\n"
             "Всегда указывай номер пункта/раздела. Если вопрос выходит за рамки этих нормативов, "
-            "укажи релевантный ГОСТ/СП и объясни, где искать ответ."
+            "укажи релевантный ГОСТ/СП и объясни, где искать ответ.\n\n"
+            f"{rag_context}"
         )
 
         messages = [
