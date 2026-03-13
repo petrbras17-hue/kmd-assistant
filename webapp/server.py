@@ -97,6 +97,7 @@ from rag_engine import (
     get_gost_context, get_kmd_formatting_rules, find_similar_kmd,
     validate_kmd_document,
 )
+from webapp.cache import cache_get, cache_set, cache_invalidate, _make_key
 try:
     from kmd_rules_engine import validate_kmd_full, format_report_ru
     _RULES_ENGINE_AVAILABLE = True
@@ -1467,16 +1468,27 @@ async def api_validate_articles(payload: dict):
     if not articles:
         raise HTTPException(status_code=400, detail="Список артикулов пуст")
 
+    # Check cache
+    cache_key = _make_key("rag_articles", *sorted(articles[:50]))
+    cached = await cache_get(cache_key)
+    if cached:
+        return json.loads(cached)
+
     results = await validate_articles_batch(articles[:50])
     valid_count = sum(1 for r in results if r.get("valid"))
 
-    return {
+    response = {
         "status": "ok",
         "total": len(results),
         "valid": valid_count,
         "invalid": len(results) - valid_count,
         "results": results,
     }
+
+    # Cache the result
+    await cache_set(cache_key, json.dumps(response, default=str))
+
+    return response
 
 
 # ============== 7b. RULE ENGINE VALIDATION ==============
@@ -3527,6 +3539,12 @@ async def api_recommend_profile(data: dict):
 async def api_calc_thermal(request: Request, data: dict):
     """Расчёт приведённого сопротивления теплопередаче по ГОСТ 26602.1 / ГОСТ 23166."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_thermal", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         profile_uf = float(data.get("profile_uf", 1.3))
         glass_ug = float(data.get("glass_ug", 1.0))
         glass_area_m2 = float(data.get("glass_area_m2", 2.5))
@@ -3571,7 +3589,7 @@ async def api_calc_thermal(request: Request, data: dict):
         await log_activity("calc_thermal", f"Uw={uw}",
                      f"Класс {classification}, Uw={uw} Вт/(м²·К)")
 
-        return {
+        result = {
             "status": "ok",
             "uw": uw,
             "uf": profile_uf,
@@ -3583,6 +3601,9 @@ async def api_calc_thermal(request: Request, data: dict):
             "total_area_m2": round(total_area, 2),
             "glass_fraction": round(glass_area_m2 / total_area * 100, 1),
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3620,6 +3641,12 @@ def _interpolate_kz(height_m: float, terrain: str) -> float:
 async def api_calc_wind(request: Request, data: dict):
     """Расчёт ветровой нагрузки по СП 20.13330.2016."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_wind", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         wind_region = data.get("wind_region", "III")
         terrain = data.get("terrain", "B")
         height_m = float(data.get("height_m", 36))
@@ -3673,7 +3700,7 @@ async def api_calc_wind(request: Request, data: dict):
         await log_activity("calc_wind", f"Район {wind_region}, h={height_m}м",
                      f"P={wind_pressure_pa} Па, F={panel_load_n} Н")
 
-        return {
+        result = {
             "status": "ok",
             "w0": w0,
             "w0_pa": round(w0 * 1000),
@@ -3691,6 +3718,9 @@ async def api_calc_wind(request: Request, data: dict):
             "zone": zone,
             "wind_region": wind_region,
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3742,6 +3772,12 @@ _SASH_WEIGHT_LIMITS = {
 async def api_calc_sash_weight(request: Request, data: dict):
     """Расчёт веса створки."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_sash", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         width_mm = float(data.get("width_mm", 800))
         height_mm = float(data.get("height_mm", 1400))
         profile_weight_kg_m = float(data.get("profile_weight_kg_m", 1.8))
@@ -3782,7 +3818,7 @@ async def api_calc_sash_weight(request: Request, data: dict):
         await log_activity("calc_sash_weight", f"{width_mm}x{height_mm}",
                      f"Вес: {total_weight} кг, стекло: {glass_formula}")
 
-        return {
+        result = {
             "status": "ok",
             "profile_weight": profile_weight,
             "glass_weight": glass_weight,
@@ -3795,6 +3831,9 @@ async def api_calc_sash_weight(request: Request, data: dict):
             "max_allowed": max_allowed,
             "warnings": warnings,
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3828,6 +3867,12 @@ _GLASS_DATABASE = [
 async def api_calc_glass(request: Request, data: dict):
     """Подбор оптимального стеклопакета по параметрам."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_glass", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         width_mm = int(data.get("width_mm", 1200))
         height_mm = int(data.get("height_mm", 1800))
         wind_pressure_pa = float(data.get("wind_pressure_pa", 800))
@@ -3931,7 +3976,7 @@ async def api_calc_glass(request: Request, data: dict):
         await log_activity("calc_glass", f"{width_mm}x{height_mm}",
                      f"Лучшее: {recommendations[0]['formula']} (score={recommendations[0]['score']})")
 
-        return {
+        result = {
             "status": "ok",
             "recommendations": recommendations[:8],
             "total_variants": len(_GLASS_DATABASE),
@@ -3945,6 +3990,9 @@ async def api_calc_glass(request: Request, data: dict):
                 "safety_required": safety_required,
             },
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3966,6 +4014,12 @@ _ANCHOR_CAPACITY = {
 async def api_calc_fasteners(request: Request, data: dict):
     """Расчёт крепежа оконной/дверной рамы по ГОСТ."""
     try:
+        # Check cache
+        cache_key = _make_key("calc_fasteners", **data)
+        cached = await cache_get(cache_key)
+        if cached:
+            return json.loads(cached)
+
         frame_width_mm = float(data.get("frame_width_mm", 1500))
         frame_height_mm = float(data.get("frame_height_mm", 2100))
         weight_kg = float(data.get("weight_kg", 85))
@@ -4020,7 +4074,7 @@ async def api_calc_fasteners(request: Request, data: dict):
         await log_activity("calc_fasteners", f"{frame_width_mm}x{frame_height_mm}, {wall_type}",
                      f"Анкеров: {total_anchors}, запас: {safety_margin}x")
 
-        return {
+        result = {
             "status": "ok",
             "total_anchors": total_anchors,
             "spacing_mm": actual_spacing,
@@ -4036,6 +4090,9 @@ async def api_calc_fasteners(request: Request, data: dict):
             "wall_type_warnings": warnings,
             "frame_area_m2": round(frame_area_m2, 2),
         }
+
+        await cache_set(cache_key, json.dumps(result, default=str))
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
