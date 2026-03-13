@@ -1508,7 +1508,7 @@
                 </div>
 
                 <div class="text-center">
-                    <button @click="runCuttingOptimize()" class="btn-primary" :disabled="cuttingParams.cuts.every(c => !c.article || !c.length)">Рассчитать раскрой</button>
+                    <button @click="runCuttingOptimize()" class="btn-primary">Рассчитать раскрой</button>
                 </div>
             </div>
 
@@ -1828,7 +1828,7 @@ function app() {
 
         // Cutting optimizer state
         cuttingMode: 'manual',
-        cuttingParams: { stock_length: 6500, blade_width: 5, min_remnant: 50, cuts: [{article: '', length: '', qty: 1}] },
+        cuttingParams: { stock_length: 6500, blade_width: 5, min_remnant: 50, cuts: [{article: '4080102', length: 1200, qty: 10}] },
         fileCutPdf: null, dragCutPdf: false,
         cuttingResult: null,
 
@@ -1836,14 +1836,14 @@ function app() {
         removeCutRow(i) { this.cuttingParams.cuts.splice(i, 1); },
 
         async runCuttingOptimize() {
+            const validCuts = this.cuttingParams.cuts.filter(c => c.article && Number(c.length) > 0);
+            if (validCuts.length === 0) { this.error = 'Добавьте хотя бы одну нарезку с артикулом и длиной'; return; }
             this.loading = true; this.error = null;
             const payload = {
-                stock_length_mm: this.cuttingParams.stock_length,
-                blade_width_mm: this.cuttingParams.blade_width,
-                min_remnant_mm: this.cuttingParams.min_remnant,
-                cuts: this.cuttingParams.cuts
-                    .filter(c => c.article && c.length)
-                    .map(c => ({ article: c.article, length_mm: c.length, quantity: c.qty })),
+                stock_length_mm: Number(this.cuttingParams.stock_length) || 6500,
+                blade_width_mm: Number(this.cuttingParams.blade_width) || 5,
+                min_remnant_mm: Number(this.cuttingParams.min_remnant) || 50,
+                cuts: validCuts.map(c => ({ article: String(c.article), length_mm: Number(c.length), quantity: Number(c.qty) || 1 })),
             };
             try {
                 const res = await fetch('/api/optimize-cutting', {
