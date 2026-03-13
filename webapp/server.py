@@ -23,14 +23,40 @@ from typing import List
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Security
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.security import APIKeyHeader
 
 # Load .env for OpenRouter API key
 load_dotenv(Path(__file__).parent.parent / ".env")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_LLM_MODEL = "google/gemini-2.0-flash-001"
+
+# ============== API KEY AUTHENTICATION ==============
+_env_api_key = os.getenv("KMD_API_KEY", "").strip()
+if _env_api_key:
+    KMD_API_KEY: str = _env_api_key
+else:
+    KMD_API_KEY = uuid.uuid4().hex
+    print(f"[AUTH] Generated API key (set KMD_API_KEY env var to override): {KMD_API_KEY}")
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def verify_api_key(api_key: str = Security(_api_key_header)):
+    """Dependency that validates X-API-Key header."""
+    if not api_key or api_key != KMD_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+# Paths exempt from API key auth
+_AUTH_EXEMPT_PATHS: set[str] = {
+    "/", "/docs", "/redoc", "/openapi.json", "/api/health", "/api/auth/validate",
+}
+_AUTH_EXEMPT_PREFIXES: tuple[str, ...] = (
+    "/icons/", "/manifest.json", "/sw.js", "/offline.html",
+    "/api/download/", "/api/download-act/", "/api/download-nc/",
+)
 
 # Добавляем tools в путь
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
@@ -68,6 +94,7 @@ except Exception:
     _MULTI_VALIDATOR_AVAILABLE = False
 
 tags_metadata = [
+    {"name": "Auth", "description": "API key authentication and validation."},
     {"name": "Documentation", "description": "KMD document parsing, comparison, validation, checklists, and cross-validation."},
     {"name": "Calculators", "description": "Engineering calculators: thermal, wind load, sash weight, glass thickness, fasteners."},
     {"name": "3D & Optimization", "description": "3D preview, cutting optimization, profile recommendation, spec generation."},
@@ -90,6 +117,75 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# ---------- API-key auth middleware ----------
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse as StarletteJSONResponse
+
+
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    """Require X-API-Key on all POST /api/* endpoints (except exemptions)."""
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        method = request.method
+
+        # Only protect POST (and PUT/PATCH/DELETE) on /api/* paths
+        if method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api"):
+            # Check exemptions
+            if path not in _AUTH_EXEMPT_PATHS and not path.startswith(_AUTH_EXEMPT_PREFIXES):
+                api_key = request.headers.get("X-API-Key", "")
+                if api_key != KMD_API_KEY:
+                    return StarletteJSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid or missing API key"},
+                    )
+
+        return await call_next(request)
+
+
+app.add_middleware(APIKeyMiddleware)
+
+
+# Swagger "Authorize" button — adds X-API-Key to all try-it-out requests
+_original_openapi = app.openapi
+
+
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = _original_openapi()
+    schema.setdefault("components", {}).setdefault("securitySchemes", {})["ApiKeyAuth"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authenticated access. Pass via X-API-Key header.",
+    }
+    schema["security"] = [{"ApiKeyAuth": []}]
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _custom_openapi
+
+
+# ---------- Health & Auth endpoints ----------
+
+@app.get("/api/health", tags=["Auth"], summary="Health check")
+async def api_health():
+    """Health check endpoint — no auth required."""
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/validate", tags=["Auth"], summary="Validate API key")
+async def api_auth_validate(api_key: str = Security(_api_key_header)):
+    """Check if the provided X-API-Key header is valid."""
+    if not api_key or api_key != KMD_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return {"status": "ok", "message": "API key is valid"}
+
 
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 RESULTS_DIR = Path(__file__).parent / "results"
