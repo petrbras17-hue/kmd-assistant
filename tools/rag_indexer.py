@@ -13,7 +13,11 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from pinecone import Pinecone
+try:
+    from pinecone import Pinecone
+    _PINECONE_AVAILABLE = True
+except ImportError:
+    _PINECONE_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
 # Config
@@ -25,9 +29,16 @@ PINECONE_API_KEY = os.getenv(
 PINECONE_INDEX = "kmd-knowledge"
 PINECONE_HOST = "kmd-knowledge-b0hkvr1.svc.aped-4627-b74a.pinecone.io"
 
-# Singleton client
-_pc = Pinecone(api_key=PINECONE_API_KEY)
-_index = _pc.Index(PINECONE_INDEX)
+# Singleton client — lazy init
+_pc = None
+_index = None
+
+def _get_index():
+    global _pc, _index
+    if _index is None and _PINECONE_AVAILABLE:
+        _pc = Pinecone(api_key=PINECONE_API_KEY)
+        _index = _pc.Index(PINECONE_INDEX)
+    return _index
 
 # Namespaces for logical separation
 NS_GOST = "gost-standards"
@@ -122,7 +133,7 @@ def upsert_records(
     for i in range(0, len(records), MAX_BATCH):
         batch = records[i : i + MAX_BATCH]
         try:
-            _index.upsert_records(namespace=namespace, records=batch)
+            _get_index().upsert_records(namespace=namespace, records=batch)
             results["upserted"] += len(batch)
         except Exception as e:
             results["errors"].append(f"Batch {i//MAX_BATCH}: {e}")
@@ -199,8 +210,11 @@ def index_article_catalog(
             f"Тип: {art_type}. {specs}"
         )
 
+        # Pinecone requires ASCII-only vector IDs
+        ascii_mfr = manufacturer.lower().encode("ascii", "ignore").decode()
+        ascii_code = hashlib.md5(code.encode("utf-8")).hexdigest()[:10]
         record = {
-            "_id": f"art_{manufacturer.lower()}_{code}",
+            "_id": f"art_{ascii_mfr or 'mfr'}_{ascii_code}",
             "content": content,
             "article_code": code,
             "manufacturer": manufacturer,
@@ -363,7 +377,7 @@ def index_from_json(filepath: str) -> dict:
 # ---------------------------------------------------------------------------
 def get_index_stats() -> dict:
     """Get Pinecone index statistics."""
-    return _index.describe_index_stats()
+    return _get_index().describe_index_stats()
 
 
 # ---------------------------------------------------------------------------

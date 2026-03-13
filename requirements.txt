@@ -30,5 +30,8 @@ python-dotenv>=1.0.0
 # === Archives ===
 py7zr>=0.22.0
 
+# === Vector DB / RAG ===
+pinecone>=5.0.0
+
 # === Utilities ===
 chardet>=5.2.0

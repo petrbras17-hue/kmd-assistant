@@ -19,12 +19,36 @@ PINECONE_API_KEY = os.getenv(
 )
 PINECONE_HOST = "kmd-knowledge-b0hkvr1.svc.aped-4627-b74a.pinecone.io"
 
-# Import namespace constants
-from tools.rag_indexer import (
-    NS_GOST, NS_ARTICLES_REYNAERS, NS_ARTICLES_SCHUCO, NS_ARTICLES_ALUTECH,
-    NS_ARTICLES_TATPROF, NS_ARTICLES_OTHER, NS_HARDWARE, NS_THERMAL,
-    NS_WIND, NS_KMD_RULES, NS_SCIENTIFIC, NS_REAL_KMD, NS_GLASS, NS_SEALS,
-)
+# Import namespace constants — try both import paths (tools.X and direct X)
+try:
+    from tools.rag_indexer import (
+        NS_GOST, NS_ARTICLES_REYNAERS, NS_ARTICLES_SCHUCO, NS_ARTICLES_ALUTECH,
+        NS_ARTICLES_TATPROF, NS_ARTICLES_OTHER, NS_HARDWARE, NS_THERMAL,
+        NS_WIND, NS_KMD_RULES, NS_SCIENTIFIC, NS_REAL_KMD, NS_GLASS, NS_SEALS,
+    )
+except ImportError:
+    try:
+        from rag_indexer import (
+            NS_GOST, NS_ARTICLES_REYNAERS, NS_ARTICLES_SCHUCO, NS_ARTICLES_ALUTECH,
+            NS_ARTICLES_TATPROF, NS_ARTICLES_OTHER, NS_HARDWARE, NS_THERMAL,
+            NS_WIND, NS_KMD_RULES, NS_SCIENTIFIC, NS_REAL_KMD, NS_GLASS, NS_SEALS,
+        )
+    except ImportError:
+        # Fallback constants if rag_indexer unavailable
+        NS_GOST = "gost-standards"
+        NS_ARTICLES_REYNAERS = "articles-reynaers"
+        NS_ARTICLES_SCHUCO = "articles-schuco"
+        NS_ARTICLES_ALUTECH = "articles-alutech"
+        NS_ARTICLES_TATPROF = "articles-tatprof"
+        NS_ARTICLES_OTHER = "articles-other"
+        NS_HARDWARE = "hardware-fittings"
+        NS_THERMAL = "thermal-calculations"
+        NS_WIND = "wind-calculations"
+        NS_KMD_RULES = "kmd-formatting-rules"
+        NS_SCIENTIFIC = "scientific-articles"
+        NS_REAL_KMD = "real-kmd-documents"
+        NS_GLASS = "glass-specifications"
+        NS_SEALS = "seals-gaskets"
 
 
 # ---------------------------------------------------------------------------
