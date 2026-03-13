@@ -1,7 +1,9 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export function usePagination(items, perPage = 20) {
   const currentPage = ref(1)
+
+  watch(items, () => { currentPage.value = 1 })
 
   const totalPages = computed(() => Math.ceil(items.value.length / perPage))
   const paginatedItems = computed(() => {

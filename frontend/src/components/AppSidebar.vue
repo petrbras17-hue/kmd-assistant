@@ -136,7 +136,7 @@ function closeSidebar() {
                   ? 'text-sage-light bg-sage/10 border-r-2 border-sage'
                   : 'text-carbon-300 hover:text-white hover:bg-white/[0.03]'
               ]"
-              @click.prevent="navigateTo(item.id)"
+              @click="window.innerWidth < 1024 && (store.sidebarOpen = false)"
             >
               <span class="truncate">{{ item.label }}</span>
               <span

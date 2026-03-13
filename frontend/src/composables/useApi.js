@@ -21,7 +21,7 @@ export function useApi() {
   const error = ref(null)
   const data = ref(null)
 
-  async function post(endpoint, body, { files, onProgress } = {}) {
+  async function post(endpoint, body, { files } = {}) {
     loading.value = true
     error.value = null
     data.value = null
@@ -56,6 +56,7 @@ export function useApi() {
       })
 
       if (!res.ok) {
+        if (res.status === 403) csrfToken.value = null
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.detail || `Ошибка ${res.status}`)
       }
