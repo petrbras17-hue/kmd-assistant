@@ -1,5 +1,7 @@
 # KMD Assistant -- ALDMEGA LAB
 
+[![CI](https://github.com/petrbras17-hue/kmd-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/petrbras17-hue/kmd-assistant/actions/workflows/ci.yml)
+
 Полная AI-платформа для инженеров-конструкторов алюминиевых светопрозрачных конструкций.
 32 модуля, 40+ API эндпоинтов, AI на базе OpenRouter (Gemini), инженерные калькуляторы по ГОСТ/СП.
 Автоматизирует весь цикл: от технического задания до ЧПУ-программы и акта выполненных работ.
