@@ -13,3 +13,5 @@ webapp/versions.json
 *.log
 *.db
 .claude/
+node_modules/
+dist/
