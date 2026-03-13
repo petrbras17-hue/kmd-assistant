@@ -783,6 +783,8 @@
             border-radius: 50%;
             pointer-events: none;
             filter: blur(60px);
+            will-change: transform;
+            backface-visibility: hidden;
         }
         .hero-orb-1 {
             width: 400px; height: 400px;
@@ -1301,10 +1303,33 @@
             .product-cards { grid-template-columns: 1fr; }
             .landing-scroll-hint { display: none; }
             .hero-deco-line, .hero-deco-cross, .hero-deco-cross-2, .hero-corner { display: none; }
-            .hero-orb-1 { width: 200px; height: 200px; }
-            .hero-orb-2 { width: 150px; height: 150px; }
-            .hero-orb-3 { display: none; }
+            .hero-orb { display: none; }
             .hero-marquee { margin-top: 2rem; }
+        }
+
+        /* Accessibility: reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Extracted inline styles */
+        .hero-badge-dot {
+            display: inline-block;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #4A7C59;
+            box-shadow: 0 0 8px rgba(74,124,89,0.5);
+        }
+        .scroll-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.5rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #C4C4B8;
         }
     </style>
 </head>
@@ -1473,7 +1498,7 @@
             <div class="hero-corner hero-corner-br"></div>
 
             <div class="hero-badge">
-                <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#4A7C59;box-shadow:0 0 8px rgba(74,124,89,0.5)"></span>
+                <span class="hero-badge-dot"></span>
                 ALDMEGA LAB / ENGINEERING PLATFORM
             </div>
             <h1 class="hero-main-title">
@@ -1539,7 +1564,7 @@
             </div>
 
             <div class="landing-scroll-hint">
-                <span style="font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:#C4C4B8">Каталог</span>
+                <span class="scroll-label">Каталог</span>
                 <div class="scroll-line"></div>
             </div>
         </div>
