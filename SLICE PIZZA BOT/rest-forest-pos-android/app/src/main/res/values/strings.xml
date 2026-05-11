@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">REST FOREST POS</string>
+
+    <!-- Backend (Sprint 3.2). Overridden by BuildConfig.BACKEND_BASE_URL; this
+         exists only for log/UI surfacing — never read by the network layer. -->
+    <string name="backend_base_url_label">https://slicepizza.ru/api/admin</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="back">Back</string>
+    <string name="loading">Loading…</string>
+    <string name="confirm">Confirm</string>
+    <string name="close">Close</string>
+    <string name="retry">Retry</string>
+
+    <!-- Auth -->
+    <string name="auth_title">Enter PIN</string>
+    <string name="auth_subtitle">Sign in to start a shift</string>
+    <string name="auth_wrong_pin">Unknown PIN</string>
+    <string name="auth_delete">Delete</string>
+
+    <!-- POS -->
+    <string name="pos_search_hint">Search dishes…</string>
+    <string name="pos_kpi_revenue">Revenue today</string>
+    <string name="pos_kpi_checks">Receipts</string>
+    <string name="pos_kpi_avg">Avg check</string>
+    <string name="pos_menu_history">Order history</string>
+    <string name="pos_menu_close_shift">Close shift</string>
+    <string name="pos_menu_stoplist">Stop-list</string>
+    <string name="pos_menu_settings">Settings</string>
+    <string name="pos_menu_logout">Log out</string>
+    <string name="pos_cart_empty">Cart is empty</string>
+    <string name="pos_cart_total">Total</string>
+    <string name="pos_discount">Discount</string>
+    <string name="pos_promo">Promo code</string>
+
+    <!-- Payments -->
+    <string name="pay_cash">Cash</string>
+    <string name="pay_card">Card</string>
+    <string name="pay_sbp">SBP</string>
+    <string name="pay_received">Amount received</string>
+    <string name="pay_change">Change</string>
+    <string name="pay_card_wait">Waiting for pinpad…</string>
+    <string name="pay_sbp_qr">Scan QR to pay</string>
+    <string name="pay_success">Payment accepted, receipt #%1$s</string>
+    <string name="pay_done">Done</string>
+
+    <!-- Shift -->
+    <string name="shift_open_title">Open shift</string>
+    <string name="shift_opening_amount">Opening cash float</string>
+    <string name="shift_open_button">Open shift</string>
+    <string name="shift_close_title">Close shift — Z-report</string>
+    <string name="shift_z_revenue">Revenue</string>
+    <string name="shift_z_checks">Receipts</string>
+    <string name="shift_z_cash">Cash</string>
+    <string name="shift_z_card">Card</string>
+    <string name="shift_z_sbp">SBP</string>
+    <string name="shift_z_avg">Avg check</string>
+    <string name="shift_z_top">Top 5 dishes</string>
+    <string name="shift_z_confirm">Confirm and print</string>
+
+    <!-- History -->
+    <string name="history_title">Orders</string>
+    <string name="history_empty">No orders for the shift yet</string>
+    <string name="history_filter_today">Today</string>
+    <string name="history_filter_shift">Current shift</string>
+    <string name="history_action_refund">Refund</string>
+    <string name="history_action_reprint">Reprint receipt</string>
+
+    <!-- Stop-list -->
+    <string name="stoplist_title">Stop-list</string>
+    <string name="stoplist_available">Available</string>
+    <string name="stoplist_stopped">Stopped</string>
+
+    <!-- KDS -->
+    <string name="kds_title">Kitchen</string>
+    <string name="kds_action_in_progress">Cooking</string>
+    <string name="kds_action_ready">Ready</string>
+    <string name="kds_empty">No active orders</string>
+
+    <!-- Quick actions -->
+    <string name="qa_takeaway">Takeaway +200₽</string>
+    <string name="qa_delivery">Delivery +300₽</string>
+    <string name="qa_double_portion">×2 last item</string>
+    <string name="qa_no_box">No box -30₽</string>
+    <string name="qa_extra_cheese">Extra cheese +120g</string>
+</resources>

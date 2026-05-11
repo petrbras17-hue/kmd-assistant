@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand palette mirrors core/design/Color.kt -->
+    <color name="brand_char">#1F1A18</color>
+    <color name="brand_dough">#FAF1E0</color>
+    <color name="brand_ember">#E03B14</color>
+    <color name="brand_mozzarella">#FFF7E6</color>
+    <color name="brand_saffron">#F5B033</color>
+    <color name="brand_basil">#3A7D44</color>
+    <color name="brand_pepperoncino">#B22222</color>
+    <color name="brand_fuchsia_physical">#C72C8E</color>
+    <color name="splash_background">#FAF1E0</color>
+</resources>

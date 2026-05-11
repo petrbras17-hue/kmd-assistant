@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Compose handles dark scheme — this is the bootstrap fallback only. -->
+    <style name="Theme.RestForestPos" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor" tools:targetApi="l">@color/brand_char</item>
+    </style>
+    <style name="Theme.RestForestPos.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_char</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.RestForestPos</item>
+    </style>
+</resources>

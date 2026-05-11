@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">REST FOREST POS</string>
+
+    <string name="backend_base_url_label">https://slicepizza.ru/api/admin</string>
+
+    <string name="ok">ОК</string>
+    <string name="cancel">Отмена</string>
+    <string name="back">Назад</string>
+    <string name="loading">Загрузка…</string>
+    <string name="confirm">Подтвердить</string>
+    <string name="close">Закрыть</string>
+    <string name="retry">Повторить</string>
+
+    <string name="auth_title">Введите PIN</string>
+    <string name="auth_subtitle">Войдите, чтобы начать смену</string>
+    <string name="auth_wrong_pin">Неизвестный PIN</string>
+    <string name="auth_delete">Удалить</string>
+
+    <string name="pos_search_hint">Поиск блюда…</string>
+    <string name="pos_kpi_revenue">Выручка сегодня</string>
+    <string name="pos_kpi_checks">Чеков</string>
+    <string name="pos_kpi_avg">Средний чек</string>
+    <string name="pos_menu_history">История заказов</string>
+    <string name="pos_menu_close_shift">Закрыть смену</string>
+    <string name="pos_menu_stoplist">Стоп-лист</string>
+    <string name="pos_menu_settings">Настройки</string>
+    <string name="pos_menu_logout">Выход</string>
+    <string name="pos_cart_empty">Корзина пустая</string>
+    <string name="pos_cart_total">Итого</string>
+    <string name="pos_discount">Скидка</string>
+    <string name="pos_promo">Промокод</string>
+
+    <string name="pay_cash">Наличные</string>
+    <string name="pay_card">Карта</string>
+    <string name="pay_sbp">СБП</string>
+    <string name="pay_received">Сумма получено</string>
+    <string name="pay_change">Сдача</string>
+    <string name="pay_card_wait">Ожидание подтверждения pinpad…</string>
+    <string name="pay_sbp_qr">Отсканируйте QR-код</string>
+    <string name="pay_success">Оплата прошла, чек #%1$s пробит</string>
+    <string name="pay_done">Готово</string>
+
+    <string name="shift_open_title">Открыть смену</string>
+    <string name="shift_opening_amount">Стартовая сумма наличными</string>
+    <string name="shift_open_button">Открыть смену</string>
+    <string name="shift_close_title">Закрытие смены — Z-отчёт</string>
+    <string name="shift_z_revenue">Выручка</string>
+    <string name="shift_z_checks">Чеков</string>
+    <string name="shift_z_cash">Наличные</string>
+    <string name="shift_z_card">Карта</string>
+    <string name="shift_z_sbp">СБП</string>
+    <string name="shift_z_avg">Средний чек</string>
+    <string name="shift_z_top">Топ-5 позиций</string>
+    <string name="shift_z_confirm">Подтвердить и распечатать</string>
+
+    <string name="history_title">Заказы</string>
+    <string name="history_empty">Заказов в смене пока нет</string>
+    <string name="history_filter_today">Сегодня</string>
+    <string name="history_filter_shift">Текущая смена</string>
+    <string name="history_action_refund">Возврат</string>
+    <string name="history_action_reprint">Перепечать чека</string>
+
+    <string name="stoplist_title">Стоп-лист</string>
+    <string name="stoplist_available">Доступно</string>
+    <string name="stoplist_stopped">Стоп</string>
+
+    <string name="kds_title">Кухня</string>
+    <string name="kds_action_in_progress">В работе</string>
+    <string name="kds_action_ready">Готов</string>
+    <string name="kds_empty">Активных заказов нет</string>
+
+    <string name="qa_takeaway">На вынос +200₽</string>
+    <string name="qa_delivery">Доставка +300₽</string>
+    <string name="qa_double_portion">×2 последняя</string>
+    <string name="qa_no_box">Без коробки -30₽</string>
+    <string name="qa_extra_cheese">Доп. сыр +120г</string>
+</resources>

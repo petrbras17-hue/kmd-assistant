@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base app theme — full Compose handles real styling at runtime. -->
+    <style name="Theme.RestForestPos" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor" tools:targetApi="l">@color/brand_char</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <!-- Splash (Android 12+ compat). Brand mark visible while Hilt warms. -->
+    <style name="Theme.RestForestPos.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.RestForestPos</item>
+    </style>
+</resources>

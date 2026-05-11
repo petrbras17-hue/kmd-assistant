@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- pizza-slice brand mark -->
+    <path
+        android:fillColor="#E03B14"
+        android:pathData="M60,10 L110,100 L10,100 Z" />
+    <path
+        android:fillColor="#FAF1E0"
+        android:pathData="M60,18 L100,94 L20,94 Z" />
+    <path
+        android:fillColor="#B22222"
+        android:pathData="M60,42 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    <path
+        android:fillColor="#3A7D44"
+        android:pathData="M45,72 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path
+        android:fillColor="#F5B033"
+        android:pathData="M76,70 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>
