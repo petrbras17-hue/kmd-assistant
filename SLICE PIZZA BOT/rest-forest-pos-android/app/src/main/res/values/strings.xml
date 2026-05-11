@@ -86,4 +86,37 @@
     <string name="qa_double_portion">×2 last item</string>
     <string name="qa_no_box">No box -30₽</string>
     <string name="qa_extra_cheese">Extra cheese +120g</string>
+
+    <!-- Sprint 14: notifications + settings -->
+    <string name="notif_channel_new_orders_name">New orders</string>
+    <string name="notif_channel_new_orders_description">Heads-up alerts about new paid orders from slicepizza.ru and aggregators.</string>
+    <string name="notif_channel_foreground_name">Order polling</string>
+    <string name="notif_channel_foreground_description">Persistent background polling for new orders.</string>
+    <string name="notif_foreground_title">Slice POS — order polling</string>
+    <string name="notif_foreground_text">Listening for new orders…</string>
+    <string name="notif_new_order_title">🔥 New order #%1$s · %2$d₽</string>
+
+    <string name="new_order_dialog_title">🔥 New order #%1$s</string>
+    <string name="new_order_dialog_total">Total: %1$d₽</string>
+    <string name="new_order_dialog_accept">Accept</string>
+    <string name="new_order_dialog_details">Open details</string>
+    <string name="new_order_dialog_dismiss">Later</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_printer">Printer</string>
+    <string name="settings_printer_interface">Connection</string>
+    <string name="settings_printer_iface_wifi">Wi-Fi (TCP)</string>
+    <string name="settings_printer_iface_bluetooth">Bluetooth</string>
+    <string name="settings_printer_iface_usb">USB</string>
+    <string name="settings_printer_ip">IP address</string>
+    <string name="settings_printer_port">Port</string>
+    <string name="settings_printer_bt_devices">Paired devices</string>
+    <string name="settings_printer_bt_scan">Refresh</string>
+    <string name="settings_printer_bt_empty">No paired Bluetooth printers</string>
+    <string name="settings_printer_usb_hint">USB printer is auto-detected when the cable is plugged in.</string>
+    <string name="settings_printer_test">Test print</string>
+    <string name="settings_printer_save">Save</string>
+    <string name="settings_printer_save_done">Saved.</string>
+    <string name="settings_printer_test_ok">Sent test ticket to printer.</string>
+    <string name="settings_printer_test_fail">Test print failed: %1$s</string>
 </resources>

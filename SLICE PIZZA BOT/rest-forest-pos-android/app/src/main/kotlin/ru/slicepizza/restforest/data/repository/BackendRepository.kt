@@ -5,6 +5,7 @@ import javax.inject.Singleton
 import ru.slicepizza.restforest.core.network.BackendApi
 import ru.slicepizza.restforest.core.network.dto.AvailabilityRequest
 import ru.slicepizza.restforest.core.network.dto.DashboardResponse
+import ru.slicepizza.restforest.core.network.dto.NewOrdersResponse
 import ru.slicepizza.restforest.core.network.dto.PrintReceiptItem
 import ru.slicepizza.restforest.core.network.dto.PrintReceiptRequest
 import ru.slicepizza.restforest.core.network.dto.PrintReceiptResponse
@@ -45,4 +46,8 @@ class BackendRepository @Inject constructor(
 
     suspend fun setAvailability(dishId: String, available: Boolean): Result<Unit> =
         runCatching { api.setAvailability(dishId, AvailabilityRequest(available)) }
+
+    /** Sprint 14 — fetch new paid orders since the given ISO-8601 timestamp. */
+    suspend fun newOrders(since: String?): Result<NewOrdersResponse> =
+        runCatching { api.getNewOrders(since) }
 }

@@ -55,3 +55,35 @@ data class ZReportResponse(
 data class AvailabilityRequest(
     @SerialName("is_available") val isAvailable: Boolean
 )
+
+// ---------------------------------------------------------------------------
+// Sprint 14 — realtime polling of new orders from slicepizza.ru site /
+// aggregators. Backend agent will expose GET /api/admin/orders/new?since=ISO8601.
+// ---------------------------------------------------------------------------
+
+@Serializable
+data class NewOrdersResponse(
+    val orders: List<NewOrderDto> = emptyList(),
+    @SerialName("server_time") val serverTime: String? = null
+)
+
+@Serializable
+data class NewOrderDto(
+    val id: String,
+    @SerialName("total_kopecks") val totalKopecks: Long,
+    val items: List<NewOrderItemDto> = emptyList(),
+    val address: String? = null,
+    val phone: String? = null,
+    /** "site" | "yandex" | "delivery_club" | "phone" | "walk_in" */
+    val channel: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    /** "paid" | "pending" | "preparing" */
+    val status: String? = null
+)
+
+@Serializable
+data class NewOrderItemDto(
+    val name: String,
+    val qty: Int = 1,
+    @SerialName("price_kopecks") val priceKopecks: Long = 0L
+)

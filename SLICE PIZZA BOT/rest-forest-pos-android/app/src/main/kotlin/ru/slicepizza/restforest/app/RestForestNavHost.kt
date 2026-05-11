@@ -10,6 +10,7 @@ import ru.slicepizza.restforest.feature.auth.AuthScreen
 import ru.slicepizza.restforest.feature.history.OrdersHistoryScreen
 import ru.slicepizza.restforest.feature.kitchen.KitchenScreen
 import ru.slicepizza.restforest.feature.pos.PosScreen
+import ru.slicepizza.restforest.feature.settings.SettingsScreen
 import ru.slicepizza.restforest.feature.shift.ShiftCloseScreen
 import ru.slicepizza.restforest.feature.shift.ShiftOpenScreen
 import ru.slicepizza.restforest.feature.stoplist.StopListScreen
@@ -22,6 +23,7 @@ object Routes {
     const val ShiftClose = "shift-close/{cashierId}"
     const val History = "history?shiftId={shiftId}"
     const val StopList = "stoplist"
+    const val Settings = "settings"
 
     fun pos(cashierId: String) = "pos/$cashierId"
     fun kitchen(cashierId: String) = "kitchen/$cashierId"
@@ -59,6 +61,7 @@ fun RestForestNavHost() {
                 onOpenHistory = { shiftId -> nav.navigate(Routes.history(shiftId)) },
                 onOpenStopList = { nav.navigate(Routes.StopList) },
                 onOpenCloseShift = { nav.navigate(Routes.shiftClose(cashierId)) },
+                onOpenSettings = { nav.navigate(Routes.Settings) },
                 onShiftClosed = { /* unused — handled inside ShiftClose */ }
             )
         }
@@ -101,6 +104,9 @@ fun RestForestNavHost() {
         }
         composable(Routes.StopList) {
             StopListScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Routes.Settings) {
+            SettingsScreen(onBack = { nav.popBackStack() })
         }
     }
 }

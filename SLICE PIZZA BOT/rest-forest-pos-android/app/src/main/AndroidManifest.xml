@@ -6,12 +6,32 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Sprint 14: realtime polling needs Foreground Service so polling
+         survives screen-off / app backgrounding. dataSync foreground type
+         is the correct bucket for sync-style work (Android 14+ requires
+         a foregroundServiceType on every <service>). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Notifications (heads-up + sound) for new orders from slicepizza.ru. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Sprint 5: ESC/POS via USB / Bluetooth -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Sprint 5 / Sprint 14: ESC/POS via USB / WiFi / Bluetooth printer. -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- Pre-Android-12 BT scan needs location; we never ship location data. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <application
         android:name=".RestForestApp"
@@ -38,6 +58,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Sprint 14: realtime polling foreground service. -->
+        <service
+            android:name=".feature.orders.NewOrdersForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- WorkManager initialized by Hilt — disable default initializer. -->
         <provider

@@ -75,4 +75,37 @@
     <string name="qa_double_portion">×2 последняя</string>
     <string name="qa_no_box">Без коробки -30₽</string>
     <string name="qa_extra_cheese">Доп. сыр +120г</string>
+
+    <!-- Sprint 14: уведомления и настройки -->
+    <string name="notif_channel_new_orders_name">Новые заказы</string>
+    <string name="notif_channel_new_orders_description">Уведомления о поступающих заказах с сайта и агрегаторов.</string>
+    <string name="notif_channel_foreground_name">Опрос заказов</string>
+    <string name="notif_channel_foreground_description">Фоновый опрос новых заказов.</string>
+    <string name="notif_foreground_title">Slice POS — приём заказов</string>
+    <string name="notif_foreground_text">Слежу за новыми заказами…</string>
+    <string name="notif_new_order_title">🔥 Новый заказ #%1$s · %2$d₽</string>
+
+    <string name="new_order_dialog_title">🔥 Новый заказ #%1$s</string>
+    <string name="new_order_dialog_total">Сумма: %1$d₽</string>
+    <string name="new_order_dialog_accept">Принять</string>
+    <string name="new_order_dialog_details">Открыть детали</string>
+    <string name="new_order_dialog_dismiss">Позже</string>
+
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_printer">Принтер</string>
+    <string name="settings_printer_interface">Подключение</string>
+    <string name="settings_printer_iface_wifi">Wi-Fi (TCP)</string>
+    <string name="settings_printer_iface_bluetooth">Bluetooth</string>
+    <string name="settings_printer_iface_usb">USB</string>
+    <string name="settings_printer_ip">IP-адрес</string>
+    <string name="settings_printer_port">Порт</string>
+    <string name="settings_printer_bt_devices">Сопряжённые устройства</string>
+    <string name="settings_printer_bt_scan">Обновить</string>
+    <string name="settings_printer_bt_empty">Сопряжённых Bluetooth-принтеров не найдено</string>
+    <string name="settings_printer_usb_hint">USB-принтер определяется автоматически при подключении кабеля.</string>
+    <string name="settings_printer_test">Тестовая печать</string>
+    <string name="settings_printer_save">Сохранить</string>
+    <string name="settings_printer_save_done">Сохранено.</string>
+    <string name="settings_printer_test_ok">Тестовый чек отправлен на принтер.</string>
+    <string name="settings_printer_test_fail">Ошибка печати: %1$s</string>
 </resources>

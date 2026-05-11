@@ -77,6 +77,7 @@ import ru.slicepizza.restforest.core.database.entity.DishModifierEntity
 import ru.slicepizza.restforest.core.design.RestForestTheme
 import ru.slicepizza.restforest.core.design.SliceColors
 import ru.slicepizza.restforest.core.domain.Money
+import ru.slicepizza.restforest.feature.orders.NewOrderOverlay
 
 @Composable
 fun PosScreen(
@@ -84,6 +85,7 @@ fun PosScreen(
     onOpenHistory: (String?) -> Unit,
     onOpenStopList: () -> Unit,
     onOpenCloseShift: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onShiftClosed: () -> Unit,
     viewModel: PosViewModel = hiltViewModel()
 ) {
@@ -99,6 +101,7 @@ fun PosScreen(
                     onOpenHistory = { onOpenHistory(state.shiftId) },
                     onOpenStopList = onOpenStopList,
                     onOpenCloseShift = onOpenCloseShift,
+                    onOpenSettings = onOpenSettings,
                     shiftOpen = state.shiftOpen
                 )
                 Spacer(Modifier.height(12.dp))
@@ -160,6 +163,11 @@ fun PosScreen(
     state.lastReceiptId?.let { id ->
         ReceiptSuccessDialog(receiptId = id, onDismiss = viewModel::acknowledgeReceipt)
     }
+
+    // Sprint 14 — heads-up pop-up for new orders from slicepizza.ru.
+    // Sits at the bottom of the Composable tree so it overlays everything
+    // else (modifier sheet, payment dialog, success dialog).
+    NewOrderOverlay()
 }
 
 @Composable
@@ -170,6 +178,7 @@ private fun TopBar(
     onOpenHistory: () -> Unit,
     onOpenStopList: () -> Unit,
     onOpenCloseShift: () -> Unit,
+    onOpenSettings: () -> Unit,
     shiftOpen: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -205,6 +214,10 @@ private fun TopBar(
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pos_menu_stoplist)) },
                     onClick = { expanded = false; onOpenStopList() }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pos_menu_settings)) },
+                    onClick = { expanded = false; onOpenSettings() }
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pos_menu_logout)) },
