@@ -1,0 +1,22 @@
+# Built outputs
+**/build/
+**/.gradle/
+**/captures/
+**/.idea/
+*.iml
+
+# Local config
+local.properties
+.gradle
+.cxx/
+
+# Generated
+.DS_Store
+schemas/
+
+# Keystores — never commit signing material
+*.jks
+*.keystore
+
+# Logs
+*.log

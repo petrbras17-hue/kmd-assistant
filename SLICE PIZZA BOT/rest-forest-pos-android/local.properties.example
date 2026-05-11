@@ -1,0 +1,5 @@
+## Copy this file to `local.properties` and adjust paths for your machine.
+## It must NOT be committed (it is in .gitignore) — it points at your local
+## Android SDK and (later) signing keystore.
+
+sdk.dir=/Users/YOU/Library/Android/sdk
