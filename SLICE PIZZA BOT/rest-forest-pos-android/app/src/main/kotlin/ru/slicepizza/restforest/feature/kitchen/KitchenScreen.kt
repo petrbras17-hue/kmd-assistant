@@ -59,6 +59,7 @@ fun KitchenScreen(
 ) {
     val cards by viewModel.cards.collectAsState()
     val beep by viewModel.newOrderBeep.collectAsState()
+    val pendingPrints by viewModel.pendingPrintCount.collectAsState()
 
     val tone = remember {
         ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
@@ -77,6 +78,14 @@ fun KitchenScreen(
                     fontWeight = FontWeight.W700
                 )
                 Spacer(Modifier.weight(1f))
+                if (pendingPrints > 0) {
+                    Text(
+                        text = stringResource(R.string.kds_pending_prints, pendingPrints),
+                        color = SliceColors.Warning,
+                        fontWeight = FontWeight.W600,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
                 IconButton(onClick = onLogout) { Icon(Icons.Filled.Logout, null) }
             }
             Spacer(Modifier.height(8.dp))
@@ -137,8 +146,10 @@ private fun KitchenCardView(card: KitchenCard, onSetStatus: (String, KitchenStat
                 fontWeight = FontWeight.W600
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-            card.items.forEach { it ->
-                Text(text = "${it.qty}× ${it.dishId}")
+            // Bug #1 fix — render resolved `dishName` (Маргарита неаполитанская)
+            // instead of opaque dishId (dish-pizza-margherita).
+            card.lines.forEach { line ->
+                Text(text = "${line.qty}× ${line.dishName}")
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
