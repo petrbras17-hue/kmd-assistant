@@ -29,6 +29,34 @@ android {
             ?: System.getenv("FISCAL_RECEIPT_BASE_URL")
             ?: "https://slicepizza.ru"
         buildConfigField("String", "FISCAL_RECEIPT_BASE_URL", "\"$fiscalReceiptBaseUrl\"")
+
+        // Sentry DSN — Sprint 38: hardcoded production DSN for slice-pizza-android.
+        // Можно override через -PsentryDsn=... или env SENTRY_DSN_ANDROID для CI.
+        val sentryDsnDefault =
+            "https://8ae8a772026474e1090f2e5b56e386ba@o4511379500433408.ingest.de.sentry.io/4511379556270160"
+        val sentryDsn: String = (project.findProperty("sentryDsn") as String?)
+            ?: System.getenv("SENTRY_DSN_ANDROID")
+            ?: sentryDsnDefault
+        buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
+    }
+
+    // Production-Hardening — release signing.
+    // Keystore + пароли НЕ коммитятся (см. keystore/.gitignore).
+    // Build падает с ясной ошибкой если keystore отсутствует, вместо silent fallback на debug.
+    signingConfigs {
+        create("release") {
+            val keystoreFile = rootProject.file("keystore/slice-pizza-release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias = "slice-pizza"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -39,20 +67,34 @@ android {
             // Sprint 3.2 — production backend over HTTPS, local dev can swap
             // to http://10.0.2.2:8000 via overriding strings.xml.
             buildConfigField("String", "BACKEND_BASE_URL", "\"https://slicepizza.ru/api/admin/\"")
-            buildConfigField("String", "BACKEND_ADMIN_TOKEN", "\"9a143e16d5b324923192843b0c741c410523ff650322b4428709a08fe428df54\"")
+            buildConfigField("String", "BACKEND_ADMIN_TOKEN", "\"f4jXd968ohSVSZpUtOq4WA0ZisDVHLD024jTPFExOjg\"")
             // ВТБ acquiring — реальный pinpad (INPAS) appears in Sprint 7 after NDA.
             buildConfigField("boolean", "CARD_PINPAD_ENABLED", "false")
+            // Sprint 7: pinpad adapter mode. "mock" → MockPinpadAdapter (DEV/tests);
+            // "real" → InpasPinpadAdapter (after INPAS NDA + SDK is dropped in).
+            buildConfigField("String", "PINPAD_MODE", "\"mock\"")
+            buildConfigField("boolean", "DEBUG_MODE", "true")
+            buildConfigField("String", "SENTRY_ENVIRONMENT", "\"debug\"")
         }
         release {
-            isMinifyEnabled = false
-            // Release signing intentionally deferred to Sprint 10 (beta release).
+            // Production-Hardening — R8 minify + resource shrinking
+            isMinifyEnabled = true
+            isShrinkResources = true
             buildConfigField("String", "BACKEND_BASE_URL", "\"https://slicepizza.ru/api/admin/\"")
             buildConfigField("String", "BACKEND_ADMIN_TOKEN", "\"\"")
             buildConfigField("boolean", "CARD_PINPAD_ENABLED", "false")
+            buildConfigField("String", "PINPAD_MODE", "\"mock\"")
+            buildConfigField("boolean", "DEBUG_MODE", "false")
+            buildConfigField("String", "SENTRY_ENVIRONMENT", "\"production\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Apply release signing only when keystore present.
+            val keystoreFile = rootProject.file("keystore/slice-pizza-release.jks")
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -79,6 +121,11 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
     }
 
     ksp {
@@ -142,4 +189,24 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
     implementation(libs.escpos.thermal.printer.android)
+
+    // Production-Hardening — Sentry crash + ANR + native crash reporting.
+    // sentry-android-okhttp инструментирует Retrofit, добавляет breadcrumb
+    // на каждый HTTP request. Timber tree → logs as breadcrumbs.
+    implementation(libs.sentry.android)
+    implementation(libs.sentry.android.okhttp)
+    implementation(libs.sentry.android.timber)
+
+    // Timber for structured logging + file persistence (FileLoggingTree in prod).
+    implementation(libs.timber)
+
+    // Sprint 7: unit tests for pinpad adapter, cash drawer, print queue,
+    // receipt customization. Robolectric so Context-bound code (DataStore,
+    // CashDrawerService) can run on the JVM without an emulator.
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.androidx.room.testing)
 }
